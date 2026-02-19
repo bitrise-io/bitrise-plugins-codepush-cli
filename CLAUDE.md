@@ -29,7 +29,8 @@ bitrise-plugins-codepush-cli/
 ├── internal/
 │   ├── bitrise/             # Bitrise CI integration (env detection, deploy export)
 │   ├── bundler/             # JS bundle generation (detect, bundle, Hermes)
-│   └── codepush/            # Core CodePush logic
+│   ├── codepush/            # Core CodePush logic
+│   └── output/              # Styled terminal output (lipgloss, huh)
 ├── bitrise.yml              # CI pipeline (build, test, coverage, vet)
 ├── bitrise-plugin.yml       # Bitrise plugin manifest
 ├── .goreleaser.yml          # Release automation
@@ -39,6 +40,7 @@ bitrise-plugins-codepush-cli/
 ### Key Files
 
 - **cmd/codepush/main.go**: CLI entry point, Cobra commands, flag parsing
+- **internal/output/output.go**: Styled terminal output (Writer type, Step, Success, Error, etc.)
 - **internal/bitrise/env.go**: Bitrise environment detection, build metadata, deploy directory export
 - **internal/codepush/codepush.go**: Core CodePush business logic
 - **bitrise-plugin.yml**: Plugin manifest with binary download URLs
@@ -83,12 +85,13 @@ bitrise :codepush rollback
 ### Error Handling
 - Use `fmt.Errorf("message: %w", err)` for wrapping errors
 - Return errors, don't panic
-- Log warnings to stderr: `fmt.Fprintf(os.Stderr, ...)`
+- Use `out.Warning(...)` for non-fatal warnings, `out.Error(...)` for fatal errors
 
-### Logging
-- Info/Progress: Write to `os.Stderr` (doesn't pollute stdout)
-- Structured output: Write to `os.Stdout` or files
-- Format: `fmt.Fprintf(os.Stderr, "message: %s\n", result)`
+### CLI Output
+- All human-readable output goes to stderr via `output.Writer`
+- JSON output (`--json`) goes to stdout via `outputJSON()`
+- Never use `fmt.Fprintf(os.Stderr, ...)` directly; use the `output.Writer` methods
+- See "CLI Output Conventions" section below for full details
 
 ### File Paths
 - Always use absolute paths when possible
@@ -103,6 +106,76 @@ bitrise :codepush rollback
 
 ### Writing Style
 - **Never use em dashes** (`---` or `\u2014`) in any content: titles, descriptions, metadata, UI copy, or comments. Use commas, periods, colons, or rewrite the sentence.
+
+## CLI Output Conventions
+
+All human-readable CLI output uses `internal/output.Writer` (Charmbracelet lipgloss + huh stack). Never write directly to `os.Stderr` for user-facing messages.
+
+### Output Methods
+
+| Method | When to use | Color mode | Plain mode |
+|--------|-------------|-----------|------------|
+| `out.Step(fmt, args)` | Progress steps ("Packaging...", "Resolving...") | Cyan `->` prefix | `-> message` |
+| `out.Success(fmt, args)` | Command completion | Green bold `OK` | `OK message` |
+| `out.Error(fmt, args)` | Fatal errors | Red bold `ERROR` | `ERROR message` |
+| `out.Warning(fmt, args)` | Non-fatal warnings | Yellow bold `WARNING` | `WARNING message` |
+| `out.Info(fmt, args)` | Supplementary details (indented under steps) | Dim, indented | `   message` |
+| `out.Result([]KeyValue)` | Key-value results (push result, package info) | Bold keys, aligned | Aligned plain |
+| `out.Table(headers, rows)` | Lists and history tables | Styled headers | Plain aligned |
+| `out.Println(fmt, args)` | Plain text, titles | No styling | Plain |
+| `out.Spinner(title, fn)` | Long operations (>500ms): upload, processing | Animated spinner | `-> title...` |
+| `out.ConfirmDestructive(msg, yesFlag)` | Destructive operations (delete, clear) | Interactive y/N prompt | Error with `--yes` hint |
+
+### Patterns
+
+**Threading the Writer**: Pass `out *output.Writer` as a parameter to internal package functions. Do not use globals in `internal/` packages.
+
+```go
+func Push(client Client, opts *PushOptions, out *output.Writer) (*PushResult, error) {
+    out.Step("Packaging bundle: %s", opts.BundlePath)
+    // ...
+}
+```
+
+**Spinner for long operations**:
+```go
+err := out.Spinner("Uploading package", func() error {
+    return client.Upload(...)
+})
+```
+
+**Destructive confirmation**:
+```go
+if err := out.ConfirmDestructive(
+    fmt.Sprintf("This will permanently delete deployment %q", name),
+    yesFlag,
+); err != nil {
+    return err
+}
+```
+
+**Result display after success**:
+```go
+out.Success("Push successful")
+out.Result([]output.KeyValue{
+    {Key: "Package ID", Value: result.PackageID},
+    {Key: "App version", Value: result.AppVersion},
+})
+```
+
+### CI and Environment Detection
+
+- Terminal detection: auto-detects via `term.IsTerminal()`
+- CI detection: `CI` or `BITRISE_BUILD_NUMBER` env vars
+- `NO_COLOR` env var: disables color output
+- Non-interactive mode (CI or piped): no spinners, no prompts, plain text fallback
+
+### Testing
+
+- Use `output.NewTest(io.Discard)` for suppressed output in tests
+- Use `output.NewTest(&buf)` when asserting on output content
+- In `cmd/codepush/main_test.go`: `TestMain` sets `out = output.NewTest(io.Discard)`
+- In internal packages: pass `output.NewTest(io.Discard)` as the `out` parameter
 
 ## Bitrise Integration
 
@@ -180,7 +253,7 @@ go build -o codepush ./cmd/codepush
 1. **Version sync**: When releasing, update BOTH `cmd/codepush/main.go` version AND `bitrise-plugin.yml` URLs. Missing either causes failures.
 2. **Binary naming**: GoReleaser binary names must match `bitrise-plugin.yml` executable URLs exactly (`codepush-Darwin-arm64`, etc.).
 3. **CGO_ENABLED=0**: Required for cross-compilation. If you add C dependencies, the goreleaser config needs updating.
-4. **Stderr vs stdout**: Use stderr for progress/logs, stdout for structured output. Mixing them breaks piping.
+4. **Stderr vs stdout**: Use `output.Writer` for all human output (goes to stderr). JSON (`--json`) goes to stdout. Never mix them.
 5. **Error wrapping**: Always use `%w` verb for error wrapping to preserve error chains.
 
 ## Questions to Ask When Modifying

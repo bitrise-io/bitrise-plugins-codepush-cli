@@ -2,9 +2,12 @@ package bundler
 
 import (
 	"io"
+
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // mockExecutor records commands instead of executing them.
@@ -57,7 +60,7 @@ func TestNewBundler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			b, err := NewBundler(tt.projectType, executor)
+			b, err := NewBundler(tt.projectType, executor, output.NewTest(io.Discard))
 			if tt.wantErr {
 				if err == nil {
 					t.Fatal("expected error, got nil")
@@ -104,7 +107,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 			os.WriteFile(mapPath, []byte("sourcemap"), 0o644)
 		}
 
-		bundler := &ReactNativeBundler{executor: executor}
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir:  "/project",
 			ProjectType: ProjectTypeReactNative,
@@ -157,7 +160,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 			os.WriteFile(filepath.Join(outputDir, "custom.bundle"), []byte("bundle"), 0o644)
 		}
 
-		bundler := &ReactNativeBundler{executor: executor}
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir:  "/project",
 			ProjectType: ProjectTypeReactNative,
@@ -201,7 +204,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 			os.WriteFile(filepath.Join(outputDir, "main.jsbundle"), []byte("bundle"), 0o644)
 		}
 
-		bundler := &ReactNativeBundler{executor: executor}
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir: "/project",
 			Platform:   PlatformIOS,
@@ -231,7 +234,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 			os.WriteFile(filepath.Join(outputDir, "main.jsbundle"), []byte("bundle"), 0o644)
 		}
 
-		bundler := &ReactNativeBundler{executor: executor}
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir: "/project",
 			Platform:   PlatformIOS,
@@ -261,7 +264,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{err: &mockExitError{code: 1}}
 
-		bundler := &ReactNativeBundler{executor: executor}
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir: "/project",
 			Platform:   PlatformIOS,
@@ -292,7 +295,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 			os.WriteFile(filepath.Join(bundleDir, "ios-abc123.js"), []byte("bundle"), 0o644)
 		}
 
-		bundler := &ExpoBundler{executor: executor}
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir:  "/project",
 			ProjectType: ProjectTypeExpo,
@@ -332,7 +335,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 			os.WriteFile(filepath.Join(outputDir, "bundle.js"), []byte("bundle"), 0o644)
 		}
 
-		bundler := &ExpoBundler{executor: executor}
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
 		config := &ProjectConfig{
 			ProjectDir: "/project",
 			Platform:   PlatformAndroid,

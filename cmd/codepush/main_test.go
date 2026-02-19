@@ -1,11 +1,19 @@
 package main
 
 import (
+	"io"
+	"os"
 	"strings"
 	"testing"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
+
+func TestMain(m *testing.M) {
+	out = output.NewTest(io.Discard)
+	os.Exit(m.Run())
+}
 
 func TestResolveFlag(t *testing.T) {
 	tests := []struct {

@@ -3,19 +3,19 @@ package codepush
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // Rollback executes the rollback workflow: validate, resolve deployment,
 // optionally resolve target label to package ID, call API, export summary.
-func Rollback(client Client, opts *RollbackOptions) (*RollbackResult, error) {
+func Rollback(client Client, opts *RollbackOptions, out *output.Writer) (*RollbackResult, error) {
 	if err := validateRollbackOptions(opts); err != nil {
 		return nil, err
 	}
 
-	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID)
+	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID, out)
 	if err != nil {
 		return nil, err
 	}
@@ -23,14 +23,14 @@ func Rollback(client Client, opts *RollbackOptions) (*RollbackResult, error) {
 	req := RollbackRequest{}
 
 	if opts.TargetLabel != "" {
-		packageID, err := resolvePackageLabel(client, opts.AppID, deploymentID, opts.TargetLabel)
+		packageID, err := resolvePackageLabel(client, opts.AppID, deploymentID, opts.TargetLabel, out)
 		if err != nil {
 			return nil, err
 		}
 		req.PackageID = packageID
 	}
 
-	fmt.Fprintf(os.Stderr, "Rolling back deployment...\n")
+	out.Step("Rolling back deployment")
 	pkg, err := client.Rollback(opts.AppID, deploymentID, req)
 	if err != nil {
 		return nil, fmt.Errorf("rollback failed: %w", err)
@@ -45,7 +45,7 @@ func Rollback(client Client, opts *RollbackOptions) (*RollbackResult, error) {
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportRollbackSummary(result)
+		exportRollbackSummary(result, out)
 	}
 
 	return result, nil
@@ -65,8 +65,8 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 }
 
 // resolvePackageLabel finds a package by its label (e.g. "v3") within a deployment.
-func resolvePackageLabel(client Client, appID, deploymentID, label string) (string, error) {
-	fmt.Fprintf(os.Stderr, "Resolving release label %q...\n", label)
+func resolvePackageLabel(client Client, appID, deploymentID, label string, out *output.Writer) (string, error) {
+	out.Step("Resolving release label %q", label)
 	packages, err := client.ListPackages(appID, deploymentID)
 	if err != nil {
 		return "", fmt.Errorf("listing packages: %w", err)
@@ -74,7 +74,7 @@ func resolvePackageLabel(client Client, appID, deploymentID, label string) (stri
 
 	for _, p := range packages {
 		if p.Label == label {
-			fmt.Fprintf(os.Stderr, "Resolved label %q to package ID %s\n", label, p.ID)
+			out.Info("Resolved to %s", p.ID)
 			return p.ID, nil
 		}
 	}
@@ -90,7 +90,7 @@ type rollbackSummary struct {
 	AppVersion   string `json:"app_version"`
 }
 
-func exportRollbackSummary(result *RollbackResult) {
+func exportRollbackSummary(result *RollbackResult, out *output.Writer) {
 	summary := rollbackSummary{
 		PackageID:    result.PackageID,
 		AppID:        result.AppID,
@@ -101,15 +101,15 @@ func exportRollbackSummary(result *RollbackResult) {
 
 	data, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal rollback summary: %v\n", err)
+		out.Warning("failed to marshal rollback summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-rollback-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export rollback summary: %v\n", err)
+		out.Warning("failed to export rollback summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Rollback summary exported to: %s\n", path)
+	out.Info("Rollback summary exported to: %s", path)
 }

@@ -2,6 +2,7 @@ package bundler
 
 import (
 	"fmt"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 // ExpoBundler bundles using "npx expo export" for Expo-managed projects.
 type ExpoBundler struct {
 	executor CommandExecutor
+	out      *output.Writer
 }
 
 // Bundle implements Bundler for Expo projects.
@@ -25,7 +27,7 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 
 	args := b.buildArgs(opts, outputDir)
 
-	fmt.Fprintf(os.Stderr, "Running: npx %s\n", strings.Join(args, " "))
+	b.out.Info("Running: npx %s", strings.Join(args, " "))
 
 	if err := b.executor.Run(config.ProjectDir, os.Stderr, os.Stderr, "npx", args...); err != nil {
 		return nil, fmt.Errorf("expo export failed: %w", err)

@@ -1,9 +1,12 @@
 package bundler
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 func TestHermesCompilerCompile(t *testing.T) {
@@ -25,7 +28,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 			}
 		}
 
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -81,7 +84,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 			}
 		}
 
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -105,7 +108,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		writeFile(t, bundlePath, "console.log('hello')")
 
 		executor := &mockExecutor{}
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile("/nonexistent/hermesc", bundlePath, "")
 		if err == nil {
@@ -119,7 +122,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		writeFile(t, hermescPath, "")
 
 		executor := &mockExecutor{}
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile(hermescPath, "/nonexistent/bundle.js", "")
 		if err == nil {
@@ -136,7 +139,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		writeFile(t, hermescPath, "")
 
 		executor := &mockExecutor{err: &mockExitError{code: 1}}
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile(hermescPath, bundlePath, "")
 		if err == nil {
@@ -167,7 +170,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 			}
 		}
 
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -202,7 +205,7 @@ func TestComposeSourceMaps(t *testing.T) {
 		writeFile(t, hermesMapPath, `{"hermes":true}`)
 
 		executor := &mockExecutor{}
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
 
 		// Metro map should now contain hermes map content
@@ -231,7 +234,7 @@ func TestComposeSourceMaps(t *testing.T) {
 		writeFile(t, hermesMapPath, `{"hermes":true}`)
 
 		executor := &mockExecutor{err: &mockExitError{code: 1}}
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
 
 		// Should fall back to hermes map on failure
@@ -269,7 +272,7 @@ func TestComposeSourceMaps(t *testing.T) {
 			}
 		}
 
-		compiler := NewHermesCompiler(executor)
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
 
 		// Metro map should have composed content

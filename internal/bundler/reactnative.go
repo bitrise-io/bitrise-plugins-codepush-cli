@@ -2,6 +2,7 @@ package bundler
 
 import (
 	"fmt"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,7 @@ import (
 // ReactNativeBundler bundles using "npx react-native bundle" (Metro bundler).
 type ReactNativeBundler struct {
 	executor CommandExecutor
+	out      *output.Writer
 }
 
 // Bundle implements Bundler for React Native projects.
@@ -38,7 +40,7 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 
 	args := b.buildArgs(config, opts, outputDir, bundlePath, assetsDir, sourcemapPath)
 
-	fmt.Fprintf(os.Stderr, "Running: npx %s\n", strings.Join(args, " "))
+	b.out.Info("Running: npx %s", strings.Join(args, " "))
 
 	if err := b.executor.Run(config.ProjectDir, os.Stderr, os.Stderr, "npx", args...); err != nil {
 		return nil, fmt.Errorf("react-native bundle failed: %w", err)

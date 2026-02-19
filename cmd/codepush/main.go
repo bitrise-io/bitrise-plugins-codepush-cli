@@ -7,12 +7,12 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"text/tabwriter"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"github.com/spf13/cobra"
 )
 
@@ -21,6 +21,9 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+// out is the shared CLI output writer, initialized in main().
+var out *output.Writer
 
 // Bundle flags: shared between "bundle" and "push --bundle" commands.
 // Both commands bind to the same variables so that "push --bundle" reuses
@@ -48,13 +51,13 @@ const defaultAPIURL = "https://api.bitrise.io/release-management"
 
 // Push command flags
 var (
-	pushAutoBundle               bool
-	pushDeployment               string
-	pushAppVersion               string
-	pushDescription              string
-	pushMandatory                bool
-	pushRollout                  int
-	pushDisabled bool
+	pushAutoBundle  bool
+	pushDeployment  string
+	pushAppVersion  string
+	pushDescription string
+	pushMandatory   bool
+	pushRollout     int
+	pushDisabled    bool
 )
 
 // Rollback command flags
@@ -106,8 +109,10 @@ var deploymentClearYes bool
 var authLoginToken string
 
 func main() {
+	out = output.New()
+
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		out.Error("%v", err)
 		os.Exit(1)
 	}
 }
@@ -165,7 +170,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 				return fmt.Errorf("bundling failed: %w", err)
 			}
 
-			fmt.Fprintf(os.Stderr, "Bundle created at: %s\n\n", result.OutputDir)
+			out.Info("Bundle created at: %s", result.OutputDir)
 			args = []string{result.OutputDir}
 		}
 
@@ -195,7 +200,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Push(client, opts)
+		result, err := codepush.Push(client, opts, out)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
 		}
@@ -204,10 +209,12 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return outputJSON(result)
 		}
 
-		fmt.Fprintf(os.Stderr, "\nPush successful:\n")
-		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
-		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
-		fmt.Fprintf(os.Stderr, "  Status: %s\n", result.Status)
+		out.Success("Push successful")
+		out.Result([]output.KeyValue{
+			{Key: "Package ID", Value: result.PackageID},
+			{Key: "App version", Value: result.AppVersion},
+			{Key: "Status", Value: result.Status},
+		})
 
 		if bitrise.IsBitriseEnvironment() {
 			exportPushSummary(result)
@@ -242,7 +249,7 @@ to specify a specific version label (e.g. v3).`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Rollback(client, opts)
+		result, err := codepush.Rollback(client, opts, out)
 		if err != nil {
 			return err
 		}
@@ -251,10 +258,12 @@ to specify a specific version label (e.g. v3).`,
 			return outputJSON(result)
 		}
 
-		fmt.Fprintf(os.Stderr, "\nRollback successful:\n")
-		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
-		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
-		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+		out.Success("Rollback successful")
+		out.Result([]output.KeyValue{
+			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Label", Value: result.Label},
+			{Key: "App version", Value: result.AppVersion},
+		})
 
 		if bitrise.IsBitriseEnvironment() {
 			exportEnvVars(map[string]string{
@@ -296,7 +305,7 @@ Example: promote from Staging to Production after testing.`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Promote(client, opts)
+		result, err := codepush.Promote(client, opts, out)
 		if err != nil {
 			return err
 		}
@@ -305,11 +314,13 @@ Example: promote from Staging to Production after testing.`,
 			return outputJSON(result)
 		}
 
-		fmt.Fprintf(os.Stderr, "\nPromote successful:\n")
-		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
-		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
-		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
-		fmt.Fprintf(os.Stderr, "  Destination: %s\n", promoteDestDeployment)
+		out.Success("Promote successful")
+		out.Result([]output.KeyValue{
+			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Label", Value: result.Label},
+			{Key: "App version", Value: result.AppVersion},
+			{Key: "Destination", Value: promoteDestDeployment},
+		})
 
 		if bitrise.IsBitriseEnvironment() {
 			exportEnvVars(map[string]string{
@@ -353,7 +364,7 @@ Examples:
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Patch(client, opts)
+		result, err := codepush.Patch(client, opts, out)
 		if err != nil {
 			return err
 		}
@@ -362,13 +373,15 @@ Examples:
 			return outputJSON(result)
 		}
 
-		fmt.Fprintf(os.Stderr, "\nPatch successful:\n")
-		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
-		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
-		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
-		fmt.Fprintf(os.Stderr, "  Rollout: %d%%\n", result.Rollout)
-		fmt.Fprintf(os.Stderr, "  Mandatory: %v\n", result.Mandatory)
-		fmt.Fprintf(os.Stderr, "  Disabled: %v\n", result.Disabled)
+		out.Success("Patch successful")
+		out.Result([]output.KeyValue{
+			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Label", Value: result.Label},
+			{Key: "App version", Value: result.AppVersion},
+			{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)},
+			{Key: "Mandatory", Value: fmt.Sprintf("%v", result.Mandatory)},
+			{Key: "Disabled", Value: fmt.Sprintf("%v", result.Disabled)},
+		})
 
 		if bitrise.IsBitriseEnvironment() {
 			exportPatchSummary(result)
@@ -415,7 +428,9 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 	RunE: func(cmd *cobra.Command, args []string) error {
 		token := authLoginToken
 		if token == "" {
-			fmt.Fprintf(os.Stderr, "\n  Generate a token at: %s\n\n", auth.TokenGenerationURL)
+			out.Println("")
+			out.Info("Generate a token at: %s", auth.TokenGenerationURL)
+			out.Println("")
 			fmt.Fprint(os.Stderr, "  Paste your personal access token: ")
 			input, err := auth.ReadTokenSecure()
 			if err != nil {
@@ -428,31 +443,33 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 			return fmt.Errorf("token is required: provide --token flag or enter interactively")
 		}
 
-		fmt.Fprintf(os.Stderr, "Validating token...")
-		userInfo, err := auth.ValidateToken(token)
+		var userInfo *auth.UserInfo
+		err := out.Spinner("Validating token", func() error {
+			var valErr error
+			userInfo, valErr = auth.ValidateToken(token)
+			return valErr
+		})
 		if err != nil {
-			fmt.Fprintf(os.Stderr, " failed\n")
 			return fmt.Errorf("token validation failed: %w\n\n  Generate a new token at: %s", err, auth.TokenGenerationURL)
 		}
-		fmt.Fprintf(os.Stderr, " done\n")
 
 		if err := auth.SaveToken(token); err != nil {
 			return fmt.Errorf("saving token: %w", err)
 		}
 
 		if userInfo != nil && userInfo.Username != "" {
-			fmt.Fprintf(os.Stderr, "Logged in as %s", userInfo.Username)
 			if userInfo.Email != "" {
-				fmt.Fprintf(os.Stderr, " (%s)", userInfo.Email)
+				out.Success("Logged in as %s (%s)", userInfo.Username, userInfo.Email)
+			} else {
+				out.Success("Logged in as %s", userInfo.Username)
 			}
-			fmt.Fprintln(os.Stderr)
 		}
 
 		configPath, err := auth.ConfigFilePath()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", err)
+			out.Warning("could not determine config path: %v", err)
 		} else {
-			fmt.Fprintf(os.Stderr, "Token saved to: %s\n", configPath)
+			out.Info("Token saved to: %s", configPath)
 		}
 		return nil
 	},
@@ -470,7 +487,7 @@ a --token flag or BITRISE_API_TOKEN environment variable.`,
 			return fmt.Errorf("removing token: %w", err)
 		}
 
-		fmt.Fprintf(os.Stderr, "Token revoked successfully.\n")
+		out.Success("Token revoked successfully")
 		return nil
 	},
 }
@@ -506,13 +523,15 @@ var deploymentListCmd = &cobra.Command{
 		}
 
 		if len(deployments) == 0 {
-			fmt.Fprintf(os.Stderr, "No deployments found.\n")
+			out.Info("No deployments found.")
 			return nil
 		}
 
-		for _, d := range deployments {
-			fmt.Fprintf(os.Stderr, "  %s\t%s\n", d.Name, d.ID)
+		rows := make([][]string, len(deployments))
+		for i, d := range deployments {
+			rows[i] = []string{d.Name, d.ID}
 		}
+		out.Table([]string{"NAME", "ID"}, rows)
 
 		return nil
 	},
@@ -543,7 +562,7 @@ var deploymentAddCmd = &cobra.Command{
 			return outputJSON(dep)
 		}
 
-		fmt.Fprintf(os.Stderr, "Deployment %q created (ID: %s)\n", dep.Name, dep.ID)
+		out.Success("Deployment %q created (ID: %s)", dep.Name, dep.ID)
 		return nil
 	},
 }
@@ -565,7 +584,7 @@ var deploymentInfoCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
@@ -591,24 +610,29 @@ var deploymentInfoCmd = &cobra.Command{
 			return outputJSON(info)
 		}
 
-		fmt.Fprintf(os.Stderr, "Deployment: %s\n", dep.Name)
-		fmt.Fprintf(os.Stderr, "  ID: %s\n", dep.ID)
+		out.Step("Deployment: %s", dep.Name)
+		pairs := []output.KeyValue{
+			{Key: "ID", Value: dep.ID},
+		}
 		if dep.Key != "" {
-			fmt.Fprintf(os.Stderr, "  Key: %s\n", dep.Key)
+			pairs = append(pairs, output.KeyValue{Key: "Key", Value: dep.Key})
 		}
 		if dep.CreatedAt != "" {
-			fmt.Fprintf(os.Stderr, "  Created: %s\n", dep.CreatedAt)
+			pairs = append(pairs, output.KeyValue{Key: "Created", Value: dep.CreatedAt})
 		}
+		out.Result(pairs)
 
 		if len(packages) > 0 {
 			latest := packages[len(packages)-1]
-			fmt.Fprintf(os.Stderr, "  Latest release:\n")
-			fmt.Fprintf(os.Stderr, "    Label: %s\n", latest.Label)
-			fmt.Fprintf(os.Stderr, "    App version: %s\n", latest.AppVersion)
-			fmt.Fprintf(os.Stderr, "    Mandatory: %v\n", latest.Mandatory)
-			fmt.Fprintf(os.Stderr, "    Rollout: %d%%\n", latest.Rollout)
+			out.Step("Latest release")
+			out.Result([]output.KeyValue{
+				{Key: "Label", Value: latest.Label},
+				{Key: "App version", Value: latest.AppVersion},
+				{Key: "Mandatory", Value: fmt.Sprintf("%v", latest.Mandatory)},
+				{Key: "Rollout", Value: fmt.Sprintf("%d%%", latest.Rollout)},
+			})
 		} else {
-			fmt.Fprintf(os.Stderr, "  No releases.\n")
+			out.Info("No releases.")
 		}
 
 		return nil
@@ -635,7 +659,7 @@ var deploymentRenameCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
@@ -649,7 +673,7 @@ var deploymentRenameCmd = &cobra.Command{
 			return outputJSON(dep)
 		}
 
-		fmt.Fprintf(os.Stderr, "Deployment renamed to %q\n", dep.Name)
+		out.Success("Deployment renamed to %q", dep.Name)
 		return nil
 	},
 }
@@ -669,13 +693,16 @@ var deploymentRemoveCmd = &cobra.Command{
 			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
 		}
 
-		if !deploymentRemoveYes {
-			return fmt.Errorf("this will permanently delete the deployment %q and all its releases; use --yes to confirm", args[0])
+		if err := out.ConfirmDestructive(
+			fmt.Sprintf("This will permanently delete deployment %q and all its releases", args[0]),
+			deploymentRemoveYes,
+		); err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
@@ -690,7 +717,7 @@ var deploymentRemoveCmd = &cobra.Command{
 			}{Deleted: deploymentID})
 		}
 
-		fmt.Fprintf(os.Stderr, "Deployment %q deleted.\n", args[0])
+		out.Success("Deployment %q deleted", args[0])
 		return nil
 	},
 }
@@ -712,7 +739,7 @@ var deploymentHistoryCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
@@ -732,18 +759,20 @@ var deploymentHistoryCmd = &cobra.Command{
 		}
 
 		if len(packages) == 0 {
-			fmt.Fprintf(os.Stderr, "No releases found.\n")
+			out.Info("No releases found.")
 			return nil
 		}
 
-		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "LABEL\tAPP VERSION\tMANDATORY\tROLLOUT\tDISABLED\tDESCRIPTION\tCREATED")
-		for _, p := range packages {
-			fmt.Fprintf(w, "%s\t%s\t%v\t%d%%\t%v\t%s\t%s\n",
-				p.Label, p.AppVersion, p.Mandatory, p.Rollout, p.Disabled,
-				truncate(p.Description, 30), p.CreatedAt)
+		headers := []string{"LABEL", "APP VERSION", "MANDATORY", "ROLLOUT", "DISABLED", "DESCRIPTION", "CREATED"}
+		rows := make([][]string, len(packages))
+		for i, p := range packages {
+			rows[i] = []string{
+				p.Label, p.AppVersion, fmt.Sprintf("%v", p.Mandatory),
+				fmt.Sprintf("%d%%", p.Rollout), fmt.Sprintf("%v", p.Disabled),
+				truncate(p.Description, 30), p.CreatedAt,
+			}
 		}
-		w.Flush()
+		out.Table(headers, rows)
 
 		return nil
 	},
@@ -775,12 +804,12 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
@@ -794,25 +823,28 @@ By default shows the latest package. Use --label to specify a version.`,
 			return outputJSON(pkg)
 		}
 
-		fmt.Fprintf(os.Stderr, "Package: %s\n", pkg.Label)
-		fmt.Fprintf(os.Stderr, "  ID: %s\n", pkg.ID)
-		fmt.Fprintf(os.Stderr, "  App version: %s\n", pkg.AppVersion)
-		fmt.Fprintf(os.Stderr, "  Mandatory: %v\n", pkg.Mandatory)
-		fmt.Fprintf(os.Stderr, "  Disabled: %v\n", pkg.Disabled)
-		fmt.Fprintf(os.Stderr, "  Rollout: %d%%\n", pkg.Rollout)
-		if pkg.Description != "" {
-			fmt.Fprintf(os.Stderr, "  Description: %s\n", pkg.Description)
+		out.Step("Package: %s", pkg.Label)
+		pairs := []output.KeyValue{
+			{Key: "ID", Value: pkg.ID},
+			{Key: "App version", Value: pkg.AppVersion},
+			{Key: "Mandatory", Value: fmt.Sprintf("%v", pkg.Mandatory)},
+			{Key: "Disabled", Value: fmt.Sprintf("%v", pkg.Disabled)},
+			{Key: "Rollout", Value: fmt.Sprintf("%d%%", pkg.Rollout)},
 		}
-		fmt.Fprintf(os.Stderr, "  Size: %s\n", formatBytes(pkg.FileSizeBytes))
+		if pkg.Description != "" {
+			pairs = append(pairs, output.KeyValue{Key: "Description", Value: pkg.Description})
+		}
+		pairs = append(pairs, output.KeyValue{Key: "Size", Value: formatBytes(pkg.FileSizeBytes)})
 		if pkg.Hash != "" {
-			fmt.Fprintf(os.Stderr, "  Hash: %s\n", pkg.Hash)
+			pairs = append(pairs, output.KeyValue{Key: "Hash", Value: pkg.Hash})
 		}
 		if pkg.CreatedAt != "" {
-			fmt.Fprintf(os.Stderr, "  Created: %s\n", pkg.CreatedAt)
+			pairs = append(pairs, output.KeyValue{Key: "Created", Value: pkg.CreatedAt})
 		}
 		if pkg.CreatedBy != "" {
-			fmt.Fprintf(os.Stderr, "  Created by: %s\n", pkg.CreatedBy)
+			pairs = append(pairs, output.KeyValue{Key: "Created by", Value: pkg.CreatedBy})
 		}
+		out.Result(pairs)
 
 		return nil
 	},
@@ -838,12 +870,12 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, packageLabel, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		packageID, packageLabel, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
@@ -857,10 +889,14 @@ By default shows the latest package. Use --label to specify a version.`,
 			return outputJSON(status)
 		}
 
-		fmt.Fprintf(os.Stderr, "Package %s status: %s\n", packageLabel, status.Status)
-		if status.StatusReason != "" {
-			fmt.Fprintf(os.Stderr, "  Reason: %s\n", status.StatusReason)
+		pairs := []output.KeyValue{
+			{Key: "Package", Value: packageLabel},
+			{Key: "Status", Value: status.Status},
 		}
+		if status.StatusReason != "" {
+			pairs = append(pairs, output.KeyValue{Key: "Reason", Value: status.StatusReason})
+		}
+		out.Result(pairs)
 
 		return nil
 	},
@@ -886,18 +922,22 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 		if packageLabel == "" {
 			return fmt.Errorf("label is required: set --label to identify the package to delete")
 		}
-		if !packageRemoveYes {
-			return fmt.Errorf("this will permanently delete package %q; use --yes to confirm", packageLabel)
+
+		if err := out.ConfirmDestructive(
+			fmt.Sprintf("This will permanently delete package %q", packageLabel),
+			packageRemoveYes,
+		); err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
@@ -913,7 +953,7 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 			}{Deleted: packageID, Label: packageLabel})
 		}
 
-		fmt.Fprintf(os.Stderr, "Package %q deleted.\n", packageLabel)
+		out.Success("Package %q deleted", packageLabel)
 		return nil
 	},
 }
@@ -936,13 +976,17 @@ Requires --yes to confirm.`,
 		if token == "" {
 			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
 		}
-		if !deploymentClearYes {
-			return fmt.Errorf("this will permanently delete all releases from %q; use --yes to confirm", args[0])
+
+		if err := out.ConfirmDestructive(
+			fmt.Sprintf("This will permanently delete all releases from %q", args[0]),
+			deploymentClearYes,
+		); err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
@@ -953,7 +997,7 @@ Requires --yes to confirm.`,
 		}
 
 		if len(packages) == 0 {
-			fmt.Fprintf(os.Stderr, "No packages to delete.\n")
+			out.Info("No packages to delete.")
 			return nil
 		}
 
@@ -972,7 +1016,7 @@ Requires --yes to confirm.`,
 			}{Deployment: deploymentID, Deleted: deleted})
 		}
 
-		fmt.Fprintf(os.Stderr, "Deleted %d package(s) from %q.\n", deleted, args[0])
+		out.Success("Deleted %d package(s) from %q", deleted, args[0])
 		return nil
 	},
 }
@@ -1000,6 +1044,23 @@ func formatBytes(b int64) string {
 }
 
 func init() {
+	rootCmd.AddGroup(
+		&cobra.Group{ID: "release", Title: "Release Management:"},
+		&cobra.Group{ID: "deployment", Title: "Deployment Management:"},
+		&cobra.Group{ID: "package", Title: "Package Management:"},
+		&cobra.Group{ID: "setup", Title: "Setup:"},
+	)
+
+	pushCmd.GroupID = "release"
+	rollbackCmd.GroupID = "release"
+	promoteCmd.GroupID = "release"
+	patchCmd.GroupID = "release"
+	bundleCmd.GroupID = "release"
+	deploymentCmd.GroupID = "deployment"
+	packageCmd.GroupID = "package"
+	authCmd.GroupID = "setup"
+	integrateCmd.GroupID = "setup"
+
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
@@ -1057,7 +1118,6 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
-
 
 	// Rollback command flags
 	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
@@ -1122,7 +1182,9 @@ func resolveToken() string {
 	}
 	storedToken, err := auth.LoadToken()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: could not load stored token: %v\n", err)
+		if out != nil {
+			out.Warning("could not load stored token: %v", err)
+		}
 	}
 	return storedToken
 }
@@ -1161,14 +1223,16 @@ func runBundle() error {
 		return outputJSON(summary)
 	}
 
-	fmt.Fprintf(os.Stderr, "\nBundle created successfully:\n")
-	fmt.Fprintf(os.Stderr, "  Output: %s\n", result.OutputDir)
-	fmt.Fprintf(os.Stderr, "  Bundle: %s\n", result.BundlePath)
+	out.Success("Bundle created successfully")
+	out.Result([]output.KeyValue{
+		{Key: "Output", Value: result.OutputDir},
+		{Key: "Bundle", Value: result.BundlePath},
+	})
 	if result.SourcemapPath != "" {
-		fmt.Fprintf(os.Stderr, "  Sourcemap: %s\n", result.SourcemapPath)
+		out.Info("Sourcemap: %s", result.SourcemapPath)
 	}
 	if result.HermesApplied {
-		fmt.Fprintf(os.Stderr, "  Hermes: compiled\n")
+		out.Info("Hermes: compiled")
 	}
 
 	if bitrise.IsBitriseEnvironment() {
@@ -1192,14 +1256,14 @@ func runBundleWithOpts() (*bundler.BundleResult, error) {
 		MetroConfig:      bundleMetroConfig,
 	}
 
-	return bundler.Run(opts)
+	return bundler.Run(opts, out)
 }
 
 // exportEnvVars exports key-value pairs as Bitrise environment variables via envman.
 func exportEnvVars(vars map[string]string) {
 	for key, value := range vars {
 		if err := bitrise.ExportEnvVar(key, value); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to export %s: %v\n", key, err)
+			out.Warning("failed to export %s: %v", key, err)
 		}
 	}
 }
@@ -1208,34 +1272,34 @@ func exportEnvVars(vars map[string]string) {
 func exportPushSummary(result *codepush.PushResult) {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal push summary: %v\n", err)
+		out.Warning("failed to marshal push summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-push-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export push summary: %v\n", err)
+		out.Warning("failed to export push summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Push summary exported to: %s\n", path)
+	out.Info("Push summary exported to: %s", path)
 }
 
 // exportPatchSummary writes a JSON patch summary to the Bitrise deploy directory.
 func exportPatchSummary(result *codepush.PatchResult) {
 	data, err := json.MarshalIndent(result, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal patch summary: %v\n", err)
+		out.Warning("failed to marshal patch summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export patch summary: %v\n", err)
+		out.Warning("failed to export patch summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Patch summary exported to: %s\n", path)
+	out.Info("Patch summary exported to: %s", path)
 }
 
 // exportBundleSummary writes a JSON bundle summary to the Bitrise deploy directory.
@@ -1258,15 +1322,15 @@ func exportBundleSummary(result *bundler.BundleResult) {
 
 	data, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal bundle summary: %v\n", err)
+		out.Warning("failed to marshal bundle summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-bundle-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export bundle summary: %v\n", err)
+		out.Warning("failed to export bundle summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Bundle summary exported to: %s\n", path)
+	out.Info("Bundle summary exported to: %s", path)
 }
