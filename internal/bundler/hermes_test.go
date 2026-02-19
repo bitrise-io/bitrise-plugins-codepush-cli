@@ -143,4 +143,147 @@ func TestHermesCompilerCompile(t *testing.T) {
 			t.Fatal("expected error, got nil")
 		}
 	})
+
+	t.Run("with sourcemap and hermes map triggers composition", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "main.jsbundle")
+		hermescPath := filepath.Join(dir, "hermesc")
+		sourcemapPath := filepath.Join(dir, "main.jsbundle.map")
+		hbcPath := bundlePath + ".hbc"
+		hermesMapPath := hbcPath + ".map"
+
+		writeFile(t, bundlePath, "console.log('hello')")
+		writeFile(t, hermescPath, "")
+		writeFile(t, sourcemapPath, `{"version":3}`)
+
+		executor := &mockExecutor{}
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "-out" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bytecode"), 0o644)
+					// Also create the hermes source map
+					os.WriteFile(args[i+1]+".map", []byte(`{"hermes":true}`), 0o644)
+				}
+			}
+		}
+
+		compiler := NewHermesCompiler(executor)
+		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// The hermes map should have been renamed to the metro map path
+		// since compose-source-maps.js won't be found
+		data, err := os.ReadFile(sourcemapPath)
+		if err != nil {
+			t.Fatalf("reading sourcemap: %v", err)
+		}
+		if string(data) != `{"hermes":true}` {
+			t.Errorf("sourcemap content: got %q, want hermes map content", string(data))
+		}
+
+		// The hermes map file should be gone
+		if _, err := os.Stat(hermesMapPath); err == nil {
+			t.Error("hermes map file should have been renamed away")
+		}
+	})
+}
+
+func TestComposeSourceMaps(t *testing.T) {
+	t.Run("no compose script falls back to hermes map", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "main.jsbundle")
+		metroMapPath := filepath.Join(dir, "metro.map")
+		hermesMapPath := filepath.Join(dir, "hermes.map")
+
+		writeFile(t, bundlePath, "bytecode")
+		writeFile(t, metroMapPath, `{"metro":true}`)
+		writeFile(t, hermesMapPath, `{"hermes":true}`)
+
+		executor := &mockExecutor{}
+		compiler := NewHermesCompiler(executor)
+		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
+
+		// Metro map should now contain hermes map content
+		data, err := os.ReadFile(metroMapPath)
+		if err != nil {
+			t.Fatalf("reading map: %v", err)
+		}
+		if string(data) != `{"hermes":true}` {
+			t.Errorf("map content: got %q, want hermes map", string(data))
+		}
+	})
+
+	t.Run("compose script exists but execution fails", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "main.jsbundle")
+		metroMapPath := filepath.Join(dir, "metro.map")
+		hermesMapPath := filepath.Join(dir, "hermes.map")
+
+		// Create the compose script path so it's found
+		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
+		os.MkdirAll(scriptDir, 0o755)
+		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
+
+		writeFile(t, bundlePath, "bytecode")
+		writeFile(t, metroMapPath, `{"metro":true}`)
+		writeFile(t, hermesMapPath, `{"hermes":true}`)
+
+		executor := &mockExecutor{err: &mockExitError{code: 1}}
+		compiler := NewHermesCompiler(executor)
+		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
+
+		// Should fall back to hermes map on failure
+		data, err := os.ReadFile(metroMapPath)
+		if err != nil {
+			t.Fatalf("reading map: %v", err)
+		}
+		if string(data) != `{"hermes":true}` {
+			t.Errorf("map content: got %q, want hermes map fallback", string(data))
+		}
+	})
+
+	t.Run("compose script succeeds", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "main.jsbundle")
+		metroMapPath := filepath.Join(dir, "metro.map")
+		hermesMapPath := filepath.Join(dir, "hermes.map")
+
+		// Create the compose script path
+		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
+		os.MkdirAll(scriptDir, 0o755)
+		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
+
+		writeFile(t, bundlePath, "bytecode")
+		writeFile(t, metroMapPath, `{"metro":true}`)
+		writeFile(t, hermesMapPath, `{"hermes":true}`)
+
+		executor := &mockExecutor{}
+		// Simulate compose-source-maps creating the composed file
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "-o" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte(`{"composed":true}`), 0o644)
+				}
+			}
+		}
+
+		compiler := NewHermesCompiler(executor)
+		compiler.composeSourceMaps(bundlePath, metroMapPath, hermesMapPath)
+
+		// Metro map should have composed content
+		data, err := os.ReadFile(metroMapPath)
+		if err != nil {
+			t.Fatalf("reading map: %v", err)
+		}
+		if string(data) != `{"composed":true}` {
+			t.Errorf("map content: got %q, want composed map", string(data))
+		}
+
+		// Hermes map should be cleaned up
+		if _, err := os.Stat(hermesMapPath); err == nil {
+			t.Error("hermes map should have been removed after composition")
+		}
+	})
 }

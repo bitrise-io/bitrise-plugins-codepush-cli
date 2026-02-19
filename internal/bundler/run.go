@@ -25,6 +25,12 @@ type bundleSummary struct {
 // 3. Compile with Hermes if applicable
 // 4. Export to Bitrise deploy directory if in Bitrise environment
 func Run(opts *BundleOptions) (*BundleResult, error) {
+	return RunWithExecutor(opts, &DefaultExecutor{})
+}
+
+// RunWithExecutor executes the full bundle pipeline with the given executor.
+// This allows tests to provide a mock executor.
+func RunWithExecutor(opts *BundleOptions, executor CommandExecutor) (*BundleResult, error) {
 	projectDir := opts.ProjectDir
 	if projectDir == "" {
 		cwd, err := os.Getwd()
@@ -70,7 +76,6 @@ func Run(opts *BundleOptions) (*BundleResult, error) {
 	fmt.Fprintln(os.Stderr)
 
 	// Step 2: Create and run the bundler
-	executor := &DefaultExecutor{}
 	bundler, err := NewBundler(config.ProjectType, executor)
 	if err != nil {
 		return nil, err
