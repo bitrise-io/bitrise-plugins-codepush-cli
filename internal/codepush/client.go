@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -121,6 +122,87 @@ func (c *HTTPClient) GetPackageStatus(appID, deploymentID, packageID string) (*P
 	}
 
 	return &result, nil
+}
+
+// ListPackages returns all packages for a deployment.
+func (c *HTTPClient) ListPackages(appID, deploymentID string) ([]Package, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages", appID, deploymentID)
+
+	resp, err := c.doRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result PackageListResponse
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("listing packages: %w", err)
+	}
+
+	return result.Items, nil
+}
+
+// Rollback sends a rollback request for a deployment.
+func (c *HTTPClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/rollback", appID, deploymentID)
+
+	resp, err := c.doJSONRequest(http.MethodPost, path, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Package
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("rolling back deployment: %w", err)
+	}
+
+	return &result, nil
+}
+
+// Promote sends a promote request for a deployment.
+func (c *HTTPClient) Promote(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/promote", appID, deploymentID)
+
+	resp, err := c.doJSONRequest(http.MethodPost, path, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Package
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("promoting deployment: %w", err)
+	}
+
+	return &result, nil
+}
+
+func (c *HTTPClient) doJSONRequest(method, path string, body interface{}) (*http.Response, error) {
+	var bodyReader io.Reader
+	if body != nil {
+		data, err := json.Marshal(body)
+		if err != nil {
+			return nil, fmt.Errorf("marshaling request body: %w", err)
+		}
+		bodyReader = bytes.NewReader(data)
+	}
+
+	reqURL := c.BaseURL + path
+	req, err := http.NewRequest(method, reqURL, bodyReader)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	req.Header.Set("Authorization", c.Token)
+	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("sending request to %s: %w", path, err)
+	}
+
+	return resp, nil
 }
 
 func (c *HTTPClient) doRequest(method, path string, body io.Reader) (*http.Response, error) {

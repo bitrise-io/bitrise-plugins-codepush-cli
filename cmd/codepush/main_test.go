@@ -52,17 +52,9 @@ func TestResolveFlag(t *testing.T) {
 }
 
 func TestResolveToken(t *testing.T) {
-	t.Run("flag value takes priority", func(t *testing.T) {
+	t.Run("env var takes priority", func(t *testing.T) {
 		t.Setenv("BITRISE_API_TOKEN", "env-token")
-		got := resolveToken("flag-token")
-		if got != "flag-token" {
-			t.Errorf("got %q, want %q", got, "flag-token")
-		}
-	})
-
-	t.Run("env var is second priority", func(t *testing.T) {
-		t.Setenv("BITRISE_API_TOKEN", "env-token")
-		got := resolveToken("")
+		got := resolveToken()
 		if got != "env-token" {
 			t.Errorf("got %q, want %q", got, "env-token")
 		}
@@ -70,7 +62,7 @@ func TestResolveToken(t *testing.T) {
 
 	t.Run("returns empty when nothing set", func(t *testing.T) {
 		t.Setenv("BITRISE_API_TOKEN", "")
-		got := resolveToken("")
+		got := resolveToken()
 		// May return empty or stored token; just verify no panic
 		_ = got
 	})
@@ -80,16 +72,6 @@ func TestVersionCommand(t *testing.T) {
 	cmd := versionCmd
 	if cmd.Use != "version" {
 		t.Errorf("Use: got %q, want %q", cmd.Use, "version")
-	}
-}
-
-func TestRollbackReturnsError(t *testing.T) {
-	err := rollbackCmd.RunE(rollbackCmd, nil)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Errorf("error should mention not implemented: %v", err)
 	}
 }
 
@@ -105,7 +87,7 @@ func TestIntegrateReturnsError(t *testing.T) {
 
 func TestCommandRegistration(t *testing.T) {
 	commands := rootCmd.Commands()
-	wantNames := []string{"version", "bundle", "push", "rollback", "integrate", "auth"}
+	wantNames := []string{"version", "bundle", "push", "rollback", "promote", "integrate", "auth"}
 
 	found := make(map[string]bool)
 	for _, cmd := range commands {

@@ -10,7 +10,6 @@ type PushOptions struct {
 	AppID        string
 	DeploymentID string
 	Token        string
-	APIURL       string
 	AppVersion   string
 	Description  string
 	Mandatory    bool
@@ -84,10 +83,89 @@ const (
 	StatusFailed     = "failed"
 )
 
-// Client defines the CodePush API operations needed for push.
+// Package represents a CodePush release in a deployment.
+type Package struct {
+	ID            string `json:"id"`
+	Label         string `json:"label"`
+	AppVersion    string `json:"app_version"`
+	Description   string `json:"description"`
+	Mandatory     bool   `json:"mandatory"`
+	Disabled      bool   `json:"disabled"`
+	Rollout       int    `json:"rollout"`
+	DeploymentID  string `json:"deployment_id"`
+	FileSizeBytes int64  `json:"file_size_bytes"`
+}
+
+// PackageListResponse wraps the list packages API response.
+type PackageListResponse struct {
+	Items []Package `json:"items"`
+}
+
+// RollbackOptions holds user-provided parameters for a rollback operation.
+type RollbackOptions struct {
+	AppID        string
+	DeploymentID string
+	Token        string
+	TargetLabel  string // optional: specific label like "v3" to rollback to
+}
+
+// RollbackRequest is the JSON body sent to the rollback API endpoint.
+type RollbackRequest struct {
+	PackageID string `json:"package_id,omitempty"`
+}
+
+// RollbackResult is the output of a successful rollback.
+type RollbackResult struct {
+	PackageID    string `json:"package_id"`
+	AppID        string `json:"app_id"`
+	DeploymentID string `json:"deployment_id"`
+	Label        string `json:"label"`
+	AppVersion   string `json:"app_version"`
+}
+
+// PromoteOptions holds user-provided parameters for a promote operation.
+type PromoteOptions struct {
+	AppID              string
+	SourceDeploymentID string
+	DestDeploymentID   string
+	Token              string
+	Label              string // optional: specific label to promote from source
+	AppVersion         string // optional: override target app version
+	Description        string // optional: override description
+	Mandatory          string // optional: "true"/"false" override
+	Disabled           string // optional: "true"/"false" override
+	Rollout            string // optional: "1"-"100" override
+}
+
+// PromoteRequest is the JSON body sent to the promote API endpoint.
+type PromoteRequest struct {
+	TargetDeploymentID string `json:"target_deployment_id"`
+	PackageID          string `json:"package_id,omitempty"`
+	AppVersion         string `json:"app_version,omitempty"`
+	Description        string `json:"description,omitempty"`
+	Disabled           string `json:"disabled,omitempty"`
+	Mandatory          string `json:"mandatory,omitempty"`
+	Rollout            string `json:"rollout,omitempty"`
+}
+
+// PromoteResult is the output of a successful promote.
+type PromoteResult struct {
+	PackageID        string `json:"package_id"`
+	AppID            string `json:"app_id"`
+	SourceDeployment string `json:"source_deployment_id"`
+	DestDeployment   string `json:"dest_deployment_id"`
+	Label            string `json:"label"`
+	AppVersion       string `json:"app_version"`
+	Description      string `json:"description"`
+}
+
+// Client defines the CodePush API operations.
 type Client interface {
 	ListDeployments(appID string) ([]Deployment, error)
 	GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
 	UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
 	GetPackageStatus(appID, deploymentID, packageID string) (*PackageStatus, error)
+	ListPackages(appID, deploymentID string) ([]Package, error)
+	Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error)
+	Promote(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
