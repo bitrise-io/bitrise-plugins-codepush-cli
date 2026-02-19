@@ -102,10 +102,75 @@ bitrise :codepush rollback
 - Test files: `*_test.go` colocated with source
 - Use `go test ./...` for all tests
 - Use `go test -cover ./...` for coverage
-- Table-driven tests are preferred
+- Table-driven tests preferred with named subtests via `t.Run(tc.name, ...)`
+- Subtest names: descriptive phrases (`"returns error when file not found"`), not `"case 1"`
+- Use `t.Helper()` on test helper functions
+- Use `t.TempDir()` and `t.Setenv()` for filesystem and environment isolation
+- Mock via interface + function fields (no mock frameworks): define optional `func` fields on a mock struct, check for nil to provide defaults
 
 ### Writing Style
 - **Never use em dashes** (`---` or `\u2014`) in any content: titles, descriptions, metadata, UI copy, or comments. Use commas, periods, colons, or rewrite the sentence.
+
+## Go Code Quality
+
+### Function Size
+- Functions should be under **50 lines** as a guideline
+- Functions over **80 lines** are a strong signal to extract helpers
+- Go's `if err != nil` blocks inflate line counts without adding cognitive complexity, so use judgment on error-heavy functions
+
+### File Size
+- No hard line limit (Go organizes by package, not file)
+- Split files by **responsibility**, not line count (e.g., separate `client.go`, `types.go`, `push.go` within a package)
+- A file over **500 lines** in `internal/` is a prompt to check whether the package has grown too broad
+
+### Parameter Counts
+- **3 or fewer** parameters is clean
+- **4+ parameters**: use an options struct (e.g., `*PushOptions`, `*RollbackOptions`)
+- `context.Context` and `*output.Writer` do not count toward this limit as they are infrastructure threading
+
+### Nesting Depth
+- Maximum **3 levels** of nesting (function body is level 0)
+- Use early returns and guard clauses to keep nesting flat
+- If a block needs deeper nesting, extract a helper function
+
+### DRY
+- Prefer small interfaces over helper functions for eliminating duplication across call sites
+- Go tolerates controlled repetition more than most languages: DRY abstraction that obscures intent is worse than a small amount of duplication
+- Test DRY is achieved through table-driven tests, not shared helper extraction
+
+### Interface Design
+- Accept interfaces as parameters, return concrete structs from constructors
+- Prefer **1-2 method** interfaces; if an interface exceeds 5 methods, question whether it models a behavior or an implementation
+- Define interfaces at the **point of consumption** (the package that uses them), not at the point of definition
+
+### Naming
+- Receiver names: 1-2 letters, consistent within a type (`w` for `*Writer`, `c` for `*HTTPClient`)
+- Acronyms: all-caps or all-lower based on export status (`userID`, `httpClient`, `URL`, `XMLParser`)
+- No package name stuttering: `output.Writer` not `output.OutputWriter`
+- Sentinel errors: `ErrNotFound` (exported), `errInternal` (unexported)
+
+### Package Design
+- No `utils`, `common`, or `helpers` packages
+- Each package should have a single, nameable responsibility
+- Package names: short, lowercase, no underscores
+
+### Import Organization
+Three groups separated by blank lines:
+```go
+import (
+    "fmt"
+    "os"
+
+    "github.com/spf13/cobra"
+
+    "github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
+)
+```
+
+### Context
+- `context.Context` is always the first parameter, named `ctx`
+- Never store context in a struct field
+- Always propagate context; never pass `context.Background()` deep in call stacks
 
 ## CLI Output Conventions
 
