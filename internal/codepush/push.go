@@ -99,7 +99,7 @@ func validatePushOptions(opts *PushOptions) error {
 		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
 	}
 	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token or BITRISE_API_TOKEN")
+		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
 	}
 	if opts.AppVersion == "" {
 		return fmt.Errorf("app version is required: set --app-version")

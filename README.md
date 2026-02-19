@@ -45,11 +45,41 @@ Download the latest binary from [Releases](https://github.com/bitrise-io/bitrise
 
 | Command | Description |
 |---------|-------------|
+| `auth login` | Store a Bitrise API token locally |
+| `auth revoke` | Remove the stored API token |
 | `bundle` | Bundle JavaScript for an OTA update |
 | `push [bundle-path]` | Push an OTA update |
 | `rollback` | Rollback to a previous release |
 | `integrate` | Integrate CodePush SDK into a project |
 | `version` | Print version information |
+
+## Authentication
+
+The CLI uses a Bitrise API token for commands that interact with the API (push, rollback). Tokens are resolved in this order:
+
+1. `--token` flag (explicit, per-invocation)
+2. `BITRISE_API_TOKEN` environment variable (CI/CD)
+3. Stored config file (from `codepush auth login`)
+
+### Storing a Token
+
+```bash
+# Via flag
+codepush auth login --token <YOUR_BITRISE_API_TOKEN>
+
+# Via interactive prompt
+codepush auth login
+```
+
+The token is validated against the Bitrise API before saving. It is stored in the user config directory (`~/Library/Application Support/codepush/config.json` on macOS, `~/.config/codepush/config.json` on Linux) with restricted file permissions (0600).
+
+### Revoking a Token
+
+```bash
+codepush auth revoke
+```
+
+After revoking, commands that require authentication will need a `--token` flag or `BITRISE_API_TOKEN` environment variable.
 
 ## Bundling
 
@@ -128,7 +158,7 @@ codepush push --bundle --platform ios --app-id <UUID> --deployment Staging --app
 |------|---------|-------------|
 | `--app-id` | env: `CODEPUSH_APP_ID` | Connected app UUID |
 | `--deployment` | env: `CODEPUSH_DEPLOYMENT` | Deployment name or UUID |
-| `--token` | env: `BITRISE_API_TOKEN` | Bitrise API token |
+| `--token` | env: `BITRISE_API_TOKEN`, or `auth login` | Bitrise API token |
 | `--app-version` | (required) | Target app version (e.g. 1.0.0) |
 | `--description` | "" | Update description |
 | `--mandatory` | `false` | Mark update as mandatory |

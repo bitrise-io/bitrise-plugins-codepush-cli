@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/spf13/cobra"
@@ -29,6 +30,11 @@ var (
 	bundleExtraBundlerOpts []string
 	bundleProjectDir       string
 	bundleMetroConfig      string
+)
+
+// Auth command flags
+var (
+	authLoginToken string
 )
 
 // Push command flags
@@ -120,7 +126,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 
 		appID := resolveFlag(pushAppID, "CODEPUSH_APP_ID")
 		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveFlag(pushToken, "BITRISE_API_TOKEN")
+		token := resolveToken(pushToken)
 
 		opts := &codepush.PushOptions{
 			AppID:        appID,
@@ -175,12 +181,80 @@ and configures the SDK accordingly.`,
 	},
 }
 
+var authCmd = &cobra.Command{
+	Use:   "auth",
+	Short: "Manage authentication",
+	Long:  `Manage the Bitrise API token used for CodePush operations.`,
+}
+
+var authLoginCmd = &cobra.Command{
+	Use:   "login",
+	Short: "Store a Bitrise API token locally",
+	Long: `Store a Bitrise API token in the local config file.
+
+The token is saved to the config directory and used automatically
+by commands that require authentication (push, rollback).
+
+Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		token := authLoginToken
+		if token == "" {
+			fmt.Fprint(os.Stderr, "Enter API token: ")
+			var input string
+			if _, err := fmt.Scanln(&input); err != nil {
+				return fmt.Errorf("reading token from stdin: %w", err)
+			}
+			token = input
+		}
+
+		if token == "" {
+			return fmt.Errorf("token is required: provide --token or enter interactively")
+		}
+
+		fmt.Fprintf(os.Stderr, "Validating token...\n")
+		if err := auth.ValidateToken(token); err != nil {
+			return fmt.Errorf("token validation failed: %w", err)
+		}
+
+		if err := auth.SaveToken(token); err != nil {
+			return fmt.Errorf("saving token: %w", err)
+		}
+
+		configPath, _ := auth.ConfigFilePath()
+		fmt.Fprintf(os.Stderr, "Token saved to: %s\n", configPath)
+		return nil
+	},
+}
+
+var authRevokeCmd = &cobra.Command{
+	Use:   "revoke",
+	Short: "Remove the stored API token",
+	Long: `Remove the locally stored Bitrise API token.
+
+After revoking, commands that require authentication will need
+a --token flag or BITRISE_API_TOKEN environment variable.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if err := auth.RemoveToken(); err != nil {
+			return fmt.Errorf("removing token: %w", err)
+		}
+
+		fmt.Fprintf(os.Stderr, "Token revoked successfully.\n")
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)
 	rootCmd.AddCommand(integrateCmd)
+	rootCmd.AddCommand(authCmd)
+	authCmd.AddCommand(authLoginCmd)
+	authCmd.AddCommand(authRevokeCmd)
+
+	// Auth login flags
+	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
 
 	// Bundle command flags
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
@@ -205,7 +279,7 @@ func init() {
 	// Push command: API flags
 	pushCmd.Flags().StringVar(&pushAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
 	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	pushCmd.Flags().StringVar(&pushToken, "token", "", "Bitrise API token (env: BITRISE_API_TOKEN)")
+	pushCmd.Flags().StringVar(&pushToken, "token", "", "Bitrise API token (env: BITRISE_API_TOKEN, or use 'auth login')")
 	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
@@ -220,6 +294,21 @@ func resolveFlag(flagValue, envKey string) string {
 		return flagValue
 	}
 	return os.Getenv(envKey)
+}
+
+// resolveToken returns the API token using the priority:
+// 1. --token flag value
+// 2. BITRISE_API_TOKEN environment variable
+// 3. Stored config file token (from 'codepush auth login')
+func resolveToken(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	if envValue := os.Getenv("BITRISE_API_TOKEN"); envValue != "" {
+		return envValue
+	}
+	storedToken, _ := auth.LoadToken()
+	return storedToken
 }
 
 func runBundle() error {
