@@ -36,18 +36,38 @@ var (
 	bundleMetroConfig      string
 )
 
-// Push-only flags (not shared with bundle command).
+// Shared API flags (persistent on root)
+var globalAppID string
+
+const defaultAPIURL = "https://api.bitrise.io/release-management"
+
+// Push command flags
 var (
 	pushAutoBundle  bool
-	pushAppID       string
 	pushDeployment  string
-	pushToken       string
 	pushAppVersion  string
 	pushDescription string
 	pushMandatory   bool
 	pushRollout     int
 	pushDisabled    bool
-	pushAPIURL      string
+)
+
+// Rollback command flags
+var (
+	rollbackDeployment    string
+	rollbackTargetRelease string
+)
+
+// Promote command flags
+var (
+	promoteSourceDeployment string
+	promoteDestDeployment   string
+	promoteLabel            string
+	promoteAppVersion       string
+	promoteDescription      string
+	promoteMandatory        string
+	promoteDisabled         string
+	promoteRollout          string
 )
 
 // Auth flags.
@@ -126,15 +146,14 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
 
-		appID := resolveFlag(pushAppID, "CODEPUSH_APP_ID")
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
 		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken(pushToken)
+		token := resolveToken()
 
 		opts := &codepush.PushOptions{
 			AppID:        appID,
 			DeploymentID: deployment,
 			Token:        token,
-			APIURL:       pushAPIURL,
 			AppVersion:   pushAppVersion,
 			Description:  pushDescription,
 			Mandatory:    pushMandatory,
@@ -143,7 +162,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			BundlePath:   bundlePath,
 		}
 
-		client := codepush.NewHTTPClient(opts.APIURL, opts.Token)
+		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Push(client, opts)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
@@ -167,9 +186,77 @@ var rollbackCmd = &cobra.Command{
 	Short: "Rollback to a previous release",
 	Long: `Rollback the current deployment to a previous release version.
 
-Reverts the active OTA update so devices receive the prior version.`,
+Creates a new release that mirrors a previous version. By default,
+rolls back to the immediately previous release. Use --target-release
+to specify a specific version label (e.g. v3).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return fmt.Errorf("rollback command is not yet implemented")
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		deployment := resolveFlag(rollbackDeployment, "CODEPUSH_DEPLOYMENT")
+		token := resolveToken()
+
+		opts := &codepush.RollbackOptions{
+			AppID:        appID,
+			DeploymentID: deployment,
+			Token:        token,
+			TargetLabel:  rollbackTargetRelease,
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
+		result, err := codepush.Rollback(client, opts)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stderr, "\nRollback successful:\n")
+		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
+		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
+		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+
+		return nil
+	},
+}
+
+var promoteCmd = &cobra.Command{
+	Use:   "promote",
+	Short: "Promote a release from one deployment to another",
+	Long: `Promote a release from a source deployment to a destination deployment.
+
+Copies the latest (or specified) release from the source deployment to the
+destination deployment. Override metadata like rollout percentage, mandatory
+flag, or description for the promoted release.
+
+Example: promote from Staging to Production after testing.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		sourceDeployment := resolveFlag(promoteSourceDeployment, "CODEPUSH_DEPLOYMENT")
+		token := resolveToken()
+
+		opts := &codepush.PromoteOptions{
+			AppID:              appID,
+			SourceDeploymentID: sourceDeployment,
+			DestDeploymentID:   promoteDestDeployment,
+			Token:              token,
+			Label:              promoteLabel,
+			AppVersion:         promoteAppVersion,
+			Description:        promoteDescription,
+			Mandatory:          promoteMandatory,
+			Disabled:           promoteDisabled,
+			Rollout:            promoteRollout,
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
+		result, err := codepush.Promote(client, opts)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stderr, "\nPromote successful:\n")
+		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
+		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
+		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+		fmt.Fprintf(os.Stderr, "  Destination: %s\n", promoteDestDeployment)
+
+		return nil
 	},
 }
 
@@ -270,13 +357,11 @@ func init() {
 	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)
+	rootCmd.AddCommand(promoteCmd)
 	rootCmd.AddCommand(integrateCmd)
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authRevokeCmd)
-
-	// Auth login flags
-	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
 
 	// Bundle command flags
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
@@ -298,16 +383,33 @@ func init() {
 	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 
+	// Shared API flags (inherited by all subcommands)
+	rootCmd.PersistentFlags().StringVar(&globalAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
+
+	// Auth login flags
+	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
+
 	// Push command: API flags
-	pushCmd.Flags().StringVar(&pushAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
 	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	pushCmd.Flags().StringVar(&pushToken, "token", "", "Bitrise API token (env: BITRISE_API_TOKEN, or use 'auth login')")
 	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
-	pushCmd.Flags().StringVar(&pushAPIURL, "api-url", "https://api.bitrise.io/release-management", "API base URL")
+
+	// Rollback command flags
+	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	rollbackCmd.Flags().StringVar(&rollbackTargetRelease, "target-release", "", "specific release label to rollback to (e.g. v3)")
+
+	// Promote command flags
+	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	promoteCmd.Flags().StringVar(&promoteDestDeployment, "destination-deployment", "", "destination deployment name or UUID (required)")
+	promoteCmd.Flags().StringVar(&promoteLabel, "label", "", "specific release label to promote (e.g. v5)")
+	promoteCmd.Flags().StringVar(&promoteAppVersion, "app-version", "", "override target app version")
+	promoteCmd.Flags().StringVar(&promoteDescription, "description", "", "override release description")
+	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
+	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
+	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
 }
 
 // resolveFlag returns the flag value if non-empty, otherwise falls back to the environment variable.
@@ -319,13 +421,9 @@ func resolveFlag(flagValue, envKey string) string {
 }
 
 // resolveToken returns the API token using the priority:
-// 1. --token flag value
-// 2. BITRISE_API_TOKEN environment variable
-// 3. Stored config file token (from 'codepush auth login')
-func resolveToken(flagValue string) string {
-	if flagValue != "" {
-		return flagValue
-	}
+// 1. BITRISE_API_TOKEN environment variable
+// 2. Stored config file token (from 'codepush auth login')
+func resolveToken() string {
 	if envValue := os.Getenv("BITRISE_API_TOKEN"); envValue != "" {
 		return envValue
 	}

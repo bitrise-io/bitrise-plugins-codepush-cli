@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -314,6 +315,247 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 			t.Fatal("expected error, got nil")
 		}
 		if !strings.Contains(err.Error(), "500") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientListPackages(t *testing.T) {
+	t.Run("returns packages", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456/packages" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Header.Get("Authorization") != "test-token" {
+				t.Errorf("auth header: got %q", r.Header.Get("Authorization"))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"items":[{"id":"pkg-1","label":"v1","app_version":"1.0.0"},{"id":"pkg-2","label":"v2","app_version":"2.0.0"}]}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		packages, err := client.ListPackages("app-123", "dep-456")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(packages) != 2 {
+			t.Fatalf("packages: got %d, want 2", len(packages))
+		}
+		if packages[0].ID != "pkg-1" || packages[0].Label != "v1" {
+			t.Errorf("package[0]: got %+v", packages[0])
+		}
+	})
+
+	t.Run("handles empty list", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"items":[]}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		packages, err := client.ListPackages("app-123", "dep-456")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(packages) != 0 {
+			t.Errorf("packages: got %d, want 0", len(packages))
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"deployment not found"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.ListPackages("app-123", "dep-456")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientRollback(t *testing.T) {
+	t.Run("sends correct request", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456/rollback" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodPost {
+				t.Errorf("method: got %q, want POST", r.Method)
+			}
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("content-type: got %q", r.Header.Get("Content-Type"))
+			}
+			if r.Header.Get("Authorization") != "test-token" {
+				t.Errorf("auth header: got %q", r.Header.Get("Authorization"))
+			}
+
+			var body RollbackRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decoding body: %v", err)
+			}
+			if body.PackageID != "pkg-target" {
+				t.Errorf("body package_id: got %q", body.PackageID)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-new","label":"v4","app_version":"1.0.0"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		pkg, err := client.Rollback("app-123", "dep-456", RollbackRequest{PackageID: "pkg-target"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if pkg.ID != "pkg-new" {
+			t.Errorf("id: got %q", pkg.ID)
+		}
+		if pkg.Label != "v4" {
+			t.Errorf("label: got %q", pkg.Label)
+		}
+	})
+
+	t.Run("omits empty package_id", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			if strings.Contains(string(body), "package_id") {
+				t.Errorf("body should not contain package_id: %s", body)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-new","label":"v2"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.Rollback("app-123", "dep-456", RollbackRequest{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"no releases"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.Rollback("app-123", "dep-456", RollbackRequest{})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientPromote(t *testing.T) {
+	t.Run("sends correct request with all fields", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-src/promote" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodPost {
+				t.Errorf("method: got %q, want POST", r.Method)
+			}
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("content-type: got %q", r.Header.Get("Content-Type"))
+			}
+
+			var body PromoteRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decoding body: %v", err)
+			}
+			if body.TargetDeploymentID != "dep-dst" {
+				t.Errorf("target_deployment_id: got %q", body.TargetDeploymentID)
+			}
+			if body.AppVersion != "3.0.0" {
+				t.Errorf("app_version: got %q", body.AppVersion)
+			}
+			if body.Mandatory != "true" {
+				t.Errorf("mandatory: got %q", body.Mandatory)
+			}
+			if body.Rollout != "50" {
+				t.Errorf("rollout: got %q", body.Rollout)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-promoted","label":"v1","app_version":"3.0.0"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		pkg, err := client.Promote("app-123", "dep-src", PromoteRequest{
+			TargetDeploymentID: "dep-dst",
+			AppVersion:         "3.0.0",
+			Mandatory:          "true",
+			Rollout:            "50",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if pkg.ID != "pkg-promoted" {
+			t.Errorf("id: got %q", pkg.ID)
+		}
+	})
+
+	t.Run("omits empty optional fields", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			bodyStr := string(body)
+			if strings.Contains(bodyStr, "package_id") {
+				t.Errorf("body should not contain package_id: %s", bodyStr)
+			}
+			if strings.Contains(bodyStr, "app_version") {
+				t.Errorf("body should not contain app_version: %s", bodyStr)
+			}
+			if strings.Contains(bodyStr, "mandatory") {
+				t.Errorf("body should not contain mandatory: %s", bodyStr)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-new","label":"v1"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.Promote("app-123", "dep-src", PromoteRequest{
+			TargetDeploymentID: "dep-dst",
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"error":"duplicate release"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.Promote("app-123", "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "409") {
 			t.Errorf("error should contain status code: %v", err)
 		}
 	})

@@ -15,6 +15,9 @@ type mockClient struct {
 	getUploadURLFunc     func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
 	uploadFileFunc       func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
 	getPackageStatusFunc func(appID, deploymentID, packageID string) (*PackageStatus, error)
+	listPackagesFunc     func(appID, deploymentID string) ([]Package, error)
+	rollbackFunc         func(appID, deploymentID string, req RollbackRequest) (*Package, error)
+	promoteFunc          func(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
 
 func (m *mockClient) ListDeployments(appID string) ([]Deployment, error) {
@@ -43,6 +46,27 @@ func (m *mockClient) GetPackageStatus(appID, deploymentID, packageID string) (*P
 		return m.getPackageStatusFunc(appID, deploymentID, packageID)
 	}
 	return &PackageStatus{PackageID: packageID, Status: StatusDone}, nil
+}
+
+func (m *mockClient) ListPackages(appID, deploymentID string) ([]Package, error) {
+	if m.listPackagesFunc != nil {
+		return m.listPackagesFunc(appID, deploymentID)
+	}
+	return nil, nil
+}
+
+func (m *mockClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
+	if m.rollbackFunc != nil {
+		return m.rollbackFunc(appID, deploymentID, req)
+	}
+	return &Package{ID: "pkg-new", Label: "v2"}, nil
+}
+
+func (m *mockClient) Promote(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+	if m.promoteFunc != nil {
+		return m.promoteFunc(appID, deploymentID, req)
+	}
+	return &Package{ID: "pkg-new", Label: "v1"}, nil
 }
 
 var fastPollConfig = PollConfig{
@@ -87,7 +111,6 @@ func TestPush(t *testing.T) {
 			AppID:        "app-123",
 			DeploymentID: "00000000-0000-0000-0000-000000000001",
 			Token:        "test-token",
-			APIURL:       "https://api.example.com",
 			AppVersion:   "1.0.0",
 			Description:  "test update",
 			Mandatory:    true,
