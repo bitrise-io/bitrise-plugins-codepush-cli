@@ -30,6 +30,7 @@ temp/
 dist/
 build/
 bin/
+codepush-bundle/
 
 # OS files
 .DS_Store

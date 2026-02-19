@@ -30,7 +30,7 @@ bitrise-plugins-codepush-cli/
 │   ├── bitrise/             # Bitrise CI integration (env detection, deploy export)
 │   ├── bundler/             # JS bundle generation (detect, bundle, Hermes)
 │   └── codepush/            # Core CodePush logic
-├── scripts/                 # Development scripts (coverage check)
+├── bitrise.yml              # CI pipeline (build, test, coverage, vet)
 ├── bitrise-plugin.yml       # Bitrise plugin manifest
 ├── .goreleaser.yml          # Release automation
 └── go.mod                   # Go module definition
@@ -52,8 +52,9 @@ Run **all** commands after making changes. Fix any failures before committing.
 go build ./cmd/codepush                  # Build the binary
 go test ./...                            # Run all tests
 go vet ./...                             # Static analysis
-./scripts/check-coverage.sh              # Verify 75%+ test coverage
 ```
+
+CI enforces a **75% minimum test coverage** threshold. See `bitrise.yml` for the full pipeline.
 
 ## Command-Line Interface
 
