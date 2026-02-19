@@ -3,6 +3,12 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 
 project_type: other
 
+trigger_map:
+- push_branch: main
+  pipeline: pipeline_ci
+- pull_request_target_branch: main
+  pipeline: pipeline_ci
+
 pipelines:
   pipeline_ci:
     stages:
