@@ -131,7 +131,7 @@ func (c *HTTPClient) doRequest(method, path string, body io.Reader) (*http.Respo
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.Token)
+	req.Header.Set("Authorization", c.Token)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.HTTPClient.Do(req)
