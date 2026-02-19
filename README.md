@@ -4,9 +4,11 @@ Bitrise CLI plugin for managing CodePush OTA updates and SDK integration for mob
 
 ## Features
 
+- **Bundle JavaScript** for React Native and Expo projects with auto-detection
 - **Push OTA updates** to React Native and mobile apps
 - **Rollback** deployments to previous versions
 - **Integrate** the CodePush SDK into mobile projects
+- **Hermes bytecode compilation** with automatic detection
 - **Bitrise CI/CD** auto-detection and artifact export
 - Works as **standalone CLI** or **Bitrise plugin**
 
@@ -19,7 +21,9 @@ Bitrise CLI plugin for managing CodePush OTA updates and SDK integration for mob
 bitrise plugin install --source https://github.com/bitrise-io/bitrise-plugins-codepush-cli.git
 
 # Use
+bitrise :codepush bundle --platform ios
 bitrise :codepush push ./dist/bundle.js
+bitrise :codepush push --bundle --platform ios
 bitrise :codepush rollback
 bitrise :codepush integrate
 ```
@@ -29,7 +33,9 @@ bitrise :codepush integrate
 Download the latest binary from [Releases](https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases), then:
 
 ```bash
+./codepush bundle --platform ios
 ./codepush push ./dist/bundle.js
+./codepush push --bundle --platform android
 ./codepush rollback
 ./codepush integrate
 ./codepush version
@@ -39,10 +45,68 @@ Download the latest binary from [Releases](https://github.com/bitrise-io/bitrise
 
 | Command | Description |
 |---------|-------------|
+| `bundle` | Bundle JavaScript for an OTA update |
 | `push [bundle-path]` | Push an OTA update |
 | `rollback` | Rollback to a previous release |
 | `integrate` | Integrate CodePush SDK into a project |
 | `version` | Print version information |
+
+## Bundling
+
+The `bundle` command generates JavaScript bundles for React Native and Expo projects. It auto-detects the project type, entry file, Hermes configuration, and Metro config.
+
+### Basic Usage
+
+```bash
+# Bundle for iOS
+codepush bundle --platform ios
+
+# Bundle for Android
+codepush bundle --platform android
+
+# Bundle and push in one step
+codepush push --bundle --platform ios
+```
+
+### Options
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--platform` | (required) | `ios` or `android` |
+| `--entry-file` | auto-detect | Path to entry JS file |
+| `--output-dir` | `./codepush-bundle` | Output directory |
+| `--bundle-name` | platform default | Custom bundle filename |
+| `--dev` | `false` | Development mode |
+| `--sourcemap` | `true` | Generate source maps |
+| `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
+| `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
+| `--project-dir` | CWD | Project root directory |
+| `--config` | auto-detect | Metro config file path |
+
+### Auto-Detection
+
+The CLI automatically detects:
+
+- **Project type**: React Native or Expo (from `package.json` dependencies)
+- **Entry file**: `index.<platform>.js`, `index.js`, or `package.json` main field
+- **Hermes**: From `build.gradle` (Android) or `Podfile` (iOS)
+- **Metro config**: `metro.config.js` or `metro.config.ts`
+
+### Examples
+
+```bash
+# Override Hermes detection
+codepush bundle --platform android --hermes=off
+
+# Custom output directory
+codepush bundle --platform ios --output-dir ./my-bundle
+
+# Development build
+codepush bundle --platform ios --dev
+
+# Pass extra options to the bundler
+codepush bundle --platform ios --extra-bundler-option="--reset-cache"
+```
 
 ## Bitrise CI/CD Integration
 
@@ -50,6 +114,7 @@ When running in a Bitrise build, the plugin automatically:
 - Detects the Bitrise environment
 - Reads build metadata (build number, commit hash)
 - Exports results to `$BITRISE_DEPLOY_DIR`
+- Exports `codepush-bundle-summary.json` with bundle metadata after bundling
 
 ## Development
 
