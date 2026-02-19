@@ -1,0 +1,22 @@
+name: codepush
+description: |
+  Manage CodePush OTA updates and SDK integration for mobile apps.
+
+  Features:
+  - Push OTA updates to React Native and mobile apps
+  - Rollback deployments to previous versions
+  - Integrate CodePush SDK into mobile projects
+  - Auto-detects Bitrise CI/CD environment
+  - Works as standalone CLI or Bitrise plugin
+
+executable:
+  osx: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.0/codepush-Darwin-x86_64
+  osx-arm64: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.0/codepush-Darwin-arm64
+  linux: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.0/codepush-Linux-x86_64
+
+trigger: ""
+
+requirements:
+  - tool: bitrise
+    min_version: 1.3.0
+    max_version: ""
