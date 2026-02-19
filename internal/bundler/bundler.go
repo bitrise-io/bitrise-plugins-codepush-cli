@@ -2,6 +2,7 @@ package bundler
 
 import (
 	"fmt"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"io"
 	"os"
 	"os/exec"
@@ -74,12 +75,12 @@ func (e *DefaultExecutor) Run(dir string, stdout io.Writer, stderr io.Writer, na
 }
 
 // NewBundler creates the appropriate Bundler implementation based on project type.
-func NewBundler(projectType ProjectType, executor CommandExecutor) (Bundler, error) {
+func NewBundler(projectType ProjectType, executor CommandExecutor, out *output.Writer) (Bundler, error) {
 	switch projectType {
 	case ProjectTypeReactNative:
-		return &ReactNativeBundler{executor: executor}, nil
+		return &ReactNativeBundler{executor: executor, out: out}, nil
 	case ProjectTypeExpo:
-		return &ExpoBundler{executor: executor}, nil
+		return &ExpoBundler{executor: executor, out: out}, nil
 	default:
 		return nil, fmt.Errorf("unsupported project type: %s", projectType)
 	}

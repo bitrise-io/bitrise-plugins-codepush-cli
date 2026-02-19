@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 type mockClient struct {
@@ -125,6 +127,8 @@ func (m *mockClient) Promote(appID, deploymentID string, req PromoteRequest) (*P
 	return &Package{ID: "pkg-new", Label: "v1"}, nil
 }
 
+var testOut = output.NewTest(io.Discard)
+
 var fastPollConfig = PollConfig{
 	MaxAttempts: 3,
 	Interval:    1 * time.Millisecond,
@@ -174,7 +178,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		result, err := PushWithConfig(client, opts, fastPollConfig)
+		result, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -229,7 +233,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -259,7 +263,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -289,7 +293,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -316,7 +320,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -343,7 +347,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -374,7 +378,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -401,7 +405,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
+		_, err := PushWithConfig(client, opts, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond}, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -427,7 +431,7 @@ func TestPush(t *testing.T) {
 			BundlePath:   bundleDir,
 		}
 
-		_, err := PushWithConfig(client, opts, fastPollConfig)
+		_, err := PushWithConfig(client, opts, fastPollConfig, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -506,7 +510,7 @@ func TestValidatePushOptions(t *testing.T) {
 func TestResolveDeployment(t *testing.T) {
 	t.Run("UUID passthrough", func(t *testing.T) {
 		client := &mockClient{}
-		id, err := ResolveDeployment(client, "app-123", "00000000-0000-0000-0000-000000000001")
+		id, err := ResolveDeployment(client, "app-123", "00000000-0000-0000-0000-000000000001", testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -525,7 +529,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		id, err := ResolveDeployment(client, "app-123", "Production")
+		id, err := ResolveDeployment(client, "app-123", "Production", testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -541,7 +545,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		_, err := ResolveDeployment(client, "app-123", "Production")
+		_, err := ResolveDeployment(client, "app-123", "Production", testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -557,7 +561,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		_, err := ResolveDeployment(client, "app-123", "Production")
+		_, err := ResolveDeployment(client, "app-123", "Production", testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

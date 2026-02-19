@@ -34,7 +34,7 @@ func TestRollback(t *testing.T) {
 			Token:        "test-token",
 		}
 
-		result, err := Rollback(client, opts)
+		result, err := Rollback(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -73,7 +73,7 @@ func TestRollback(t *testing.T) {
 			TargetLabel:  "v2",
 		}
 
-		_, err := Rollback(client, opts)
+		_, err := Rollback(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -99,7 +99,7 @@ func TestRollback(t *testing.T) {
 			TargetLabel:  "v99",
 		}
 
-		_, err := Rollback(client, opts)
+		_, err := Rollback(client, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -129,7 +129,7 @@ func TestRollback(t *testing.T) {
 			Token:        "test-token",
 		}
 
-		_, err := Rollback(client, opts)
+		_, err := Rollback(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -151,7 +151,7 @@ func TestRollback(t *testing.T) {
 			Token:        "test-token",
 		}
 
-		_, err := Rollback(client, opts)
+		_, err := Rollback(client, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -177,7 +177,7 @@ func TestRollback(t *testing.T) {
 			Token:        "test-token",
 		}
 
-		_, err := Rollback(client, opts)
+		_, err := Rollback(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -242,7 +242,7 @@ func TestResolvePackageLabel(t *testing.T) {
 			},
 		}
 
-		id, err := resolvePackageLabel(client, "app-123", "dep-456", "v2")
+		id, err := resolvePackageLabel(client, "app-123", "dep-456", "v2", testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -258,7 +258,7 @@ func TestResolvePackageLabel(t *testing.T) {
 			},
 		}
 
-		_, err := resolvePackageLabel(client, "app-123", "dep-456", "v99")
+		_, err := resolvePackageLabel(client, "app-123", "dep-456", "v99", testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -274,7 +274,7 @@ func TestResolvePackageLabel(t *testing.T) {
 			},
 		}
 
-		_, err := resolvePackageLabel(client, "app-123", "dep-456", "v1")
+		_, err := resolvePackageLabel(client, "app-123", "dep-456", "v1", testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

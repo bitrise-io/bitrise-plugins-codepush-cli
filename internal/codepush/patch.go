@@ -3,25 +3,25 @@ package codepush
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strconv"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // Patch executes the patch workflow: validate, resolve deployment,
 // resolve label (or find latest), build request, call API, export summary.
-func Patch(client Client, opts *PatchOptions) (*PatchResult, error) {
+func Patch(client Client, opts *PatchOptions, out *output.Writer) (*PatchResult, error) {
 	if err := validatePatchOptions(opts); err != nil {
 		return nil, err
 	}
 
-	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID)
+	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID, out)
 	if err != nil {
 		return nil, err
 	}
 
-	packageID, packageLabel, err := ResolvePackageForPatch(client, opts.AppID, deploymentID, opts.Label)
+	packageID, packageLabel, err := ResolvePackageForPatch(client, opts.AppID, deploymentID, opts.Label, out)
 	if err != nil {
 		return nil, err
 	}
@@ -31,7 +31,7 @@ func Patch(client Client, opts *PatchOptions) (*PatchResult, error) {
 		return nil, err
 	}
 
-	fmt.Fprintf(os.Stderr, "Patching release %s...\n", packageLabel)
+	out.Step("Patching release %s", packageLabel)
 	pkg, err := client.PatchPackage(opts.AppID, deploymentID, packageID, req)
 	if err != nil {
 		return nil, fmt.Errorf("patch failed: %w", err)
@@ -50,7 +50,7 @@ func Patch(client Client, opts *PatchOptions) (*PatchResult, error) {
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportPatchSummary(result)
+		exportPatchSummary(result, out)
 	}
 
 	return result, nil
@@ -74,16 +74,16 @@ func validatePatchOptions(opts *PatchOptions) error {
 
 // ResolvePackageForPatch resolves a package by label or finds the latest package.
 // Returns the package ID and label.
-func ResolvePackageForPatch(client Client, appID, deploymentID, label string) (string, string, error) {
+func ResolvePackageForPatch(client Client, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
 	if label != "" {
-		id, err := resolvePackageLabel(client, appID, deploymentID, label)
+		id, err := resolvePackageLabel(client, appID, deploymentID, label, out)
 		if err != nil {
 			return "", "", err
 		}
 		return id, label, nil
 	}
 
-	fmt.Fprintf(os.Stderr, "Resolving latest release...\n")
+	out.Step("Resolving latest release")
 	packages, err := client.ListPackages(appID, deploymentID)
 	if err != nil {
 		return "", "", fmt.Errorf("listing packages: %w", err)
@@ -94,7 +94,7 @@ func ResolvePackageForPatch(client Client, appID, deploymentID, label string) (s
 	}
 
 	latest := packages[len(packages)-1]
-	fmt.Fprintf(os.Stderr, "Resolved latest release: %s (package %s)\n", latest.Label, latest.ID)
+	out.Info("Resolved latest release: %s (%s)", latest.Label, latest.ID)
 	return latest.ID, latest.Label, nil
 }
 
@@ -148,7 +148,7 @@ type patchSummary struct {
 	Description  string `json:"description"`
 }
 
-func exportPatchSummary(result *PatchResult) {
+func exportPatchSummary(result *PatchResult, out *output.Writer) {
 	summary := patchSummary{
 		PackageID:    result.PackageID,
 		AppID:        result.AppID,
@@ -163,15 +163,15 @@ func exportPatchSummary(result *PatchResult) {
 
 	data, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal patch summary: %v\n", err)
+		out.Warning("failed to marshal patch summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export patch summary: %v\n", err)
+		out.Warning("failed to export patch summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Patch summary exported to: %s\n", path)
+	out.Info("Patch summary exported to: %s", path)
 }

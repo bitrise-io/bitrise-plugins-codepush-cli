@@ -1,9 +1,12 @@
 package bundler
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 func TestRunWithExecutor(t *testing.T) {
@@ -34,7 +37,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		result, err := RunWithExecutor(opts, executor)
+		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -75,7 +78,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		result, err := RunWithExecutor(opts, executor)
+		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -110,7 +113,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOn,
 		}
 
-		_, err := RunWithExecutor(opts, executor)
+		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err == nil {
 			t.Fatal("expected error for missing hermesc, got nil")
 		}
@@ -125,7 +128,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		_, err := RunWithExecutor(opts, executor)
+		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err == nil {
 			t.Fatal("expected error for invalid project dir, got nil")
 		}
@@ -161,7 +164,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		_, err := RunWithExecutor(opts, executor)
+		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -209,7 +212,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		result, err := RunWithExecutor(opts, executor)
+		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -244,7 +247,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: "",
 		}
 
-		_, err := RunWithExecutor(opts, executor)
+		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -280,7 +283,7 @@ func TestRunWithExecutor(t *testing.T) {
 			HermesMode: HermesModeOff,
 		}
 
-		_, err := RunWithExecutor(opts, executor)
+		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

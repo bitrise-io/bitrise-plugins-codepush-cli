@@ -3,24 +3,24 @@ package codepush
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // Promote executes the promote workflow: validate, resolve both deployments,
 // optionally resolve label to package ID, call API, export summary.
-func Promote(client Client, opts *PromoteOptions) (*PromoteResult, error) {
+func Promote(client Client, opts *PromoteOptions, out *output.Writer) (*PromoteResult, error) {
 	if err := validatePromoteOptions(opts); err != nil {
 		return nil, err
 	}
 
-	sourceDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.SourceDeploymentID)
+	sourceDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.SourceDeploymentID, out)
 	if err != nil {
 		return nil, fmt.Errorf("resolving source deployment: %w", err)
 	}
 
-	destDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.DestDeploymentID)
+	destDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.DestDeploymentID, out)
 	if err != nil {
 		return nil, fmt.Errorf("resolving destination deployment: %w", err)
 	}
@@ -35,14 +35,14 @@ func Promote(client Client, opts *PromoteOptions) (*PromoteResult, error) {
 	}
 
 	if opts.Label != "" {
-		packageID, err := resolvePackageLabel(client, opts.AppID, sourceDeploymentID, opts.Label)
+		packageID, err := resolvePackageLabel(client, opts.AppID, sourceDeploymentID, opts.Label, out)
 		if err != nil {
 			return nil, err
 		}
 		req.PackageID = packageID
 	}
 
-	fmt.Fprintf(os.Stderr, "Promoting from %s to %s...\n", opts.SourceDeploymentID, opts.DestDeploymentID)
+	out.Step("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
 	pkg, err := client.Promote(opts.AppID, sourceDeploymentID, req)
 	if err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
@@ -59,7 +59,7 @@ func Promote(client Client, opts *PromoteOptions) (*PromoteResult, error) {
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportPromoteSummary(result)
+		exportPromoteSummary(result, out)
 	}
 
 	return result, nil
@@ -94,7 +94,7 @@ type promoteSummary struct {
 	Description      string `json:"description"`
 }
 
-func exportPromoteSummary(result *PromoteResult) {
+func exportPromoteSummary(result *PromoteResult, out *output.Writer) {
 	summary := promoteSummary{
 		PackageID:        result.PackageID,
 		AppID:            result.AppID,
@@ -107,15 +107,15 @@ func exportPromoteSummary(result *PromoteResult) {
 
 	data, err := json.MarshalIndent(summary, "", "  ")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal promote summary: %v\n", err)
+		out.Warning("failed to marshal promote summary: %v", err)
 		return
 	}
 
 	path, err := bitrise.WriteToDeployDir("codepush-promote-summary.json", data)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export promote summary: %v\n", err)
+		out.Warning("failed to export promote summary: %v", err)
 		return
 	}
 
-	fmt.Fprintf(os.Stderr, "Promote summary exported to: %s\n", path)
+	out.Info("Promote summary exported to: %s", path)
 }

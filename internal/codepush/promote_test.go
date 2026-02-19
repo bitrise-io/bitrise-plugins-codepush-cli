@@ -31,7 +31,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		result, err := Promote(client, opts)
+		result, err := Promote(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -68,7 +68,7 @@ func TestPromote(t *testing.T) {
 			Rollout:            "50",
 		}
 
-		_, err := Promote(client, opts)
+		_, err := Promote(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -110,7 +110,7 @@ func TestPromote(t *testing.T) {
 			Label:              "v2",
 		}
 
-		_, err := Promote(client, opts)
+		_, err := Promote(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -144,7 +144,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts)
+		_, err := Promote(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -165,7 +165,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(&mockClient{}, opts)
+		_, err := Promote(&mockClient{}, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -188,7 +188,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts)
+		_, err := Promote(client, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -215,7 +215,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts)
+		_, err := Promote(client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
