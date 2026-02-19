@@ -4,6 +4,7 @@ package bitrise
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 )
 
@@ -46,4 +47,21 @@ func WriteToDeployDir(filename string, data []byte) (string, error) {
 	}
 
 	return destPath, nil
+}
+
+// ExportEnvVar exports an environment variable using envman so that
+// downstream Bitrise steps can access it. Skips silently if envman
+// is not available on PATH.
+func ExportEnvVar(key, value string) error {
+	envmanPath, err := exec.LookPath("envman")
+	if err != nil {
+		return nil // envman not available, skip silently
+	}
+
+	cmd := exec.Command(envmanPath, "add", "--key", key, "--value", value)
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("envman export %s: %w", key, err)
+	}
+
+	return nil
 }

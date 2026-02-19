@@ -216,6 +216,10 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 
 		if bitrise.IsBitriseEnvironment() {
 			exportPushSummary(result)
+			exportEnvVars(map[string]string{
+				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_APP_VERSION": result.AppVersion,
+			})
 		}
 
 		return nil
@@ -256,6 +260,13 @@ to specify a specific version label (e.g. v3).`,
 		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
 		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
 		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+
+		if bitrise.IsBitriseEnvironment() {
+			exportEnvVars(map[string]string{
+				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_APP_VERSION": result.AppVersion,
+			})
+		}
 
 		return nil
 	},
@@ -304,6 +315,13 @@ Example: promote from Staging to Production after testing.`,
 		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
 		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
 		fmt.Fprintf(os.Stderr, "  Destination: %s\n", promoteDestDeployment)
+
+		if bitrise.IsBitriseEnvironment() {
+			exportEnvVars(map[string]string{
+				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_APP_VERSION": result.AppVersion,
+			})
+		}
 
 		return nil
 	},
@@ -356,6 +374,15 @@ Examples:
 		fmt.Fprintf(os.Stderr, "  Rollout: %d%%\n", result.Rollout)
 		fmt.Fprintf(os.Stderr, "  Mandatory: %v\n", result.Mandatory)
 		fmt.Fprintf(os.Stderr, "  Disabled: %v\n", result.Disabled)
+
+		if bitrise.IsBitriseEnvironment() {
+			exportPatchSummary(result)
+			exportEnvVars(map[string]string{
+				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_LABEL":       result.Label,
+				"CODEPUSH_APP_VERSION": result.AppVersion,
+			})
+		}
 
 		return nil
 	},
@@ -1173,6 +1200,15 @@ func runBundleWithOpts() (*bundler.BundleResult, error) {
 	return bundler.Run(opts)
 }
 
+// exportEnvVars exports key-value pairs as Bitrise environment variables via envman.
+func exportEnvVars(vars map[string]string) {
+	for key, value := range vars {
+		if err := bitrise.ExportEnvVar(key, value); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to export %s: %v\n", key, err)
+		}
+	}
+}
+
 // exportPushSummary writes a JSON push summary to the Bitrise deploy directory.
 func exportPushSummary(result *codepush.PushResult) {
 	data, err := json.MarshalIndent(result, "", "  ")
@@ -1188,6 +1224,23 @@ func exportPushSummary(result *codepush.PushResult) {
 	}
 
 	fmt.Fprintf(os.Stderr, "Push summary exported to: %s\n", path)
+}
+
+// exportPatchSummary writes a JSON patch summary to the Bitrise deploy directory.
+func exportPatchSummary(result *codepush.PatchResult) {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to marshal patch summary: %v\n", err)
+		return
+	}
+
+	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to export patch summary: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Patch summary exported to: %s\n", path)
 }
 
 // exportBundleSummary writes a JSON bundle summary to the Bitrise deploy directory.
