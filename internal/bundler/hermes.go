@@ -71,8 +71,9 @@ func (h *HermesCompiler) composeSourceMaps(bundlePath string, metroMapPath strin
 	composeScript := filepath.Join(projectDir, "node_modules", "react-native", "scripts", "compose-source-maps.js")
 	if _, err := os.Stat(composeScript); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: compose-source-maps.js not found, using Hermes source map only\n")
-		// Use the Hermes source map directly
-		_ = os.Rename(hermesMapPath, metroMapPath)
+		if err := os.Rename(hermesMapPath, metroMapPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not rename Hermes source map: %v\n", err)
+		}
 		return
 	}
 
@@ -80,11 +81,17 @@ func (h *HermesCompiler) composeSourceMaps(bundlePath string, metroMapPath strin
 	err := h.executor.Run("", os.Stderr, os.Stderr, "node", composeScript, metroMapPath, hermesMapPath, "-o", composedPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: source map composition failed, using Hermes source map only\n")
-		_ = os.Rename(hermesMapPath, metroMapPath)
+		if err := os.Rename(hermesMapPath, metroMapPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not rename Hermes source map: %v\n", err)
+		}
 		return
 	}
 
 	// Replace original sourcemap with composed one
-	_ = os.Rename(composedPath, metroMapPath)
-	_ = os.Remove(hermesMapPath)
+	if err := os.Rename(composedPath, metroMapPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not replace source map with composed version: %v\n", err)
+	}
+	if err := os.Remove(hermesMapPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not clean up Hermes source map: %v\n", err)
+	}
 }

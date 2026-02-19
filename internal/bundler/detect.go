@@ -184,20 +184,99 @@ func detectEntryFile(projectDir string, platform Platform) (string, error) {
 	return "", fmt.Errorf("entry file not found: tried %s and index.js in %s", platformSpecific, projectDir)
 }
 
+// hermesDetection represents the result of scanning build files for Hermes config.
+type hermesDetection int
+
+const (
+	hermesNotFound  hermesDetection = iota // no explicit config found
+	hermesEnabled                          // explicitly enabled
+	hermesDisabled                         // explicitly disabled
+)
+
 // detectHermes checks the project for Hermes configuration.
+// If no explicit config is found, defaults to true for React Native >= 0.70
+// (Hermes became the default engine in that version).
 func detectHermes(projectDir string, platform Platform) (bool, error) {
+	var detection hermesDetection
+
 	switch platform {
 	case PlatformAndroid:
-		return detectHermesAndroid(projectDir)
+		detection = detectHermesAndroid(projectDir)
 	case PlatformIOS:
-		return detectHermesIOS(projectDir)
+		detection = detectHermesIOS(projectDir)
 	default:
 		return false, nil
 	}
+
+	switch detection {
+	case hermesEnabled:
+		return true, nil
+	case hermesDisabled:
+		return false, nil
+	default:
+		// No explicit config found: check if RN >= 0.70 where Hermes is the default
+		return isHermesDefaultVersion(projectDir), nil
+	}
+}
+
+// isHermesDefaultVersion checks if the react-native version in package.json
+// is >= 0.70, where Hermes became the default JS engine.
+func isHermesDefaultVersion(projectDir string) bool {
+	pkgPath := filepath.Join(projectDir, "package.json")
+	data, err := os.ReadFile(pkgPath)
+	if err != nil {
+		return false
+	}
+
+	var pkg packageJSON
+	if err := json.Unmarshal(data, &pkg); err != nil {
+		return false
+	}
+
+	rnVersion := pkg.Dependencies["react-native"]
+	if rnVersion == "" {
+		rnVersion = pkg.DevDependencies["react-native"]
+	}
+	if rnVersion == "" {
+		return false
+	}
+
+	return parseRNMajorMinor(rnVersion) >= 70
+}
+
+// parseRNMajorMinor extracts the minor version number from a React Native
+// version string. Returns the minor version (e.g., 72 for "0.72.0") or 0
+// if parsing fails. Handles semver ranges like "^0.72.0", "~0.72.0", ">=0.72.0".
+func parseRNMajorMinor(version string) int {
+	// Strip common semver prefixes
+	v := strings.TrimLeft(version, "^~>=<! ")
+
+	parts := strings.SplitN(v, ".", 3)
+	if len(parts) < 2 {
+		return 0
+	}
+
+	// React Native uses 0.XX.Y format; the meaningful version is the minor
+	major := 0
+	minor := 0
+	if _, err := fmt.Sscanf(parts[0], "%d", &major); err != nil {
+		return 0
+	}
+	if _, err := fmt.Sscanf(parts[1], "%d", &minor); err != nil {
+		return 0
+	}
+
+	// For RN 0.x, the minor is the "effective major"
+	if major == 0 {
+		return minor
+	}
+
+	// Future-proofing: if RN ever goes to 1.x+, treat as >= 0.70
+	return 100
 }
 
 // detectHermesAndroid checks android/app/build.gradle for Hermes configuration.
-func detectHermesAndroid(projectDir string) (bool, error) {
+func detectHermesAndroid(projectDir string) hermesDetection {
 	gradlePaths := []string{
 		filepath.Join(projectDir, "android", "app", "build.gradle"),
 		filepath.Join(projectDir, "android", "app", "build.gradle.kts"),
@@ -211,15 +290,15 @@ func detectHermesAndroid(projectDir string) (bool, error) {
 
 		content := string(data)
 		// Check for various Hermes configuration patterns across RN versions
-		hermesPatterns := []string{
+		enablePatterns := []string{
 			"hermesEnabled = true",
 			"hermesEnabled.set(true)",
 			"enableHermes: true",
 			"enableHermes = true",
 		}
-		for _, pattern := range hermesPatterns {
+		for _, pattern := range enablePatterns {
 			if strings.Contains(content, pattern) {
-				return true, nil
+				return hermesEnabled
 			}
 		}
 
@@ -232,21 +311,20 @@ func detectHermesAndroid(projectDir string) (bool, error) {
 		}
 		for _, pattern := range disablePatterns {
 			if strings.Contains(content, pattern) {
-				return false, nil
+				return hermesDisabled
 			}
 		}
 	}
 
-	// Default: Hermes is enabled by default in RN 0.70+
-	return false, nil
+	return hermesNotFound
 }
 
 // detectHermesIOS checks ios/Podfile for Hermes configuration.
-func detectHermesIOS(projectDir string) (bool, error) {
+func detectHermesIOS(projectDir string) hermesDetection {
 	podfilePath := filepath.Join(projectDir, "ios", "Podfile")
 	data, err := os.ReadFile(podfilePath)
 	if err != nil {
-		return false, nil
+		return hermesNotFound
 	}
 
 	content := string(data)
@@ -256,7 +334,7 @@ func detectHermesIOS(projectDir string) (bool, error) {
 	}
 	for _, pattern := range enablePatterns {
 		if strings.Contains(content, pattern) {
-			return true, nil
+			return hermesEnabled
 		}
 	}
 
@@ -266,11 +344,11 @@ func detectHermesIOS(projectDir string) (bool, error) {
 	}
 	for _, pattern := range disablePatterns {
 		if strings.Contains(content, pattern) {
-			return false, nil
+			return hermesDisabled
 		}
 	}
 
-	return false, nil
+	return hermesNotFound
 }
 
 // findHermesc locates the hermesc binary in node_modules.

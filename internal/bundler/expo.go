@@ -91,20 +91,23 @@ func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 		}
 	}
 
-	// Fallback: scan the output directory for any .js bundle file
-	var found string
-	err := filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+	// Fallback: scan the output directory for .js bundle files (not sourcemaps)
+	var jsFiles []string
+	filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") && !strings.HasSuffix(info.Name(), ".map") {
-			found = path
-			return filepath.SkipAll
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") && !strings.HasSuffix(info.Name(), ".js.map") {
+			jsFiles = append(jsFiles, path)
 		}
 		return nil
 	})
-	if err == nil && found != "" {
-		return found, nil
+
+	if len(jsFiles) == 1 {
+		return jsFiles[0], nil
+	}
+	if len(jsFiles) > 1 {
+		return "", fmt.Errorf("found %d .js files in %s but could not determine which is the bundle: expected output in bundles/ or _expo/static/js/%s/", len(jsFiles), outputDir, platform)
 	}
 
 	return "", fmt.Errorf("could not find bundle output in %s: check that expo export completed successfully", outputDir)

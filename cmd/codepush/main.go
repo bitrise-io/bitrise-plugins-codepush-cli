@@ -2,11 +2,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/spf13/cobra"
@@ -18,7 +20,9 @@ var (
 	date    = "unknown"
 )
 
-// Bundle command flags
+// Bundle flags: shared between "bundle" and "push --bundle" commands.
+// Both commands bind to the same variables so that "push --bundle" reuses
+// the bundling pipeline with identical flag names.
 var (
 	bundlePlatform         string
 	bundleEntryFile        string
@@ -32,12 +36,7 @@ var (
 	bundleMetroConfig      string
 )
 
-// Auth command flags
-var (
-	authLoginToken string
-)
-
-// Push command flags
+// Push-only flags (not shared with bundle command).
 var (
 	pushAutoBundle  bool
 	pushAppID       string
@@ -50,6 +49,9 @@ var (
 	pushDisabled    bool
 	pushAPIURL      string
 )
+
+// Auth flags.
+var authLoginToken string
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -144,13 +146,17 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		client := codepush.NewHTTPClient(opts.APIURL, opts.Token)
 		result, err := codepush.Push(client, opts)
 		if err != nil {
-			return err
+			return fmt.Errorf("push failed: %w", err)
 		}
 
 		fmt.Fprintf(os.Stderr, "\nPush successful:\n")
 		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
 		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
 		fmt.Fprintf(os.Stderr, "  Status: %s\n", result.Status)
+
+		if bitrise.IsBitriseEnvironment() {
+			exportPushSummary(result)
+		}
 
 		return nil
 	},
@@ -163,8 +169,7 @@ var rollbackCmd = &cobra.Command{
 
 Reverts the active OTA update so devices receive the prior version.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintln(os.Stderr, "rollback command not yet implemented")
-		return nil
+		return fmt.Errorf("rollback command is not yet implemented")
 	},
 }
 
@@ -176,8 +181,7 @@ var integrateCmd = &cobra.Command{
 Detects the project type (React Native, Flutter, native iOS/Android)
 and configures the SDK accordingly.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintln(os.Stderr, "integrate command not yet implemented")
-		return nil
+		return fmt.Errorf("integrate command is not yet implemented")
 	},
 }
 
@@ -220,8 +224,12 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 			return fmt.Errorf("saving token: %w", err)
 		}
 
-		configPath, _ := auth.ConfigFilePath()
-		fmt.Fprintf(os.Stderr, "Token saved to: %s\n", configPath)
+		configPath, err := auth.ConfigFilePath()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not determine config path: %v\n", err)
+		} else {
+			fmt.Fprintf(os.Stderr, "Token saved to: %s\n", configPath)
+		}
 		return nil
 	},
 }
@@ -260,7 +268,7 @@ func init() {
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
 	_ = bundleCmd.MarkFlagRequired("platform")
 	bundleCmd.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
-	bundleCmd.Flags().StringVar(&bundleOutputDir, "output-dir", "./codepush-bundle", "output directory for the bundle")
+	bundleCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
 	bundleCmd.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
 	bundleCmd.Flags().BoolVar(&bundleDev, "dev", false, "enable development mode")
 	bundleCmd.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
@@ -272,7 +280,7 @@ func init() {
 	// Push command: --bundle flag and shared bundling flags
 	pushCmd.Flags().BoolVar(&pushAutoBundle, "bundle", false, "bundle JavaScript before pushing")
 	pushCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform for bundling: ios or android")
-	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", "./codepush-bundle", "output directory for the bundle")
+	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
 	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 
@@ -307,19 +315,19 @@ func resolveToken(flagValue string) string {
 	if envValue := os.Getenv("BITRISE_API_TOKEN"); envValue != "" {
 		return envValue
 	}
-	storedToken, _ := auth.LoadToken()
+	storedToken, err := auth.LoadToken()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: could not load stored token: %v\n", err)
+	}
 	return storedToken
 }
 
 func runBundle() error {
-	platform := bundler.Platform(bundlePlatform)
-	if platform != bundler.PlatformIOS && platform != bundler.PlatformAndroid {
-		return fmt.Errorf("--platform must be 'ios' or 'android', got %q", bundlePlatform)
+	if err := bundler.ValidatePlatform(bundler.Platform(bundlePlatform)); err != nil {
+		return err
 	}
-
-	hermesMode := bundler.HermesMode(bundleHermes)
-	if hermesMode != bundler.HermesModeAuto && hermesMode != bundler.HermesModeOn && hermesMode != bundler.HermesModeOff {
-		return fmt.Errorf("--hermes must be 'auto', 'on', or 'off', got %q", bundleHermes)
+	if err := bundler.ValidateHermesMode(bundler.HermesMode(bundleHermes)); err != nil {
+		return err
 	}
 
 	result, err := runBundleWithOpts()
@@ -335,6 +343,10 @@ func runBundle() error {
 	}
 	if result.HermesApplied {
 		fmt.Fprintf(os.Stderr, "  Hermes: compiled\n")
+	}
+
+	if bitrise.IsBitriseEnvironment() {
+		exportBundleSummary(result)
 	}
 
 	return nil
@@ -355,4 +367,54 @@ func runBundleWithOpts() (*bundler.BundleResult, error) {
 	}
 
 	return bundler.Run(opts)
+}
+
+// exportPushSummary writes a JSON push summary to the Bitrise deploy directory.
+func exportPushSummary(result *codepush.PushResult) {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to marshal push summary: %v\n", err)
+		return
+	}
+
+	path, err := bitrise.WriteToDeployDir("codepush-push-summary.json", data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to export push summary: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Push summary exported to: %s\n", path)
+}
+
+// exportBundleSummary writes a JSON bundle summary to the Bitrise deploy directory.
+func exportBundleSummary(result *bundler.BundleResult) {
+	summary := struct {
+		Platform      string `json:"platform"`
+		ProjectType   string `json:"project_type"`
+		BundlePath    string `json:"bundle_path"`
+		AssetsDir     string `json:"assets_dir"`
+		SourcemapPath string `json:"sourcemap_path,omitempty"`
+		HermesApplied bool   `json:"hermes_applied"`
+	}{
+		Platform:      string(result.Platform),
+		ProjectType:   result.ProjectType.String(),
+		BundlePath:    result.BundlePath,
+		AssetsDir:     result.AssetsDir,
+		SourcemapPath: result.SourcemapPath,
+		HermesApplied: result.HermesApplied,
+	}
+
+	data, err := json.MarshalIndent(summary, "", "  ")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to marshal bundle summary: %v\n", err)
+		return
+	}
+
+	path, err := bitrise.WriteToDeployDir("codepush-bundle-summary.json", data)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to export bundle summary: %v\n", err)
+		return
+	}
+
+	fmt.Fprintf(os.Stderr, "Bundle summary exported to: %s\n", path)
 }

@@ -7,6 +7,25 @@ import (
 	"os/exec"
 )
 
+// DefaultOutputDir is the default output directory for bundle generation.
+const DefaultOutputDir = "./codepush-bundle"
+
+// ValidatePlatform checks that the given platform string is valid.
+func ValidatePlatform(p Platform) error {
+	if p != PlatformIOS && p != PlatformAndroid {
+		return fmt.Errorf("--platform must be 'ios' or 'android', got %q", p)
+	}
+	return nil
+}
+
+// ValidateHermesMode checks that the given hermes mode string is valid.
+func ValidateHermesMode(h HermesMode) error {
+	if h != HermesModeAuto && h != HermesModeOn && h != HermesModeOff {
+		return fmt.Errorf("--hermes must be 'auto', 'on', or 'off', got %q", h)
+	}
+	return nil
+}
+
 // BundleOptions holds user-specified options for bundle generation.
 type BundleOptions struct {
 	Platform         Platform

@@ -222,7 +222,8 @@ func TestRunWithExecutor(t *testing.T) {
 	t.Run("defaults hermes mode when empty", func(t *testing.T) {
 		dir := t.TempDir()
 
-		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
+		// Use RN < 0.70 so auto-detection defaults to Hermes off (no hermesc needed)
+		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.68.0"}}`)
 		writeFile(t, filepath.Join(dir, "index.js"), "")
 
 		executor := &mockExecutor{}
@@ -249,7 +250,7 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 	})
 
-	t.Run("bitrise environment exports summary", func(t *testing.T) {
+	t.Run("does not export bitrise summary", func(t *testing.T) {
 		dir := t.TempDir()
 		outputDir := filepath.Join(dir, "output")
 		deployDir := filepath.Join(dir, "deploy")
@@ -268,7 +269,6 @@ func TestRunWithExecutor(t *testing.T) {
 			}
 		}
 
-		// Simulate Bitrise environment
 		t.Setenv("BITRISE_DEPLOY_DIR", deployDir)
 		t.Setenv("BITRISE_BUILD_NUMBER", "42")
 
@@ -285,71 +285,11 @@ func TestRunWithExecutor(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Verify summary file was created
+		// RunWithExecutor no longer exports to Bitrise deploy dir; the CLI layer handles that
 		summaryPath := filepath.Join(deployDir, "codepush-bundle-summary.json")
-		if _, err := os.Stat(summaryPath); err != nil {
-			t.Errorf("expected bundle summary at %s: %v", summaryPath, err)
+		if _, err := os.Stat(summaryPath); err == nil {
+			t.Error("RunWithExecutor should not export summary; that responsibility moved to CLI layer")
 		}
 	})
 }
 
-func TestExportBitriseSummary(t *testing.T) {
-	t.Run("writes summary json", func(t *testing.T) {
-		deployDir := t.TempDir()
-		t.Setenv("BITRISE_DEPLOY_DIR", deployDir)
-
-		result := &BundleResult{
-			BundlePath:    "/path/to/bundle.js",
-			AssetsDir:     "/path/to/assets",
-			SourcemapPath: "/path/to/bundle.js.map",
-			OutputDir:     "/path/to/output",
-			HermesApplied: true,
-			ProjectType:   ProjectTypeReactNative,
-			Platform:      PlatformIOS,
-		}
-
-		exportBitriseSummary(result)
-
-		summaryPath := filepath.Join(deployDir, "codepush-bundle-summary.json")
-		data, err := os.ReadFile(summaryPath)
-		if err != nil {
-			t.Fatalf("reading summary: %v", err)
-		}
-
-		content := string(data)
-		if !contains(content, `"platform": "ios"`) {
-			t.Error("summary missing platform")
-		}
-		if !contains(content, `"hermes_applied": true`) {
-			t.Error("summary missing hermes_applied")
-		}
-		if !contains(content, `"project_type": "react-native"`) {
-			t.Error("summary missing project_type")
-		}
-	})
-
-	t.Run("handles missing deploy dir gracefully", func(t *testing.T) {
-		t.Setenv("BITRISE_DEPLOY_DIR", "")
-
-		result := &BundleResult{
-			Platform:    PlatformIOS,
-			ProjectType: ProjectTypeReactNative,
-		}
-
-		// Should not panic
-		exportBitriseSummary(result)
-	})
-}
-
-func contains(s string, substr string) bool {
-	return len(s) >= len(substr) && searchString(s, substr)
-}
-
-func searchString(s string, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}

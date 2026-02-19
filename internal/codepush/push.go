@@ -1,7 +1,6 @@
 package codepush
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	ziputil "github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/zip"
 )
 
@@ -82,10 +80,6 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig) (*Push
 		AppVersion:    opts.AppVersion,
 		Status:        status.Status,
 		FileSizeBytes: zipInfo.Size(),
-	}
-
-	if bitrise.IsBitriseEnvironment() {
-		exportPushSummary(result)
 	}
 
 	return result, nil
@@ -162,39 +156,7 @@ func pollStatus(client Client, appID, deploymentID, packageID string, cfg PollCo
 		}
 	}
 
-	return nil, fmt.Errorf("package processing timed out after %d seconds", cfg.MaxAttempts*int(cfg.Interval.Seconds()))
+	totalWait := time.Duration(cfg.MaxAttempts) * cfg.Interval
+	return nil, fmt.Errorf("package processing timed out after %s", totalWait)
 }
 
-type pushSummary struct {
-	PackageID     string `json:"package_id"`
-	AppID         string `json:"app_id"`
-	DeploymentID  string `json:"deployment_id"`
-	AppVersion    string `json:"app_version"`
-	Status        string `json:"status"`
-	FileSizeBytes int64  `json:"file_size_bytes"`
-}
-
-func exportPushSummary(result *PushResult) {
-	summary := pushSummary{
-		PackageID:     result.PackageID,
-		AppID:         result.AppID,
-		DeploymentID:  result.DeploymentID,
-		AppVersion:    result.AppVersion,
-		Status:        result.Status,
-		FileSizeBytes: result.FileSizeBytes,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal push summary: %v\n", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-push-summary.json", data)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export push summary: %v\n", err)
-		return
-	}
-
-	fmt.Fprintf(os.Stderr, "Push summary exported to: %s\n", path)
-}

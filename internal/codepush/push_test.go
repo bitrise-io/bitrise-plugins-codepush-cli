@@ -331,7 +331,7 @@ func TestPush(t *testing.T) {
 		}
 	})
 
-	t.Run("bitrise environment exports summary", func(t *testing.T) {
+	t.Run("does not export bitrise summary", func(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 		deployDir := t.TempDir()
 		t.Setenv("BITRISE_DEPLOY_DIR", deployDir)
@@ -353,18 +353,10 @@ func TestPush(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
+		// Push no longer exports to Bitrise deploy dir; the CLI layer handles that
 		summaryPath := filepath.Join(deployDir, "codepush-push-summary.json")
-		data, err := os.ReadFile(summaryPath)
-		if err != nil {
-			t.Fatalf("reading summary: %v", err)
-		}
-
-		content := string(data)
-		if !strings.Contains(content, `"app_version": "2.0.0"`) {
-			t.Errorf("summary should contain app_version: %s", content)
-		}
-		if !strings.Contains(content, `"status": "done"`) {
-			t.Errorf("summary should contain status: %s", content)
+		if _, err := os.Stat(summaryPath); err == nil {
+			t.Error("push should not export summary; that responsibility moved to CLI layer")
 		}
 	})
 }
