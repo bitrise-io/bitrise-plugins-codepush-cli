@@ -4,8 +4,10 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +32,18 @@ var (
 )
 
 // Push command flags
-var pushAutoBundle bool
+var (
+	pushAutoBundle  bool
+	pushAppID       string
+	pushDeployment  string
+	pushToken       string
+	pushAppVersion  string
+	pushDescription string
+	pushMandatory   bool
+	pushRollout     int
+	pushDisabled    bool
+	pushAPIURL      string
+)
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -96,8 +109,43 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			args = []string{result.OutputDir}
 		}
 
-		_ = args // will be used when push is implemented
-		fmt.Fprintln(os.Stderr, "push command not yet implemented")
+		if len(args) == 0 {
+			return fmt.Errorf("bundle path is required: provide as argument or use --bundle to generate one")
+		}
+
+		bundlePath, err := filepath.Abs(args[0])
+		if err != nil {
+			return fmt.Errorf("resolving bundle path: %w", err)
+		}
+
+		appID := resolveFlag(pushAppID, "CODEPUSH_APP_ID")
+		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
+		token := resolveFlag(pushToken, "BITRISE_API_TOKEN")
+
+		opts := &codepush.PushOptions{
+			AppID:        appID,
+			DeploymentID: deployment,
+			Token:        token,
+			APIURL:       pushAPIURL,
+			AppVersion:   pushAppVersion,
+			Description:  pushDescription,
+			Mandatory:    pushMandatory,
+			Rollout:      pushRollout,
+			Disabled:     pushDisabled,
+			BundlePath:   bundlePath,
+		}
+
+		client := codepush.NewHTTPClient(opts.APIURL, opts.Token)
+		result, err := codepush.Push(client, opts)
+		if err != nil {
+			return err
+		}
+
+		fmt.Fprintf(os.Stderr, "\nPush successful:\n")
+		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
+		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+		fmt.Fprintf(os.Stderr, "  Status: %s\n", result.Status)
+
 		return nil
 	},
 }
@@ -153,6 +201,25 @@ func init() {
 	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", "./codepush-bundle", "output directory for the bundle")
 	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
+
+	// Push command: API flags
+	pushCmd.Flags().StringVar(&pushAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
+	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	pushCmd.Flags().StringVar(&pushToken, "token", "", "Bitrise API token (env: BITRISE_API_TOKEN)")
+	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
+	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
+	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
+	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
+	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+	pushCmd.Flags().StringVar(&pushAPIURL, "api-url", "https://api.bitrise.io/release-management", "API base URL")
+}
+
+// resolveFlag returns the flag value if non-empty, otherwise falls back to the environment variable.
+func resolveFlag(flagValue, envKey string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return os.Getenv(envKey)
 }
 
 func runBundle() error {
