@@ -20,10 +20,10 @@ workflows:
         title: Build
         inputs:
         - content: go build ./cmd/codepush
-    - go-test@1:
+    - script@1:
         title: Test
         inputs:
-        - coverprofile: "$BITRISE_DEPLOY_DIR/coverage.out"
+        - content: go test -coverprofile="$BITRISE_DEPLOY_DIR/coverage.out" ./...
     - script@1:
         title: Check test coverage
         inputs:
