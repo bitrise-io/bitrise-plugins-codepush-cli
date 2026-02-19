@@ -15,7 +15,7 @@ func Rollback(client Client, opts *RollbackOptions) (*RollbackResult, error) {
 		return nil, err
 	}
 
-	deploymentID, err := resolveDeployment(client, opts.AppID, opts.DeploymentID)
+	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID)
 	if err != nil {
 		return nil, err
 	}

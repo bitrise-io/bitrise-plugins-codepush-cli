@@ -22,7 +22,7 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig) (*Push
 		return nil, err
 	}
 
-	deploymentID, err := resolveDeployment(client, opts.AppID, opts.DeploymentID)
+	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,7 +116,10 @@ func validatePushOptions(opts *PushOptions) error {
 	return nil
 }
 
-func resolveDeployment(client Client, appID, deploymentNameOrID string) (string, error) {
+// ResolveDeployment resolves a deployment name or UUID to a deployment ID.
+// If the input is already a valid UUID, it is returned as-is.
+// Otherwise, it lists all deployments and finds the one matching by name.
+func ResolveDeployment(client Client, appID, deploymentNameOrID string) (string, error) {
 	if _, err := uuid.Parse(deploymentNameOrID); err == nil {
 		return deploymentNameOrID, nil
 	}
@@ -159,4 +162,5 @@ func pollStatus(client Client, appID, deploymentID, packageID string, cfg PollCo
 	totalWait := time.Duration(cfg.MaxAttempts) * cfg.Interval
 	return nil, fmt.Errorf("package processing timed out after %s", totalWait)
 }
+
 

@@ -45,7 +45,19 @@ type PackageStatus struct {
 
 // Deployment represents a CodePush deployment.
 type Deployment struct {
-	ID   string `json:"id"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at,omitempty"`
+	Key       string `json:"key,omitempty"`
+}
+
+// CreateDeploymentRequest is the JSON body for creating a deployment.
+type CreateDeploymentRequest struct {
+	Name string `json:"name"`
+}
+
+// RenameDeploymentRequest is the JSON body for renaming a deployment.
+type RenameDeploymentRequest struct {
 	Name string `json:"name"`
 }
 
@@ -94,6 +106,10 @@ type Package struct {
 	Rollout       int    `json:"rollout"`
 	DeploymentID  string `json:"deployment_id"`
 	FileSizeBytes int64  `json:"file_size_bytes"`
+	CreatedAt     string `json:"created_at,omitempty"`
+	Hash          string `json:"hash,omitempty"`
+	FileName      string `json:"file_name,omitempty"`
+	CreatedBy     string `json:"created_by,omitempty"`
 }
 
 // PackageListResponse wraps the list packages API response.
@@ -159,13 +175,56 @@ type PromoteResult struct {
 	Description      string `json:"description"`
 }
 
+// PatchOptions holds user-provided parameters for a patch operation.
+type PatchOptions struct {
+	AppID        string
+	DeploymentID string
+	Token        string
+	Label        string // optional: specific label like "v5", defaults to latest
+	Rollout      string // optional: "1"-"100"
+	Mandatory    string // optional: "true"/"false"
+	Disabled     string // optional: "true"/"false"
+	Description  string // optional
+	AppVersion   string // optional
+}
+
+// PatchRequest is the JSON body sent to the PATCH package API endpoint.
+// Pointer fields allow distinguishing "not set" from zero values.
+type PatchRequest struct {
+	Rollout     *int    `json:"rollout,omitempty"`
+	Mandatory   *bool   `json:"mandatory,omitempty"`
+	Disabled    *bool   `json:"disabled,omitempty"`
+	Description *string `json:"description,omitempty"`
+	AppVersion  *string `json:"app_version,omitempty"`
+}
+
+// PatchResult is the output of a successful patch.
+type PatchResult struct {
+	PackageID    string `json:"package_id"`
+	AppID        string `json:"app_id"`
+	DeploymentID string `json:"deployment_id"`
+	Label        string `json:"label"`
+	AppVersion   string `json:"app_version"`
+	Mandatory    bool   `json:"mandatory"`
+	Disabled     bool   `json:"disabled"`
+	Rollout      int    `json:"rollout"`
+	Description  string `json:"description"`
+}
+
 // Client defines the CodePush API operations.
 type Client interface {
 	ListDeployments(appID string) ([]Deployment, error)
+	CreateDeployment(appID string, req CreateDeploymentRequest) (*Deployment, error)
+	GetDeployment(appID, deploymentID string) (*Deployment, error)
+	RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	DeleteDeployment(appID, deploymentID string) error
 	GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
 	UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
 	GetPackageStatus(appID, deploymentID, packageID string) (*PackageStatus, error)
 	ListPackages(appID, deploymentID string) ([]Package, error)
+	GetPackage(appID, deploymentID, packageID string) (*Package, error)
+	PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	DeletePackage(appID, deploymentID, packageID string) error
 	Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error)
 	Promote(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }

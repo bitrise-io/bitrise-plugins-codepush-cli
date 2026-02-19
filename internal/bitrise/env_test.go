@@ -2,6 +2,7 @@ package bitrise
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
@@ -117,6 +118,30 @@ func TestWriteToDeployDir(t *testing.T) {
 		_, err := WriteToDeployDir("test.txt", []byte("hello"))
 		if err == nil {
 			t.Fatal("expected error, got nil")
+		}
+	})
+}
+
+func TestExportEnvVar(t *testing.T) {
+	t.Run("skips silently when envman not on PATH", func(t *testing.T) {
+		// Use a PATH that definitely doesn't contain envman
+		t.Setenv("PATH", t.TempDir())
+
+		err := ExportEnvVar("TEST_KEY", "test_value")
+		if err != nil {
+			t.Fatalf("expected nil error when envman not found, got: %v", err)
+		}
+	})
+
+	t.Run("calls envman when available", func(t *testing.T) {
+		_, err := exec.LookPath("envman")
+		if err != nil {
+			t.Skip("envman not available on this system")
+		}
+
+		err = ExportEnvVar("TEST_KEY", "test_value")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
 		}
 	})
 }

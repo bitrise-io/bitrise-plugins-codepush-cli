@@ -11,13 +11,20 @@ import (
 )
 
 type mockClient struct {
-	listDeploymentsFunc  func(appID string) ([]Deployment, error)
-	getUploadURLFunc     func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
-	uploadFileFunc       func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
-	getPackageStatusFunc func(appID, deploymentID, packageID string) (*PackageStatus, error)
-	listPackagesFunc     func(appID, deploymentID string) ([]Package, error)
-	rollbackFunc         func(appID, deploymentID string, req RollbackRequest) (*Package, error)
-	promoteFunc          func(appID, deploymentID string, req PromoteRequest) (*Package, error)
+	listDeploymentsFunc    func(appID string) ([]Deployment, error)
+	createDeploymentFunc   func(appID string, req CreateDeploymentRequest) (*Deployment, error)
+	getDeploymentFunc      func(appID, deploymentID string) (*Deployment, error)
+	renameDeploymentFunc   func(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	deleteDeploymentFunc   func(appID, deploymentID string) error
+	getUploadURLFunc       func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
+	uploadFileFunc         func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
+	getPackageStatusFunc   func(appID, deploymentID, packageID string) (*PackageStatus, error)
+	listPackagesFunc       func(appID, deploymentID string) ([]Package, error)
+	getPackageFunc         func(appID, deploymentID, packageID string) (*Package, error)
+	patchPackageFunc       func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	deletePackageFunc      func(appID, deploymentID, packageID string) error
+	rollbackFunc           func(appID, deploymentID string, req RollbackRequest) (*Package, error)
+	promoteFunc            func(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
 
 func (m *mockClient) ListDeployments(appID string) ([]Deployment, error) {
@@ -25,6 +32,34 @@ func (m *mockClient) ListDeployments(appID string) ([]Deployment, error) {
 		return m.listDeploymentsFunc(appID)
 	}
 	return nil, nil
+}
+
+func (m *mockClient) CreateDeployment(appID string, req CreateDeploymentRequest) (*Deployment, error) {
+	if m.createDeploymentFunc != nil {
+		return m.createDeploymentFunc(appID, req)
+	}
+	return &Deployment{ID: "dep-new", Name: req.Name}, nil
+}
+
+func (m *mockClient) GetDeployment(appID, deploymentID string) (*Deployment, error) {
+	if m.getDeploymentFunc != nil {
+		return m.getDeploymentFunc(appID, deploymentID)
+	}
+	return &Deployment{ID: deploymentID, Name: "Test"}, nil
+}
+
+func (m *mockClient) RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
+	if m.renameDeploymentFunc != nil {
+		return m.renameDeploymentFunc(appID, deploymentID, req)
+	}
+	return &Deployment{ID: deploymentID, Name: req.Name}, nil
+}
+
+func (m *mockClient) DeleteDeployment(appID, deploymentID string) error {
+	if m.deleteDeploymentFunc != nil {
+		return m.deleteDeploymentFunc(appID, deploymentID)
+	}
+	return nil
 }
 
 func (m *mockClient) GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
@@ -53,6 +88,27 @@ func (m *mockClient) ListPackages(appID, deploymentID string) ([]Package, error)
 		return m.listPackagesFunc(appID, deploymentID)
 	}
 	return nil, nil
+}
+
+func (m *mockClient) GetPackage(appID, deploymentID, packageID string) (*Package, error) {
+	if m.getPackageFunc != nil {
+		return m.getPackageFunc(appID, deploymentID, packageID)
+	}
+	return &Package{ID: packageID, Label: "v1"}, nil
+}
+
+func (m *mockClient) PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error) {
+	if m.patchPackageFunc != nil {
+		return m.patchPackageFunc(appID, deploymentID, packageID, req)
+	}
+	return &Package{ID: packageID, Label: "v1"}, nil
+}
+
+func (m *mockClient) DeletePackage(appID, deploymentID, packageID string) error {
+	if m.deletePackageFunc != nil {
+		return m.deletePackageFunc(appID, deploymentID, packageID)
+	}
+	return nil
 }
 
 func (m *mockClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
@@ -450,7 +506,7 @@ func TestValidatePushOptions(t *testing.T) {
 func TestResolveDeployment(t *testing.T) {
 	t.Run("UUID passthrough", func(t *testing.T) {
 		client := &mockClient{}
-		id, err := resolveDeployment(client, "app-123", "00000000-0000-0000-0000-000000000001")
+		id, err := ResolveDeployment(client, "app-123", "00000000-0000-0000-0000-000000000001")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -469,7 +525,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		id, err := resolveDeployment(client, "app-123", "Production")
+		id, err := ResolveDeployment(client, "app-123", "Production")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -485,7 +541,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		_, err := resolveDeployment(client, "app-123", "Production")
+		_, err := ResolveDeployment(client, "app-123", "Production")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -501,7 +557,7 @@ func TestResolveDeployment(t *testing.T) {
 			},
 		}
 
-		_, err := resolveDeployment(client, "app-123", "Production")
+		_, err := ResolveDeployment(client, "app-123", "Production")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
