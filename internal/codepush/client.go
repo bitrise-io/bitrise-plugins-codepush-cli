@@ -43,6 +43,73 @@ func (c *HTTPClient) ListDeployments(appID string) ([]Deployment, error) {
 	return result.Items, nil
 }
 
+// CreateDeployment creates a new deployment.
+func (c *HTTPClient) CreateDeployment(appID string, req CreateDeploymentRequest) (*Deployment, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments", appID)
+
+	resp, err := c.doJSONRequest(http.MethodPost, path, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Deployment
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("creating deployment: %w", err)
+	}
+
+	return &result, nil
+}
+
+// GetDeployment returns a single deployment by ID.
+func (c *HTTPClient) GetDeployment(appID, deploymentID string) (*Deployment, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+
+	resp, err := c.doRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Deployment
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("getting deployment: %w", err)
+	}
+
+	return &result, nil
+}
+
+// RenameDeployment renames an existing deployment.
+func (c *HTTPClient) RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+
+	resp, err := c.doJSONRequest(http.MethodPatch, path, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Deployment
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("renaming deployment: %w", err)
+	}
+
+	return &result, nil
+}
+
+// DeleteDeployment deletes a deployment.
+func (c *HTTPClient) DeleteDeployment(appID, deploymentID string) error {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+
+	resp, err := c.doRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := decodeResponse(resp, nil); err != nil {
+		return fmt.Errorf("deleting deployment: %w", err)
+	}
+
+	return nil
+}
+
 // GetUploadURL requests a signed upload URL for a new package.
 func (c *HTTPClient) GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/upload-url",

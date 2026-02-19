@@ -84,6 +84,12 @@ var (
 	patchAppVersion  string
 )
 
+// Deployment command flags
+var (
+	deploymentRenameName string
+	deploymentRemoveYes  bool
+)
+
 // Auth flags.
 var authLoginToken string
 
@@ -430,6 +436,226 @@ a --token flag or BITRISE_API_TOKEN environment variable.`,
 	},
 }
 
+var deploymentCmd = &cobra.Command{
+	Use:   "deployment",
+	Short: "Manage deployments",
+	Long:  `Create, list, inspect, rename, and delete CodePush deployments.`,
+}
+
+var deploymentListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List all deployments",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		deployments, err := client.ListDeployments(appID)
+		if err != nil {
+			return fmt.Errorf("listing deployments: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(deployments)
+		}
+
+		if len(deployments) == 0 {
+			fmt.Fprintf(os.Stderr, "No deployments found.\n")
+			return nil
+		}
+
+		for _, d := range deployments {
+			fmt.Fprintf(os.Stderr, "  %s\t%s\n", d.Name, d.ID)
+		}
+
+		return nil
+	},
+}
+
+var deploymentAddCmd = &cobra.Command{
+	Use:   "add <name>",
+	Short: "Create a new deployment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		dep, err := client.CreateDeployment(appID, codepush.CreateDeploymentRequest{Name: args[0]})
+		if err != nil {
+			return fmt.Errorf("creating deployment: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(dep)
+		}
+
+		fmt.Fprintf(os.Stderr, "Deployment %q created (ID: %s)\n", dep.Name, dep.ID)
+		return nil
+	},
+}
+
+var deploymentInfoCmd = &cobra.Command{
+	Use:   "info <deployment>",
+	Short: "Show deployment details",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		dep, err := client.GetDeployment(appID, deploymentID)
+		if err != nil {
+			return fmt.Errorf("getting deployment: %w", err)
+		}
+
+		packages, err := client.ListPackages(appID, deploymentID)
+		if err != nil {
+			return fmt.Errorf("listing packages: %w", err)
+		}
+
+		if globalJSON {
+			info := struct {
+				codepush.Deployment
+				LatestPackage *codepush.Package `json:"latest_package,omitempty"`
+			}{Deployment: *dep}
+			if len(packages) > 0 {
+				info.LatestPackage = &packages[len(packages)-1]
+			}
+			return outputJSON(info)
+		}
+
+		fmt.Fprintf(os.Stderr, "Deployment: %s\n", dep.Name)
+		fmt.Fprintf(os.Stderr, "  ID: %s\n", dep.ID)
+		if dep.Key != "" {
+			fmt.Fprintf(os.Stderr, "  Key: %s\n", dep.Key)
+		}
+		if dep.CreatedAt != "" {
+			fmt.Fprintf(os.Stderr, "  Created: %s\n", dep.CreatedAt)
+		}
+
+		if len(packages) > 0 {
+			latest := packages[len(packages)-1]
+			fmt.Fprintf(os.Stderr, "  Latest release:\n")
+			fmt.Fprintf(os.Stderr, "    Label: %s\n", latest.Label)
+			fmt.Fprintf(os.Stderr, "    App version: %s\n", latest.AppVersion)
+			fmt.Fprintf(os.Stderr, "    Mandatory: %v\n", latest.Mandatory)
+			fmt.Fprintf(os.Stderr, "    Rollout: %d%%\n", latest.Rollout)
+		} else {
+			fmt.Fprintf(os.Stderr, "  No releases.\n")
+		}
+
+		return nil
+	},
+}
+
+var deploymentRenameCmd = &cobra.Command{
+	Use:   "rename <deployment>",
+	Short: "Rename a deployment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+		if deploymentRenameName == "" {
+			return fmt.Errorf("new name is required: set --name")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		dep, err := client.RenameDeployment(appID, deploymentID, codepush.RenameDeploymentRequest{Name: deploymentRenameName})
+		if err != nil {
+			return fmt.Errorf("renaming deployment: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(dep)
+		}
+
+		fmt.Fprintf(os.Stderr, "Deployment renamed to %q\n", dep.Name)
+		return nil
+	},
+}
+
+var deploymentRemoveCmd = &cobra.Command{
+	Use:   "remove <deployment>",
+	Short: "Delete a deployment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		if !deploymentRemoveYes {
+			return fmt.Errorf("this will permanently delete the deployment %q and all its releases; use --yes to confirm", args[0])
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		if err := client.DeleteDeployment(appID, deploymentID); err != nil {
+			return fmt.Errorf("deleting deployment: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(struct {
+				Deleted string `json:"deleted"`
+			}{Deleted: deploymentID})
+		}
+
+		fmt.Fprintf(os.Stderr, "Deployment %q deleted.\n", args[0])
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(bundleCmd)
@@ -441,6 +667,12 @@ func init() {
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(authLoginCmd)
 	authCmd.AddCommand(authRevokeCmd)
+	rootCmd.AddCommand(deploymentCmd)
+	deploymentCmd.AddCommand(deploymentListCmd)
+	deploymentCmd.AddCommand(deploymentAddCmd)
+	deploymentCmd.AddCommand(deploymentInfoCmd)
+	deploymentCmd.AddCommand(deploymentRenameCmd)
+	deploymentCmd.AddCommand(deploymentRemoveCmd)
 
 	// Bundle command flags
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
@@ -489,6 +721,10 @@ func init() {
 	patchCmd.Flags().StringVar(&patchDisabled, "disabled", "", "disable update (true/false)")
 	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
 	patchCmd.Flags().StringVar(&patchAppVersion, "app-version", "", "target app version")
+
+	// Deployment command flags
+	deploymentRenameCmd.Flags().StringVar(&deploymentRenameName, "name", "", "new deployment name (required)")
+	deploymentRemoveCmd.Flags().BoolVar(&deploymentRemoveYes, "yes", false, "skip confirmation prompt")
 
 	// Promote command flags
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")

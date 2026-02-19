@@ -15,12 +15,12 @@ func Promote(client Client, opts *PromoteOptions) (*PromoteResult, error) {
 		return nil, err
 	}
 
-	sourceDeploymentID, err := resolveDeployment(client, opts.AppID, opts.SourceDeploymentID)
+	sourceDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.SourceDeploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("resolving source deployment: %w", err)
 	}
 
-	destDeploymentID, err := resolveDeployment(client, opts.AppID, opts.DestDeploymentID)
+	destDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.DestDeploymentID)
 	if err != nil {
 		return nil, fmt.Errorf("resolving destination deployment: %w", err)
 	}

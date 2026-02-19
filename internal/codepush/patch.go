@@ -16,7 +16,7 @@ func Patch(client Client, opts *PatchOptions) (*PatchResult, error) {
 		return nil, err
 	}
 
-	deploymentID, err := resolveDeployment(client, opts.AppID, opts.DeploymentID)
+	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID)
 	if err != nil {
 		return nil, err
 	}

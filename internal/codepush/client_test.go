@@ -76,6 +76,205 @@ func TestHTTPClientListDeployments(t *testing.T) {
 	})
 }
 
+func TestHTTPClientCreateDeployment(t *testing.T) {
+	t.Run("creates deployment", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodPost {
+				t.Errorf("method: got %q, want POST", r.Method)
+			}
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("content-type: got %q", r.Header.Get("Content-Type"))
+			}
+
+			var body CreateDeploymentRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decoding body: %v", err)
+			}
+			if body.Name != "QA" {
+				t.Errorf("name: got %q", body.Name)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"dep-new","name":"QA"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		dep, err := client.CreateDeployment("app-123", CreateDeploymentRequest{Name: "QA"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if dep.ID != "dep-new" {
+			t.Errorf("id: got %q", dep.ID)
+		}
+		if dep.Name != "QA" {
+			t.Errorf("name: got %q", dep.Name)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			w.Write([]byte(`{"error":"deployment already exists"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.CreateDeployment("app-123", CreateDeploymentRequest{Name: "QA"})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "409") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientGetDeployment(t *testing.T) {
+	t.Run("returns deployment", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodGet {
+				t.Errorf("method: got %q, want GET", r.Method)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		dep, err := client.GetDeployment("app-123", "dep-456")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if dep.ID != "dep-456" {
+			t.Errorf("id: got %q", dep.ID)
+		}
+		if dep.Name != "Staging" {
+			t.Errorf("name: got %q", dep.Name)
+		}
+		if dep.Key != "abc123" {
+			t.Errorf("key: got %q", dep.Key)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"not found"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.GetDeployment("app-123", "dep-456")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientRenameDeployment(t *testing.T) {
+	t.Run("renames deployment", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodPatch {
+				t.Errorf("method: got %q, want PATCH", r.Method)
+			}
+
+			var body RenameDeploymentRequest
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decoding body: %v", err)
+			}
+			if body.Name != "Pre-Production" {
+				t.Errorf("name: got %q", body.Name)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"dep-456","name":"Pre-Production"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		dep, err := client.RenameDeployment("app-123", "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if dep.Name != "Pre-Production" {
+			t.Errorf("name: got %q", dep.Name)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"invalid name"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.RenameDeployment("app-123", "dep-456", RenameDeploymentRequest{Name: ""})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "400") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientDeleteDeployment(t *testing.T) {
+	t.Run("deletes deployment", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodDelete {
+				t.Errorf("method: got %q, want DELETE", r.Method)
+			}
+
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		err := client.DeleteDeployment("app-123", "dep-456")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"not found"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		err := client.DeleteDeployment("app-123", "dep-456")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
 func TestHTTPClientGetUploadURL(t *testing.T) {
 	t.Run("constructs correct request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

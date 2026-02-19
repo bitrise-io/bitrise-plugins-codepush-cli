@@ -45,7 +45,19 @@ type PackageStatus struct {
 
 // Deployment represents a CodePush deployment.
 type Deployment struct {
-	ID   string `json:"id"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"created_at,omitempty"`
+	Key       string `json:"key,omitempty"`
+}
+
+// CreateDeploymentRequest is the JSON body for creating a deployment.
+type CreateDeploymentRequest struct {
+	Name string `json:"name"`
+}
+
+// RenameDeploymentRequest is the JSON body for renaming a deployment.
+type RenameDeploymentRequest struct {
 	Name string `json:"name"`
 }
 
@@ -198,6 +210,10 @@ type PatchResult struct {
 // Client defines the CodePush API operations.
 type Client interface {
 	ListDeployments(appID string) ([]Deployment, error)
+	CreateDeployment(appID string, req CreateDeploymentRequest) (*Deployment, error)
+	GetDeployment(appID, deploymentID string) (*Deployment, error)
+	RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	DeleteDeployment(appID, deploymentID string) error
 	GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
 	UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
 	GetPackageStatus(appID, deploymentID, packageID string) (*PackageStatus, error)
