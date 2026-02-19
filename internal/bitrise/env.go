@@ -60,7 +60,7 @@ func ExportEnvVar(key, value string) error {
 
 	cmd := exec.Command(envmanPath, "add", "--key", key, "--value", value)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("envman export %s: %w", key, err)
+		return fmt.Errorf("envman add %s: %w", key, err)
 	}
 
 	return nil
