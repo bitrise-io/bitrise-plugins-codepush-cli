@@ -1,23 +1,10 @@
 package bundler
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
-
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 )
-
-// bundleSummary is exported to Bitrise deploy directory as JSON.
-type bundleSummary struct {
-	Platform      string `json:"platform"`
-	ProjectType   string `json:"project_type"`
-	BundlePath    string `json:"bundle_path"`
-	AssetsDir     string `json:"assets_dir"`
-	SourcemapPath string `json:"sourcemap_path,omitempty"`
-	HermesApplied bool   `json:"hermes_applied"`
-}
 
 // Run executes the full bundle pipeline:
 // 1. Detect project configuration
@@ -47,7 +34,7 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor) (*BundleResu
 	opts.ProjectDir = absProjectDir
 
 	if opts.OutputDir == "" {
-		opts.OutputDir = "./codepush-bundle"
+		opts.OutputDir = DefaultOutputDir
 	}
 
 	hermesMode := opts.HermesMode
@@ -100,37 +87,5 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor) (*BundleResu
 		fmt.Fprintln(os.Stderr)
 	}
 
-	// Step 4: Export to Bitrise deploy directory
-	if bitrise.IsBitriseEnvironment() {
-		fmt.Fprintf(os.Stderr, "Bitrise environment detected, exporting bundle summary to deploy directory\n")
-		exportBitriseSummary(result)
-	}
-
 	return result, nil
-}
-
-// exportBitriseSummary writes a JSON summary to the Bitrise deploy directory.
-func exportBitriseSummary(result *BundleResult) {
-	summary := bundleSummary{
-		Platform:      string(result.Platform),
-		ProjectType:   result.ProjectType.String(),
-		BundlePath:    result.BundlePath,
-		AssetsDir:     result.AssetsDir,
-		SourcemapPath: result.SourcemapPath,
-		HermesApplied: result.HermesApplied,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to marshal bundle summary: %v\n", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-bundle-summary.json", data)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to export bundle summary: %v\n", err)
-		return
-	}
-
-	fmt.Fprintf(os.Stderr, "Bundle summary exported to: %s\n", path)
 }

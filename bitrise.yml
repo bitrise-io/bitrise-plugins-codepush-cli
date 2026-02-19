@@ -55,6 +55,34 @@ workflows:
                 exit 1
             fi
     - script@1:
+        title: Check version sync
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+
+            CODE_VERSION=$(grep 'version = ' cmd/codepush/main.go | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            PLUGIN_VERSION=$(grep -oP 'download/\K[^/]+' bitrise-plugin.yml | head -1)
+
+            if [ -z "$CODE_VERSION" ]; then
+                echo "FAIL: could not parse version from cmd/codepush/main.go"
+                exit 1
+            fi
+
+            if [ -z "$PLUGIN_VERSION" ]; then
+                echo "FAIL: could not parse version from bitrise-plugin.yml"
+                exit 1
+            fi
+
+            if [ "$CODE_VERSION" != "$PLUGIN_VERSION" ]; then
+                echo "FAIL: version mismatch"
+                echo "  cmd/codepush/main.go: $CODE_VERSION"
+                echo "  bitrise-plugin.yml:   $PLUGIN_VERSION"
+                exit 1
+            fi
+
+            echo "PASS: version $CODE_VERSION is consistent"
+    - script@1:
         title: go vet
         inputs:
         - content: go vet ./...
