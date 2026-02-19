@@ -622,28 +622,6 @@ func TestPollStatus(t *testing.T) {
 	})
 }
 
-func TestIsDuplicateReleaseError(t *testing.T) {
-	t.Run("matches HTTP 409", func(t *testing.T) {
-		err := fmt.Errorf("push failed: requesting upload URL: API returned HTTP 409: duplicate release")
-		if !IsDuplicateReleaseError(err) {
-			t.Error("should detect HTTP 409")
-		}
-	})
-
-	t.Run("does not match other errors", func(t *testing.T) {
-		err := fmt.Errorf("push failed: API returned HTTP 500: internal error")
-		if IsDuplicateReleaseError(err) {
-			t.Error("should not match HTTP 500")
-		}
-	})
-
-	t.Run("nil error", func(t *testing.T) {
-		if IsDuplicateReleaseError(nil) {
-			t.Error("should return false for nil")
-		}
-	})
-}
-
 func createTestBundleDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()

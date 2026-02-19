@@ -54,8 +54,7 @@ var (
 	pushDescription              string
 	pushMandatory                bool
 	pushRollout                  int
-	pushDisabled                 bool
-	pushDisableDuplicateReleaseError bool
+	pushDisabled bool
 )
 
 // Rollback command flags
@@ -198,10 +197,6 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Push(client, opts)
 		if err != nil {
-			if pushDisableDuplicateReleaseError && codepush.IsDuplicateReleaseError(err) {
-				fmt.Fprintf(os.Stderr, "Warning: duplicate release detected, skipping (--disable-duplicate-release-error)\n")
-				return nil
-			}
 			return fmt.Errorf("push failed: %w", err)
 		}
 
@@ -1062,7 +1057,7 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
-	pushCmd.Flags().BoolVar(&pushDisableDuplicateReleaseError, "disable-duplicate-release-error", false, "exit successfully if the release already exists")
+
 
 	// Rollback command flags
 	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
