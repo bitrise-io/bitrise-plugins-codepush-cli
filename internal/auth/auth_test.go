@@ -215,19 +215,44 @@ func TestConfigDirError(t *testing.T) {
 }
 
 func TestValidateToken(t *testing.T) {
-	t.Run("valid token", func(t *testing.T) {
+	t.Run("valid token returns user info", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if r.Header.Get("Authorization") != "Bearer valid-token" {
-				t.Errorf("auth header: got %q", r.Header.Get("Authorization"))
+			if got := r.Header.Get("Authorization"); got != "valid-token" {
+				t.Errorf("auth header: got %q, want plain token without Bearer prefix", got)
 			}
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"username":"test"}`))
+			w.Write([]byte(`{"data":{"username":"testuser","email":"test@example.com"}}`))
 		}))
 		defer server.Close()
 
-		err := validateTokenWithURL("valid-token", server.URL, &http.Client{})
+		userInfo, err := validateTokenWithURL("valid-token", server.URL, &http.Client{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
+		}
+		if userInfo == nil {
+			t.Fatal("expected user info, got nil")
+		}
+		if userInfo.Username != "testuser" {
+			t.Errorf("username: got %q, want %q", userInfo.Username, "testuser")
+		}
+		if userInfo.Email != "test@example.com" {
+			t.Errorf("email: got %q, want %q", userInfo.Email, "test@example.com")
+		}
+	})
+
+	t.Run("valid token with unparseable body returns nil user info", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`not json`))
+		}))
+		defer server.Close()
+
+		userInfo, err := validateTokenWithURL("valid-token", server.URL, &http.Client{})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if userInfo != nil {
+			t.Errorf("expected nil user info for unparseable body, got %+v", userInfo)
 		}
 	})
 
@@ -238,7 +263,7 @@ func TestValidateToken(t *testing.T) {
 		}))
 		defer server.Close()
 
-		err := validateTokenWithURL("bad-token", server.URL, &http.Client{})
+		_, err := validateTokenWithURL("bad-token", server.URL, &http.Client{})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -253,7 +278,7 @@ func TestValidateToken(t *testing.T) {
 		}))
 		defer server.Close()
 
-		err := validateTokenWithURL("some-token", server.URL, &http.Client{})
+		_, err := validateTokenWithURL("some-token", server.URL, &http.Client{})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -261,4 +286,13 @@ func TestValidateToken(t *testing.T) {
 			t.Errorf("error should contain status code: %v", err)
 		}
 	})
+}
+
+func TestTokenGenerationURL(t *testing.T) {
+	if TokenGenerationURL == "" {
+		t.Error("TokenGenerationURL should not be empty")
+	}
+	if !strings.Contains(TokenGenerationURL, "bitrise.io") {
+		t.Errorf("TokenGenerationURL should point to bitrise.io: %s", TokenGenerationURL)
+	}
 }

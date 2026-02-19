@@ -8,6 +8,9 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
+
+	"golang.org/x/term"
 )
 
 const (
@@ -112,35 +115,73 @@ func ConfigFilePath() (string, error) {
 	return configFilePath()
 }
 
+// TokenGenerationURL is the URL where users can create a personal access token.
+const TokenGenerationURL = "https://app.bitrise.io/me/account/security"
+
+// UserInfo contains the authenticated user's identity.
+type UserInfo struct {
+	Username string `json:"username"`
+	Email    string `json:"email"`
+}
+
 // ValidateToken checks the token against the Bitrise API.
-// Returns nil if the token is valid, or an error describing the failure.
-func ValidateToken(token string) error {
+// Returns the authenticated user's info, or an error if the token is invalid.
+func ValidateToken(token string) (*UserInfo, error) {
 	return validateTokenWithURL(token, validateURL, &http.Client{})
 }
 
-func validateTokenWithURL(token, url string, client *http.Client) error {
+func validateTokenWithURL(token, url string, client *http.Client) (*UserInfo, error) {
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
-		return fmt.Errorf("creating validation request: %w", err)
+		return nil, fmt.Errorf("creating validation request: %w", err)
 	}
 
-	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Authorization", token)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("validating token: %w", err)
+		return nil, fmt.Errorf("validating token: %w", err)
 	}
 	defer resp.Body.Close()
-	io.Copy(io.Discard, resp.Body)
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		return fmt.Errorf("invalid token: the API returned 401 Unauthorized")
+		io.Copy(io.Discard, resp.Body)
+		return nil, fmt.Errorf("invalid token: the API returned 401 Unauthorized")
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("token validation failed: the API returned HTTP %d", resp.StatusCode)
+		io.Copy(io.Discard, resp.Body)
+		return nil, fmt.Errorf("token validation failed: the API returned HTTP %d", resp.StatusCode)
 	}
 
-	return nil
+	var result struct {
+		Data UserInfo `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, nil //nolint: user info is best-effort
+	}
+
+	return &result.Data, nil
+}
+
+// ReadTokenSecure reads a token from stdin with masked input.
+// Falls back to plain text reading if the terminal does not support secure input.
+func ReadTokenSecure() (string, error) {
+	fd := int(os.Stdin.Fd())
+	if term.IsTerminal(fd) {
+		tokenBytes, err := term.ReadPassword(fd)
+		fmt.Fprintln(os.Stderr) // newline after hidden input
+		if err != nil {
+			return "", fmt.Errorf("reading secure input: %w", err)
+		}
+		return strings.TrimSpace(string(tokenBytes)), nil
+	}
+
+	// Non-terminal stdin (piped input)
+	var input string
+	if _, err := fmt.Scanln(&input); err != nil {
+		return "", fmt.Errorf("reading token from stdin: %w", err)
+	}
+	return strings.TrimSpace(input), nil
 }
