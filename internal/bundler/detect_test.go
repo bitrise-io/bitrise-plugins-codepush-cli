@@ -3,9 +3,23 @@ package bundler
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// testOSTriplet returns the hermesc directory name for the current OS/arch,
+// matching the logic in findHermesc.
+func testOSTriplet() string {
+	switch {
+	case runtime.GOOS == "darwin":
+		return "osx-bin"
+	case runtime.GOOS == "linux" && runtime.GOARCH == "amd64":
+		return "linux64-bin"
+	default:
+		return runtime.GOOS + "-bin"
+	}
+}
 
 func TestDetectProjectType(t *testing.T) {
 	tests := []struct {
@@ -533,11 +547,12 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 }
 
 func TestFindHermesc(t *testing.T) {
+	osTriplet := testOSTriplet()
+
 	t.Run("finds hermesc in hermes-engine", func(t *testing.T) {
 		dir := t.TempDir()
 
-		// Create the expected hermesc location
-		hermescDir := filepath.Join(dir, "node_modules", "hermes-engine", "osx-bin")
+		hermescDir := filepath.Join(dir, "node_modules", "hermes-engine", osTriplet)
 		os.MkdirAll(hermescDir, 0o755)
 		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
 
@@ -553,7 +568,7 @@ func TestFindHermesc(t *testing.T) {
 	t.Run("finds hermesc in react-native sdks", func(t *testing.T) {
 		dir := t.TempDir()
 
-		hermescDir := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", "osx-bin")
+		hermescDir := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", osTriplet)
 		os.MkdirAll(hermescDir, 0o755)
 		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
 
@@ -569,12 +584,11 @@ func TestFindHermesc(t *testing.T) {
 	t.Run("prefers hermes-engine over react-native", func(t *testing.T) {
 		dir := t.TempDir()
 
-		// Create both locations
-		loc1 := filepath.Join(dir, "node_modules", "hermes-engine", "osx-bin")
+		loc1 := filepath.Join(dir, "node_modules", "hermes-engine", osTriplet)
 		os.MkdirAll(loc1, 0o755)
 		writeFile(t, filepath.Join(loc1, "hermesc"), "primary")
 
-		loc2 := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", "osx-bin")
+		loc2 := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", osTriplet)
 		os.MkdirAll(loc2, 0o755)
 		writeFile(t, filepath.Join(loc2, "hermesc"), "secondary")
 
