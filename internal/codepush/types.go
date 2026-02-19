@@ -106,6 +106,10 @@ type Package struct {
 	Rollout       int    `json:"rollout"`
 	DeploymentID  string `json:"deployment_id"`
 	FileSizeBytes int64  `json:"file_size_bytes"`
+	CreatedAt     string `json:"created_at,omitempty"`
+	Hash          string `json:"hash,omitempty"`
+	FileName      string `json:"file_name,omitempty"`
+	CreatedBy     string `json:"created_by,omitempty"`
 }
 
 // PackageListResponse wraps the list packages API response.

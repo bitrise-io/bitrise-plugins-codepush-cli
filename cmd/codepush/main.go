@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"text/tabwriter"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -88,6 +90,12 @@ var (
 var (
 	deploymentRenameName string
 	deploymentRemoveYes  bool
+	deploymentHistoryMax int
+)
+
+// Package command flags
+var (
+	packageLabel string
 )
 
 // Auth flags.
@@ -656,6 +664,199 @@ var deploymentRemoveCmd = &cobra.Command{
 	},
 }
 
+var deploymentHistoryCmd = &cobra.Command{
+	Use:   "history <deployment>",
+	Short: "Show release history for a deployment",
+	Args:  cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		packages, err := client.ListPackages(appID, deploymentID)
+		if err != nil {
+			return fmt.Errorf("listing packages: %w", err)
+		}
+
+		// Apply limit: show the most recent entries
+		if deploymentHistoryMax > 0 && len(packages) > deploymentHistoryMax {
+			packages = packages[len(packages)-deploymentHistoryMax:]
+		}
+
+		if globalJSON {
+			return outputJSON(packages)
+		}
+
+		if len(packages) == 0 {
+			fmt.Fprintf(os.Stderr, "No releases found.\n")
+			return nil
+		}
+
+		w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
+		fmt.Fprintln(w, "LABEL\tAPP VERSION\tMANDATORY\tROLLOUT\tDISABLED\tDESCRIPTION\tCREATED")
+		for _, p := range packages {
+			fmt.Fprintf(w, "%s\t%s\t%v\t%d%%\t%v\t%s\t%s\n",
+				p.Label, p.AppVersion, p.Mandatory, p.Rollout, p.Disabled,
+				truncate(p.Description, 30), p.CreatedAt)
+		}
+		w.Flush()
+
+		return nil
+	},
+}
+
+var packageCmd = &cobra.Command{
+	Use:   "package",
+	Short: "Inspect packages (releases)",
+	Long:  `View details and processing status of CodePush packages.`,
+}
+
+var packageInfoCmd = &cobra.Command{
+	Use:   "info <deployment>",
+	Short: "Show package details",
+	Long: `Show details for a specific package in a deployment.
+
+By default shows the latest package. Use --label to specify a version.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		if err != nil {
+			return err
+		}
+
+		pkg, err := client.GetPackage(appID, deploymentID, packageID)
+		if err != nil {
+			return fmt.Errorf("getting package: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(pkg)
+		}
+
+		fmt.Fprintf(os.Stderr, "Package: %s\n", pkg.Label)
+		fmt.Fprintf(os.Stderr, "  ID: %s\n", pkg.ID)
+		fmt.Fprintf(os.Stderr, "  App version: %s\n", pkg.AppVersion)
+		fmt.Fprintf(os.Stderr, "  Mandatory: %v\n", pkg.Mandatory)
+		fmt.Fprintf(os.Stderr, "  Disabled: %v\n", pkg.Disabled)
+		fmt.Fprintf(os.Stderr, "  Rollout: %d%%\n", pkg.Rollout)
+		if pkg.Description != "" {
+			fmt.Fprintf(os.Stderr, "  Description: %s\n", pkg.Description)
+		}
+		fmt.Fprintf(os.Stderr, "  Size: %s\n", formatBytes(pkg.FileSizeBytes))
+		if pkg.Hash != "" {
+			fmt.Fprintf(os.Stderr, "  Hash: %s\n", pkg.Hash)
+		}
+		if pkg.CreatedAt != "" {
+			fmt.Fprintf(os.Stderr, "  Created: %s\n", pkg.CreatedAt)
+		}
+		if pkg.CreatedBy != "" {
+			fmt.Fprintf(os.Stderr, "  Created by: %s\n", pkg.CreatedBy)
+		}
+
+		return nil
+	},
+}
+
+var packageStatusCmd = &cobra.Command{
+	Use:   "status <deployment>",
+	Short: "Show package processing status",
+	Long: `Show the processing status of a specific package.
+
+By default shows the latest package. Use --label to specify a version.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		packageID, packageLabel, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		if err != nil {
+			return err
+		}
+
+		status, err := client.GetPackageStatus(appID, deploymentID, packageID)
+		if err != nil {
+			return fmt.Errorf("getting package status: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(status)
+		}
+
+		fmt.Fprintf(os.Stderr, "Package %s status: %s\n", packageLabel, status.Status)
+		if status.StatusReason != "" {
+			fmt.Fprintf(os.Stderr, "  Reason: %s\n", status.StatusReason)
+		}
+
+		return nil
+	},
+}
+
+// truncate shortens a string to max length, appending "..." if truncated.
+func truncate(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max-3] + "..."
+}
+
+// formatBytes returns a human-readable byte size.
+func formatBytes(b int64) string {
+	const unit = 1024
+	if b < unit {
+		return strconv.FormatInt(b, 10) + " B"
+	}
+	div, exp := int64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
 func init() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(bundleCmd)
@@ -673,6 +874,10 @@ func init() {
 	deploymentCmd.AddCommand(deploymentInfoCmd)
 	deploymentCmd.AddCommand(deploymentRenameCmd)
 	deploymentCmd.AddCommand(deploymentRemoveCmd)
+	deploymentCmd.AddCommand(deploymentHistoryCmd)
+	rootCmd.AddCommand(packageCmd)
+	packageCmd.AddCommand(packageInfoCmd)
+	packageCmd.AddCommand(packageStatusCmd)
 
 	// Bundle command flags
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
@@ -725,6 +930,11 @@ func init() {
 	// Deployment command flags
 	deploymentRenameCmd.Flags().StringVar(&deploymentRenameName, "name", "", "new deployment name (required)")
 	deploymentRemoveCmd.Flags().BoolVar(&deploymentRemoveYes, "yes", false, "skip confirmation prompt")
+	deploymentHistoryCmd.Flags().IntVar(&deploymentHistoryMax, "limit", 10, "maximum number of releases to show")
+
+	// Package command flags
+	packageInfoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	packageStatusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
 
 	// Promote command flags
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")

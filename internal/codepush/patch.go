@@ -21,7 +21,7 @@ func Patch(client Client, opts *PatchOptions) (*PatchResult, error) {
 		return nil, err
 	}
 
-	packageID, packageLabel, err := resolvePackageForPatch(client, opts.AppID, deploymentID, opts.Label)
+	packageID, packageLabel, err := ResolvePackageForPatch(client, opts.AppID, deploymentID, opts.Label)
 	if err != nil {
 		return nil, err
 	}
@@ -72,9 +72,9 @@ func validatePatchOptions(opts *PatchOptions) error {
 	return nil
 }
 
-// resolvePackageForPatch resolves a package by label or finds the latest package.
+// ResolvePackageForPatch resolves a package by label or finds the latest package.
 // Returns the package ID and label.
-func resolvePackageForPatch(client Client, appID, deploymentID, label string) (string, string, error) {
+func ResolvePackageForPatch(client Client, appID, deploymentID, label string) (string, string, error) {
 	if label != "" {
 		id, err := resolvePackageLabel(client, appID, deploymentID, label)
 		if err != nil {

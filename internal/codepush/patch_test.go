@@ -485,7 +485,7 @@ func TestResolvePackageForPatch(t *testing.T) {
 			},
 		}
 
-		id, label, err := resolvePackageForPatch(client, "app-123", "dep-456", "v2")
+		id, label, err := ResolvePackageForPatch(client, "app-123", "dep-456", "v2")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -508,7 +508,7 @@ func TestResolvePackageForPatch(t *testing.T) {
 			},
 		}
 
-		id, label, err := resolvePackageForPatch(client, "app-123", "dep-456", "")
+		id, label, err := ResolvePackageForPatch(client, "app-123", "dep-456", "")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -527,7 +527,7 @@ func TestResolvePackageForPatch(t *testing.T) {
 			},
 		}
 
-		_, _, err := resolvePackageForPatch(client, "app-123", "dep-456", "")
+		_, _, err := ResolvePackageForPatch(client, "app-123", "dep-456", "")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -543,7 +543,7 @@ func TestResolvePackageForPatch(t *testing.T) {
 			},
 		}
 
-		_, _, err := resolvePackageForPatch(client, "app-123", "dep-456", "")
+		_, _, err := ResolvePackageForPatch(client, "app-123", "dep-456", "")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
