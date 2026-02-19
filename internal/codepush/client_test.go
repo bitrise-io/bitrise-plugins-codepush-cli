@@ -14,8 +14,8 @@ func TestHTTPClientListDeployments(t *testing.T) {
 			if r.URL.Path != "/connected-apps/app-123/code-push/deployments" {
 				t.Errorf("path: got %q", r.URL.Path)
 			}
-			if r.Header.Get("Authorization") != "Bearer test-token" {
-				t.Errorf("auth header: got %q", r.Header.Get("Authorization"))
+			if r.Header.Get("Authorization") != "test-token" {
+				t.Errorf("auth header: got %q, want plain token without Bearer prefix", r.Header.Get("Authorization"))
 			}
 
 			w.Header().Set("Content-Type", "application/json")

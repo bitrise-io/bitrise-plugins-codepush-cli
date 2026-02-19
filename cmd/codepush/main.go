@@ -199,29 +199,43 @@ var authLoginCmd = &cobra.Command{
 The token is saved to the config directory and used automatically
 by commands that require authentication (push, rollback).
 
+Generate a personal access token at: ` + auth.TokenGenerationURL + `
+
 Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		token := authLoginToken
 		if token == "" {
-			fmt.Fprint(os.Stderr, "Enter API token: ")
-			var input string
-			if _, err := fmt.Scanln(&input); err != nil {
-				return fmt.Errorf("reading token from stdin: %w", err)
+			fmt.Fprintf(os.Stderr, "\n  Generate a token at: %s\n\n", auth.TokenGenerationURL)
+			fmt.Fprint(os.Stderr, "  Paste your personal access token: ")
+			input, err := auth.ReadTokenSecure()
+			if err != nil {
+				return err
 			}
 			token = input
 		}
 
 		if token == "" {
-			return fmt.Errorf("token is required: provide --token or enter interactively")
+			return fmt.Errorf("token is required: provide --token flag or enter interactively")
 		}
 
-		fmt.Fprintf(os.Stderr, "Validating token...\n")
-		if err := auth.ValidateToken(token); err != nil {
-			return fmt.Errorf("token validation failed: %w", err)
+		fmt.Fprintf(os.Stderr, "Validating token...")
+		userInfo, err := auth.ValidateToken(token)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, " failed\n")
+			return fmt.Errorf("token validation failed: %w\n\n  Generate a new token at: %s", err, auth.TokenGenerationURL)
 		}
+		fmt.Fprintf(os.Stderr, " done\n")
 
 		if err := auth.SaveToken(token); err != nil {
 			return fmt.Errorf("saving token: %w", err)
+		}
+
+		if userInfo != nil && userInfo.Username != "" {
+			fmt.Fprintf(os.Stderr, "Logged in as %s", userInfo.Username)
+			if userInfo.Email != "" {
+				fmt.Fprintf(os.Stderr, " (%s)", userInfo.Email)
+			}
+			fmt.Fprintln(os.Stderr)
 		}
 
 		configPath, err := auth.ConfigFilePath()
