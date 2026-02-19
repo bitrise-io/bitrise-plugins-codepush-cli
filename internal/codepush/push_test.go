@@ -16,6 +16,8 @@ type mockClient struct {
 	uploadFileFunc       func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
 	getPackageStatusFunc func(appID, deploymentID, packageID string) (*PackageStatus, error)
 	listPackagesFunc     func(appID, deploymentID string) ([]Package, error)
+	getPackageFunc       func(appID, deploymentID, packageID string) (*Package, error)
+	patchPackageFunc     func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
 	rollbackFunc         func(appID, deploymentID string, req RollbackRequest) (*Package, error)
 	promoteFunc          func(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
@@ -53,6 +55,20 @@ func (m *mockClient) ListPackages(appID, deploymentID string) ([]Package, error)
 		return m.listPackagesFunc(appID, deploymentID)
 	}
 	return nil, nil
+}
+
+func (m *mockClient) GetPackage(appID, deploymentID, packageID string) (*Package, error) {
+	if m.getPackageFunc != nil {
+		return m.getPackageFunc(appID, deploymentID, packageID)
+	}
+	return &Package{ID: packageID, Label: "v1"}, nil
+}
+
+func (m *mockClient) PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error) {
+	if m.patchPackageFunc != nil {
+		return m.patchPackageFunc(appID, deploymentID, packageID, req)
+	}
+	return &Package{ID: packageID, Label: "v1"}, nil
 }
 
 func (m *mockClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {

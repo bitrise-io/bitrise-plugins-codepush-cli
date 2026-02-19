@@ -141,6 +141,42 @@ func (c *HTTPClient) ListPackages(appID, deploymentID string) ([]Package, error)
 	return result.Items, nil
 }
 
+// GetPackage returns a single package by ID.
+func (c *HTTPClient) GetPackage(appID, deploymentID, packageID string) (*Package, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
+		appID, deploymentID, packageID)
+
+	resp, err := c.doRequest(http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Package
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("getting package: %w", err)
+	}
+
+	return &result, nil
+}
+
+// PatchPackage updates metadata on an existing package.
+func (c *HTTPClient) PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error) {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
+		appID, deploymentID, packageID)
+
+	resp, err := c.doJSONRequest(http.MethodPatch, path, req)
+	if err != nil {
+		return nil, err
+	}
+
+	var result Package
+	if err := decodeResponse(resp, &result); err != nil {
+		return nil, fmt.Errorf("patching package: %w", err)
+	}
+
+	return &result, nil
+}
+
 // Rollback sends a rollback request for a deployment.
 func (c *HTTPClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/rollback", appID, deploymentID)

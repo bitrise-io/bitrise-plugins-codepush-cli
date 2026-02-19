@@ -37,7 +37,10 @@ var (
 )
 
 // Shared API flags (persistent on root)
-var globalAppID string
+var (
+	globalAppID string
+	globalJSON  bool
+)
 
 const defaultAPIURL = "https://api.bitrise.io/release-management"
 
@@ -68,6 +71,17 @@ var (
 	promoteMandatory        string
 	promoteDisabled         string
 	promoteRollout          string
+)
+
+// Patch command flags
+var (
+	patchDeployment  string
+	patchLabel       string
+	patchRollout     string
+	patchMandatory   string
+	patchDisabled    string
+	patchDescription string
+	patchAppVersion  string
 )
 
 // Auth flags.
@@ -168,6 +182,10 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("push failed: %w", err)
 		}
 
+		if globalJSON {
+			return outputJSON(result)
+		}
+
 		fmt.Fprintf(os.Stderr, "\nPush successful:\n")
 		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
 		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
@@ -205,6 +223,10 @@ to specify a specific version label (e.g. v3).`,
 		result, err := codepush.Rollback(client, opts)
 		if err != nil {
 			return err
+		}
+
+		if globalJSON {
+			return outputJSON(result)
 		}
 
 		fmt.Fprintf(os.Stderr, "\nRollback successful:\n")
@@ -250,11 +272,67 @@ Example: promote from Staging to Production after testing.`,
 			return err
 		}
 
+		if globalJSON {
+			return outputJSON(result)
+		}
+
 		fmt.Fprintf(os.Stderr, "\nPromote successful:\n")
 		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
 		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
 		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
 		fmt.Fprintf(os.Stderr, "  Destination: %s\n", promoteDestDeployment)
+
+		return nil
+	},
+}
+
+var patchCmd = &cobra.Command{
+	Use:   "patch",
+	Short: "Update metadata on an existing release",
+	Long: `Update metadata on an existing release without re-deploying.
+
+Adjust rollout percentage, toggle mandatory/disabled flags, update the
+description, or change the target app version on a live release.
+
+By default, patches the latest release. Use --label to target a specific version.
+
+Examples:
+  codepush patch --deployment Production --rollout 50
+  codepush patch --deployment Staging --label v5 --mandatory true --disabled false`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		deployment := resolveFlag(patchDeployment, "CODEPUSH_DEPLOYMENT")
+		token := resolveToken()
+
+		opts := &codepush.PatchOptions{
+			AppID:        appID,
+			DeploymentID: deployment,
+			Token:        token,
+			Label:        patchLabel,
+			Rollout:      patchRollout,
+			Mandatory:    patchMandatory,
+			Disabled:     patchDisabled,
+			Description:  patchDescription,
+			AppVersion:   patchAppVersion,
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
+		result, err := codepush.Patch(client, opts)
+		if err != nil {
+			return err
+		}
+
+		if globalJSON {
+			return outputJSON(result)
+		}
+
+		fmt.Fprintf(os.Stderr, "\nPatch successful:\n")
+		fmt.Fprintf(os.Stderr, "  Package ID: %s\n", result.PackageID)
+		fmt.Fprintf(os.Stderr, "  Label: %s\n", result.Label)
+		fmt.Fprintf(os.Stderr, "  App version: %s\n", result.AppVersion)
+		fmt.Fprintf(os.Stderr, "  Rollout: %d%%\n", result.Rollout)
+		fmt.Fprintf(os.Stderr, "  Mandatory: %v\n", result.Mandatory)
+		fmt.Fprintf(os.Stderr, "  Disabled: %v\n", result.Disabled)
 
 		return nil
 	},
@@ -358,6 +436,7 @@ func init() {
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)
 	rootCmd.AddCommand(promoteCmd)
+	rootCmd.AddCommand(patchCmd)
 	rootCmd.AddCommand(integrateCmd)
 	rootCmd.AddCommand(authCmd)
 	authCmd.AddCommand(authLoginCmd)
@@ -385,6 +464,7 @@ func init() {
 
 	// Shared API flags (inherited by all subcommands)
 	rootCmd.PersistentFlags().StringVar(&globalAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
+	rootCmd.PersistentFlags().BoolVar(&globalJSON, "json", false, "output results as JSON to stdout")
 
 	// Auth login flags
 	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
@@ -401,6 +481,15 @@ func init() {
 	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	rollbackCmd.Flags().StringVar(&rollbackTargetRelease, "target-release", "", "specific release label to rollback to (e.g. v3)")
 
+	// Patch command flags
+	patchCmd.Flags().StringVar(&patchDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	patchCmd.Flags().StringVar(&patchLabel, "label", "", "specific release label to patch (e.g. v5, defaults to latest)")
+	patchCmd.Flags().StringVar(&patchRollout, "rollout", "", "rollout percentage (1-100)")
+	patchCmd.Flags().StringVar(&patchMandatory, "mandatory", "", "mark update as mandatory (true/false)")
+	patchCmd.Flags().StringVar(&patchDisabled, "disabled", "", "disable update (true/false)")
+	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
+	patchCmd.Flags().StringVar(&patchAppVersion, "app-version", "", "target app version")
+
 	// Promote command flags
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	promoteCmd.Flags().StringVar(&promoteDestDeployment, "destination-deployment", "", "destination deployment name or UUID (required)")
@@ -410,6 +499,16 @@ func init() {
 	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
+}
+
+// outputJSON marshals v as JSON to stdout. Used when --json is set.
+func outputJSON(v interface{}) error {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling JSON output: %w", err)
+	}
+	fmt.Fprintln(os.Stdout, string(data))
+	return nil
 }
 
 // resolveFlag returns the flag value if non-empty, otherwise falls back to the environment variable.
@@ -445,6 +544,27 @@ func runBundle() error {
 	result, err := runBundleWithOpts()
 	if err != nil {
 		return err
+	}
+
+	if globalJSON {
+		summary := struct {
+			Platform      string `json:"platform"`
+			ProjectType   string `json:"project_type"`
+			OutputDir     string `json:"output_dir"`
+			BundlePath    string `json:"bundle_path"`
+			AssetsDir     string `json:"assets_dir"`
+			SourcemapPath string `json:"sourcemap_path,omitempty"`
+			HermesApplied bool   `json:"hermes_applied"`
+		}{
+			Platform:      string(result.Platform),
+			ProjectType:   result.ProjectType.String(),
+			OutputDir:     result.OutputDir,
+			BundlePath:    result.BundlePath,
+			AssetsDir:     result.AssetsDir,
+			SourcemapPath: result.SourcemapPath,
+			HermesApplied: result.HermesApplied,
+		}
+		return outputJSON(summary)
 	}
 
 	fmt.Fprintf(os.Stderr, "\nBundle created successfully:\n")

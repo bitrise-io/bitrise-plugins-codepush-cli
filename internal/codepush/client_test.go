@@ -384,6 +384,160 @@ func TestHTTPClientListPackages(t *testing.T) {
 	})
 }
 
+func TestHTTPClientGetPackage(t *testing.T) {
+	t.Run("returns package", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodGet {
+				t.Errorf("method: got %q, want GET", r.Method)
+			}
+			if r.Header.Get("Authorization") != "test-token" {
+				t.Errorf("auth header: got %q", r.Header.Get("Authorization"))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-789","label":"v3","app_version":"1.0.0","mandatory":true,"rollout":50}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		pkg, err := client.GetPackage("app-123", "dep-456", "pkg-789")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if pkg.ID != "pkg-789" {
+			t.Errorf("id: got %q", pkg.ID)
+		}
+		if pkg.Label != "v3" {
+			t.Errorf("label: got %q", pkg.Label)
+		}
+		if pkg.Mandatory != true {
+			t.Error("mandatory should be true")
+		}
+		if pkg.Rollout != 50 {
+			t.Errorf("rollout: got %d", pkg.Rollout)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"package not found"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.GetPackage("app-123", "dep-456", "pkg-789")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
+func TestHTTPClientPatchPackage(t *testing.T) {
+	t.Run("sends correct PATCH request", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodPatch {
+				t.Errorf("method: got %q, want PATCH", r.Method)
+			}
+			if r.Header.Get("Content-Type") != "application/json" {
+				t.Errorf("content-type: got %q", r.Header.Get("Content-Type"))
+			}
+
+			var body map[string]interface{}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				t.Fatalf("decoding body: %v", err)
+			}
+			if body["rollout"] != float64(50) {
+				t.Errorf("rollout: got %v", body["rollout"])
+			}
+			if body["mandatory"] != true {
+				t.Errorf("mandatory: got %v", body["mandatory"])
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-789","label":"v3","app_version":"1.0.0","mandatory":true,"rollout":50}`))
+		}))
+		defer server.Close()
+
+		rollout := 50
+		mandatory := true
+		client := NewHTTPClient(server.URL, "test-token")
+		pkg, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+			Rollout:   &rollout,
+			Mandatory: &mandatory,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if pkg.ID != "pkg-789" {
+			t.Errorf("id: got %q", pkg.ID)
+		}
+		if pkg.Rollout != 50 {
+			t.Errorf("rollout: got %d", pkg.Rollout)
+		}
+	})
+
+	t.Run("omits nil fields", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, _ := io.ReadAll(r.Body)
+			bodyStr := string(body)
+			if strings.Contains(bodyStr, "mandatory") {
+				t.Errorf("body should not contain mandatory: %s", bodyStr)
+			}
+			if strings.Contains(bodyStr, "disabled") {
+				t.Errorf("body should not contain disabled: %s", bodyStr)
+			}
+			if !strings.Contains(bodyStr, "rollout") {
+				t.Errorf("body should contain rollout: %s", bodyStr)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"pkg-789","label":"v3","rollout":50}`))
+		}))
+		defer server.Close()
+
+		rollout := 50
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+			Rollout: &rollout,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"invalid rollout value"}`))
+		}))
+		defer server.Close()
+
+		rollout := 50
+		client := NewHTTPClient(server.URL, "test-token")
+		_, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+			Rollout: &rollout,
+		})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "400") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
 func TestHTTPClientRollback(t *testing.T) {
 	t.Run("sends correct request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
