@@ -244,6 +244,23 @@ func (c *HTTPClient) PatchPackage(appID, deploymentID, packageID string, req Pat
 	return &result, nil
 }
 
+// DeletePackage deletes a package from a deployment.
+func (c *HTTPClient) DeletePackage(appID, deploymentID, packageID string) error {
+	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
+		appID, deploymentID, packageID)
+
+	resp, err := c.doRequest(http.MethodDelete, path, nil)
+	if err != nil {
+		return err
+	}
+
+	if err := decodeResponse(resp, nil); err != nil {
+		return fmt.Errorf("deleting package: %w", err)
+	}
+
+	return nil
+}
+
 // Rollback sends a rollback request for a deployment.
 func (c *HTTPClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/rollback", appID, deploymentID)

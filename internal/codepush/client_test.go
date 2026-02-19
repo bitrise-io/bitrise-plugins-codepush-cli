@@ -737,6 +737,45 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 	})
 }
 
+func TestHTTPClientDeletePackage(t *testing.T) {
+	t.Run("deletes package", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789" {
+				t.Errorf("path: got %q", r.URL.Path)
+			}
+			if r.Method != http.MethodDelete {
+				t.Errorf("method: got %q, want DELETE", r.Method)
+			}
+
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		err := client.DeletePackage("app-123", "dep-456", "pkg-789")
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+
+	t.Run("handles HTTP error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(`{"error":"package not found"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		err := client.DeletePackage("app-123", "dep-456", "pkg-789")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !strings.Contains(err.Error(), "404") {
+			t.Errorf("error should contain status code: %v", err)
+		}
+	})
+}
+
 func TestHTTPClientRollback(t *testing.T) {
 	t.Run("sends correct request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

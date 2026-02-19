@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -161,5 +162,14 @@ func pollStatus(client Client, appID, deploymentID, packageID string, cfg PollCo
 
 	totalWait := time.Duration(cfg.MaxAttempts) * cfg.Interval
 	return nil, fmt.Errorf("package processing timed out after %s", totalWait)
+}
+
+// IsDuplicateReleaseError checks if an error is an HTTP 409 conflict,
+// which indicates a duplicate release.
+func IsDuplicateReleaseError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(err.Error(), "HTTP 409")
 }
 

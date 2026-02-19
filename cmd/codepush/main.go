@@ -48,13 +48,14 @@ const defaultAPIURL = "https://api.bitrise.io/release-management"
 
 // Push command flags
 var (
-	pushAutoBundle  bool
-	pushDeployment  string
-	pushAppVersion  string
-	pushDescription string
-	pushMandatory   bool
-	pushRollout     int
-	pushDisabled    bool
+	pushAutoBundle               bool
+	pushDeployment               string
+	pushAppVersion               string
+	pushDescription              string
+	pushMandatory                bool
+	pushRollout                  int
+	pushDisabled                 bool
+	pushDisableDuplicateReleaseError bool
 )
 
 // Rollback command flags
@@ -95,8 +96,12 @@ var (
 
 // Package command flags
 var (
-	packageLabel string
+	packageLabel     string
+	packageRemoveYes bool
 )
+
+// Deployment clear flag
+var deploymentClearYes bool
 
 // Auth flags.
 var authLoginToken string
@@ -193,6 +198,10 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Push(client, opts)
 		if err != nil {
+			if pushDisableDuplicateReleaseError && codepush.IsDuplicateReleaseError(err) {
+				fmt.Fprintf(os.Stderr, "Warning: duplicate release detected, skipping (--disable-duplicate-release-error)\n")
+				return nil
+			}
 			return fmt.Errorf("push failed: %w", err)
 		}
 
@@ -835,6 +844,117 @@ By default shows the latest package. Use --label to specify a version.`,
 	},
 }
 
+var packageRemoveCmd = &cobra.Command{
+	Use:   "remove <deployment>",
+	Short: "Delete a package from a deployment",
+	Long: `Delete a specific package from a deployment.
+
+Requires --label to identify the package and --yes to confirm deletion.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+		if packageLabel == "" {
+			return fmt.Errorf("label is required: set --label to identify the package to delete")
+		}
+		if !packageRemoveYes {
+			return fmt.Errorf("this will permanently delete package %q; use --yes to confirm", packageLabel)
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel)
+		if err != nil {
+			return err
+		}
+
+		if err := client.DeletePackage(appID, deploymentID, packageID); err != nil {
+			return fmt.Errorf("deleting package: %w", err)
+		}
+
+		if globalJSON {
+			return outputJSON(struct {
+				Deleted string `json:"deleted"`
+				Label   string `json:"label"`
+			}{Deleted: packageID, Label: packageLabel})
+		}
+
+		fmt.Fprintf(os.Stderr, "Package %q deleted.\n", packageLabel)
+		return nil
+	},
+}
+
+var deploymentClearCmd = &cobra.Command{
+	Use:   "clear <deployment>",
+	Short: "Delete all packages from a deployment",
+	Long: `Delete all packages (releases) from a deployment.
+
+This is a destructive operation that removes all release history.
+Requires --yes to confirm.`,
+	Args: cobra.ExactArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		token := resolveToken()
+
+		if appID == "" {
+			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		}
+		if token == "" {
+			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		}
+		if !deploymentClearYes {
+			return fmt.Errorf("this will permanently delete all releases from %q; use --yes to confirm", args[0])
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0])
+		if err != nil {
+			return err
+		}
+
+		packages, err := client.ListPackages(appID, deploymentID)
+		if err != nil {
+			return fmt.Errorf("listing packages: %w", err)
+		}
+
+		if len(packages) == 0 {
+			fmt.Fprintf(os.Stderr, "No packages to delete.\n")
+			return nil
+		}
+
+		deleted := 0
+		for _, pkg := range packages {
+			if err := client.DeletePackage(appID, deploymentID, pkg.ID); err != nil {
+				return fmt.Errorf("deleting package %s: %w", pkg.Label, err)
+			}
+			deleted++
+		}
+
+		if globalJSON {
+			return outputJSON(struct {
+				Deployment string `json:"deployment"`
+				Deleted    int    `json:"deleted"`
+			}{Deployment: deploymentID, Deleted: deleted})
+		}
+
+		fmt.Fprintf(os.Stderr, "Deleted %d package(s) from %q.\n", deleted, args[0])
+		return nil
+	},
+}
+
 // truncate shortens a string to max length, appending "..." if truncated.
 func truncate(s string, max int) string {
 	if len(s) <= max {
@@ -875,9 +995,11 @@ func init() {
 	deploymentCmd.AddCommand(deploymentRenameCmd)
 	deploymentCmd.AddCommand(deploymentRemoveCmd)
 	deploymentCmd.AddCommand(deploymentHistoryCmd)
+	deploymentCmd.AddCommand(deploymentClearCmd)
 	rootCmd.AddCommand(packageCmd)
 	packageCmd.AddCommand(packageInfoCmd)
 	packageCmd.AddCommand(packageStatusCmd)
+	packageCmd.AddCommand(packageRemoveCmd)
 
 	// Bundle command flags
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
@@ -913,6 +1035,7 @@ func init() {
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+	pushCmd.Flags().BoolVar(&pushDisableDuplicateReleaseError, "disable-duplicate-release-error", false, "exit successfully if the release already exists")
 
 	// Rollback command flags
 	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
@@ -935,6 +1058,9 @@ func init() {
 	// Package command flags
 	packageInfoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
 	packageStatusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	packageRemoveCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
+	packageRemoveCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
+	deploymentClearCmd.Flags().BoolVar(&deploymentClearYes, "yes", false, "skip confirmation prompt")
 
 	// Promote command flags
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")

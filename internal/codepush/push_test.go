@@ -22,6 +22,7 @@ type mockClient struct {
 	listPackagesFunc       func(appID, deploymentID string) ([]Package, error)
 	getPackageFunc         func(appID, deploymentID, packageID string) (*Package, error)
 	patchPackageFunc       func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	deletePackageFunc      func(appID, deploymentID, packageID string) error
 	rollbackFunc           func(appID, deploymentID string, req RollbackRequest) (*Package, error)
 	promoteFunc            func(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
@@ -101,6 +102,13 @@ func (m *mockClient) PatchPackage(appID, deploymentID, packageID string, req Pat
 		return m.patchPackageFunc(appID, deploymentID, packageID, req)
 	}
 	return &Package{ID: packageID, Label: "v1"}, nil
+}
+
+func (m *mockClient) DeletePackage(appID, deploymentID, packageID string) error {
+	if m.deletePackageFunc != nil {
+		return m.deletePackageFunc(appID, deploymentID, packageID)
+	}
+	return nil
 }
 
 func (m *mockClient) Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error) {
@@ -610,6 +618,28 @@ func TestPollStatus(t *testing.T) {
 		}
 		if !strings.Contains(err.Error(), "timed out") {
 			t.Errorf("error should mention timeout: %v", err)
+		}
+	})
+}
+
+func TestIsDuplicateReleaseError(t *testing.T) {
+	t.Run("matches HTTP 409", func(t *testing.T) {
+		err := fmt.Errorf("push failed: requesting upload URL: API returned HTTP 409: duplicate release")
+		if !IsDuplicateReleaseError(err) {
+			t.Error("should detect HTTP 409")
+		}
+	})
+
+	t.Run("does not match other errors", func(t *testing.T) {
+		err := fmt.Errorf("push failed: API returned HTTP 500: internal error")
+		if IsDuplicateReleaseError(err) {
+			t.Error("should not match HTTP 500")
+		}
+	})
+
+	t.Run("nil error", func(t *testing.T) {
+		if IsDuplicateReleaseError(nil) {
+			t.Error("should return false for nil")
 		}
 	})
 }

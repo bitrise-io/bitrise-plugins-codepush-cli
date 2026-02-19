@@ -224,6 +224,7 @@ type Client interface {
 	ListPackages(appID, deploymentID string) ([]Package, error)
 	GetPackage(appID, deploymentID, packageID string) (*Package, error)
 	PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	DeletePackage(appID, deploymentID, packageID string) error
 	Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error)
 	Promote(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
