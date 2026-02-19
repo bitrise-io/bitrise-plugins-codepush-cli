@@ -1,0 +1,62 @@
+format_version: "15"
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+
+project_type: other
+
+pipelines:
+  pipeline_ci:
+    stages:
+    - stage_ci: {}
+
+stages:
+  stage_ci:
+    workflows:
+    - ci: {}
+
+workflows:
+  ci:
+    steps:
+    - git-clone@8: {}
+    - go-list@1: {}
+    - script@1:
+        title: Build
+        inputs:
+        - content: go build ./cmd/codepush
+    - go-test@1:
+        title: Test
+        inputs:
+        - coverprofile: $BITRISE_DEPLOY_DIR/coverage.out
+    - script@1:
+        title: Check test coverage
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+
+            THRESHOLD=75
+            COVERPROFILE="$BITRISE_DEPLOY_DIR/coverage.out"
+
+            if [ ! -f "$COVERPROFILE" ]; then
+                echo "FAIL: coverage profile not found at $COVERPROFILE"
+                exit 1
+            fi
+
+            COVERAGE=$(go tool cover -func="$COVERPROFILE" | grep ^total: | awk '{print $3}' | tr -d '%')
+
+            if [ -z "$COVERAGE" ]; then
+                echo "FAIL: could not determine coverage"
+                exit 1
+            fi
+
+            PASS=$(awk "BEGIN {print ($COVERAGE >= $THRESHOLD) ? 1 : 0}")
+
+            if [ "$PASS" -eq 1 ]; then
+                echo "PASS: coverage ${COVERAGE}% >= ${THRESHOLD}% threshold"
+            else
+                echo "FAIL: coverage ${COVERAGE}% < ${THRESHOLD}% threshold"
+                exit 1
+            fi
+    - script@1:
+        title: go vet
+        inputs:
+        - content: go vet ./...

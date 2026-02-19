@@ -28,7 +28,9 @@ bitrise-plugins-codepush-cli/
 ├── cmd/codepush/            # CLI entry point (main.go)
 ├── internal/
 │   ├── bitrise/             # Bitrise CI integration (env detection, deploy export)
+│   ├── bundler/             # JS bundle generation (detect, bundle, Hermes)
 │   └── codepush/            # Core CodePush logic
+├── bitrise.yml              # CI pipeline (build, test, coverage, vet)
 ├── bitrise-plugin.yml       # Bitrise plugin manifest
 ├── .goreleaser.yml          # Release automation
 └── go.mod                   # Go module definition
@@ -51,6 +53,8 @@ go build ./cmd/codepush                  # Build the binary
 go test ./...                            # Run all tests
 go vet ./...                             # Static analysis
 ```
+
+CI enforces a **75% minimum test coverage** threshold. See `bitrise.yml` for the full pipeline.
 
 ## Command-Line Interface
 

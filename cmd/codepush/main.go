@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/spf13/cobra"
 )
 
@@ -13,6 +14,23 @@ var (
 	commit  = "none"
 	date    = "unknown"
 )
+
+// Bundle command flags
+var (
+	bundlePlatform         string
+	bundleEntryFile        string
+	bundleOutputDir        string
+	bundleBundleName       string
+	bundleDev              bool
+	bundleSourcemap        bool
+	bundleHermes           string
+	bundleExtraBundlerOpts []string
+	bundleProjectDir       string
+	bundleMetroConfig      string
+)
+
+// Push command flags
+var pushAutoBundle bool
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
@@ -40,15 +58,45 @@ var versionCmd = &cobra.Command{
 	},
 }
 
+var bundleCmd = &cobra.Command{
+	Use:   "bundle",
+	Short: "Bundle JavaScript for an OTA update",
+	Long: `Bundle the JavaScript code and assets for a React Native or Expo project.
+
+Auto-detects the project type, entry file, and Hermes configuration.
+Produces a directory containing the bundle, assets, and optional source maps
+ready for use with 'codepush push'.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return runBundle()
+	},
+}
+
 var pushCmd = &cobra.Command{
 	Use:   "push [bundle-path]",
 	Short: "Push an OTA update",
 	Long: `Push an over-the-air update to your mobile application.
 
 Packages the specified bundle and deploys it to the CodePush server
-for distribution to connected devices.`,
+for distribution to connected devices.
+
+Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
+		if pushAutoBundle {
+			if bundlePlatform == "" {
+				return fmt.Errorf("--platform is required when using --bundle")
+			}
+
+			result, err := runBundleWithOpts()
+			if err != nil {
+				return fmt.Errorf("bundling failed: %w", err)
+			}
+
+			fmt.Fprintf(os.Stderr, "Bundle created at: %s\n\n", result.OutputDir)
+			args = []string{result.OutputDir}
+		}
+
+		_ = args // will be used when push is implemented
 		fmt.Fprintln(os.Stderr, "push command not yet implemented")
 		return nil
 	},
@@ -81,7 +129,74 @@ and configures the SDK accordingly.`,
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)
 	rootCmd.AddCommand(integrateCmd)
+
+	// Bundle command flags
+	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
+	_ = bundleCmd.MarkFlagRequired("platform")
+	bundleCmd.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
+	bundleCmd.Flags().StringVar(&bundleOutputDir, "output-dir", "./codepush-bundle", "output directory for the bundle")
+	bundleCmd.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
+	bundleCmd.Flags().BoolVar(&bundleDev, "dev", false, "enable development mode")
+	bundleCmd.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
+	bundleCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
+	bundleCmd.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
+	bundleCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
+	bundleCmd.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
+
+	// Push command: --bundle flag and shared bundling flags
+	pushCmd.Flags().BoolVar(&pushAutoBundle, "bundle", false, "bundle JavaScript before pushing")
+	pushCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform for bundling: ios or android")
+	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", "./codepush-bundle", "output directory for the bundle")
+	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
+	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
+}
+
+func runBundle() error {
+	platform := bundler.Platform(bundlePlatform)
+	if platform != bundler.PlatformIOS && platform != bundler.PlatformAndroid {
+		return fmt.Errorf("--platform must be 'ios' or 'android', got %q", bundlePlatform)
+	}
+
+	hermesMode := bundler.HermesMode(bundleHermes)
+	if hermesMode != bundler.HermesModeAuto && hermesMode != bundler.HermesModeOn && hermesMode != bundler.HermesModeOff {
+		return fmt.Errorf("--hermes must be 'auto', 'on', or 'off', got %q", bundleHermes)
+	}
+
+	result, err := runBundleWithOpts()
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(os.Stderr, "\nBundle created successfully:\n")
+	fmt.Fprintf(os.Stderr, "  Output: %s\n", result.OutputDir)
+	fmt.Fprintf(os.Stderr, "  Bundle: %s\n", result.BundlePath)
+	if result.SourcemapPath != "" {
+		fmt.Fprintf(os.Stderr, "  Sourcemap: %s\n", result.SourcemapPath)
+	}
+	if result.HermesApplied {
+		fmt.Fprintf(os.Stderr, "  Hermes: compiled\n")
+	}
+
+	return nil
+}
+
+func runBundleWithOpts() (*bundler.BundleResult, error) {
+	opts := &bundler.BundleOptions{
+		Platform:         bundler.Platform(bundlePlatform),
+		EntryFile:        bundleEntryFile,
+		OutputDir:        bundleOutputDir,
+		BundleName:       bundleBundleName,
+		Dev:              bundleDev,
+		Sourcemap:        bundleSourcemap,
+		HermesMode:       bundler.HermesMode(bundleHermes),
+		ExtraBundlerOpts: bundleExtraBundlerOpts,
+		ProjectDir:       bundleProjectDir,
+		MetroConfig:      bundleMetroConfig,
+	}
+
+	return bundler.Run(opts)
 }
