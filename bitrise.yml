@@ -104,6 +104,7 @@ workflows:
     - git-clone@8:
         inputs:
         - clone_depth: "0"
+        - fetch_tags: "yes"
     - go-list@1: {}
     - script@1:
         title: Validate tag matches code version
