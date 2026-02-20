@@ -78,7 +78,7 @@ func (m *mockClient) GetPackageStatus(_ context.Context, appID, deploymentID, pa
 	if m.getPackageStatusFunc != nil {
 		return m.getPackageStatusFunc(appID, deploymentID, packageID)
 	}
-	return &PackageStatus{PackageID: packageID, Status: StatusDone}, nil
+	return &PackageStatus{PackageID: packageID, Status: StatusProcessedValid}, nil
 }
 
 func (m *mockClient) ListPackages(_ context.Context, appID, deploymentID string) ([]Package, error) {

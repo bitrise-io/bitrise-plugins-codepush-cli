@@ -176,9 +176,9 @@ func pollStatus(ctx context.Context, client statusChecker, ref PackageRef, cfg P
 		}
 
 		switch status.Status {
-		case StatusDone:
+		case StatusProcessedValid:
 			return status, nil
-		case StatusFailed:
+		case StatusProcessedError:
 			return nil, fmt.Errorf("package processing failed: %s", status.StatusReason)
 		}
 

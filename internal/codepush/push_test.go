@@ -40,7 +40,7 @@ func TestPush(t *testing.T) {
 				return nil
 			},
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusDone}, nil
+				return &PackageStatus{PackageID: packageID, Status: StatusProcessedValid}, nil
 			},
 		}
 
@@ -63,7 +63,7 @@ func TestPush(t *testing.T) {
 		if result.AppVersion != "1.0.0" {
 			t.Errorf("app_version: got %q", result.AppVersion)
 		}
-		if result.Status != StatusDone {
+		if result.Status != StatusProcessedValid {
 			t.Errorf("status: got %q", result.Status)
 		}
 		if result.PackageID == "" {
@@ -240,7 +240,7 @@ func TestPush(t *testing.T) {
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
 				return &PackageStatus{
 					PackageID:    packageID,
-					Status:       StatusFailed,
+					Status:       StatusProcessedError,
 					StatusReason: "invalid bundle format",
 				}, nil
 			},
@@ -269,7 +269,7 @@ func TestPush(t *testing.T) {
 
 		client := &mockClient{
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusProcessing}, nil
+				return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
 			},
 		}
 
@@ -452,9 +452,9 @@ func TestPollStatus(t *testing.T) {
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
 				callCount++
 				if callCount < 3 {
-					return &PackageStatus{PackageID: packageID, Status: StatusProcessing}, nil
+					return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
 				}
-				return &PackageStatus{PackageID: packageID, Status: StatusDone}, nil
+				return &PackageStatus{PackageID: packageID, Status: StatusProcessedValid}, nil
 			},
 		}
 
@@ -463,7 +463,7 @@ func TestPollStatus(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if status.Status != StatusDone {
+		if status.Status != StatusProcessedValid {
 			t.Errorf("status: got %q", status.Status)
 		}
 		if callCount != 3 {
@@ -474,7 +474,7 @@ func TestPollStatus(t *testing.T) {
 	t.Run("returns error on failed", func(t *testing.T) {
 		client := &mockClient{
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusFailed, StatusReason: "bad format"}, nil
+				return &PackageStatus{PackageID: packageID, Status: StatusProcessedError, StatusReason: "bad format"}, nil
 			},
 		}
 
@@ -491,7 +491,7 @@ func TestPollStatus(t *testing.T) {
 	t.Run("times out", func(t *testing.T) {
 		client := &mockClient{
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusProcessing}, nil
+				return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
 			},
 		}
 

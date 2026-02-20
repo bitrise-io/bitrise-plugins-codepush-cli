@@ -148,9 +148,10 @@ var DefaultPollConfig = PollConfig{
 
 // Status constants for package processing.
 const (
-	StatusProcessing = "processing"
-	StatusDone       = "done"
-	StatusFailed     = "failed"
+	StatusCreated        = "created"
+	StatusUploaded       = "uploaded"
+	StatusProcessedValid = "processed_valid"
+	StatusProcessedError = "processed_invalid"
 )
 
 // PackageCreator identifies the user who created a package.
