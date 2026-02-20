@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -9,17 +10,17 @@ import (
 
 // Promote executes the promote workflow: validate, resolve both deployments,
 // optionally resolve label to package ID, call API, export summary.
-func Promote(client Client, opts *PromoteOptions, out *output.Writer) (*PromoteResult, error) {
+func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *output.Writer) (*PromoteResult, error) {
 	if err := validatePromoteOptions(opts); err != nil {
 		return nil, err
 	}
 
-	sourceDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.SourceDeploymentID, out)
+	sourceDeploymentID, err := ResolveDeployment(ctx, client, opts.AppID, opts.SourceDeploymentID, out)
 	if err != nil {
 		return nil, fmt.Errorf("resolving source deployment: %w", err)
 	}
 
-	destDeploymentID, err := ResolveDeployment(client, opts.AppID, opts.DestDeploymentID, out)
+	destDeploymentID, err := ResolveDeployment(ctx, client, opts.AppID, opts.DestDeploymentID, out)
 	if err != nil {
 		return nil, fmt.Errorf("resolving destination deployment: %w", err)
 	}
@@ -34,7 +35,7 @@ func Promote(client Client, opts *PromoteOptions, out *output.Writer) (*PromoteR
 	}
 
 	if opts.Label != "" {
-		packageID, err := resolvePackageLabel(client, opts.AppID, sourceDeploymentID, opts.Label, out)
+		packageID, err := resolvePackageLabel(ctx, client, opts.AppID, sourceDeploymentID, opts.Label, out)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +43,7 @@ func Promote(client Client, opts *PromoteOptions, out *output.Writer) (*PromoteR
 	}
 
 	out.Step("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
-	pkg, err := client.Promote(opts.AppID, sourceDeploymentID, req)
+	pkg, err := client.Promote(ctx, opts.AppID, sourceDeploymentID, req)
 	if err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
@@ -79,4 +80,3 @@ func validatePromoteOptions(opts *PromoteOptions) error {
 	}
 	return nil
 }
-

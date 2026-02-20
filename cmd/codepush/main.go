@@ -201,7 +201,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Push(client, opts, out)
+		result, err := codepush.Push(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
 		}
@@ -250,7 +250,7 @@ to specify a specific version label (e.g. v3).`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Rollback(client, opts, out)
+		result, err := codepush.Rollback(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("rollback failed: %w", err)
 		}
@@ -306,7 +306,7 @@ Example: promote from Staging to Production after testing.`,
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Promote(client, opts, out)
+		result, err := codepush.Promote(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("promote failed: %w", err)
 		}
@@ -365,7 +365,7 @@ Examples:
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
-		result, err := codepush.Patch(client, opts, out)
+		result, err := codepush.Patch(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("patch failed: %w", err)
 		}
@@ -509,7 +509,7 @@ var deploymentListCmd = &cobra.Command{
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
-		deployments, err := client.ListDeployments(appID)
+		deployments, err := client.ListDeployments(cmd.Context(), appID)
 		if err != nil {
 			return fmt.Errorf("listing deployments: %w", err)
 		}
@@ -544,7 +544,7 @@ var deploymentAddCmd = &cobra.Command{
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
-		dep, err := client.CreateDeployment(appID, codepush.CreateDeploymentRequest{Name: args[0]})
+		dep, err := client.CreateDeployment(cmd.Context(), appID, codepush.CreateDeploymentRequest{Name: args[0]})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
@@ -570,17 +570,17 @@ var deploymentInfoCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		dep, err := client.GetDeployment(appID, deploymentID)
+		dep, err := client.GetDeployment(cmd.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("getting deployment: %w", err)
 		}
 
-		packages, err := client.ListPackages(appID, deploymentID)
+		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
@@ -640,12 +640,12 @@ var deploymentRenameCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		dep, err := client.RenameDeployment(appID, deploymentID, codepush.RenameDeploymentRequest{Name: deploymentRenameName})
+		dep, err := client.RenameDeployment(cmd.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: deploymentRenameName})
 		if err != nil {
 			return fmt.Errorf("renaming deployment: %w", err)
 		}
@@ -678,12 +678,12 @@ var deploymentRemoveCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		if err := client.DeleteDeployment(appID, deploymentID); err != nil {
+		if err := client.DeleteDeployment(cmd.Context(), appID, deploymentID); err != nil {
 			return fmt.Errorf("deleting deployment: %w", err)
 		}
 
@@ -710,12 +710,12 @@ var deploymentHistoryCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packages, err := client.ListPackages(appID, deploymentID)
+		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
@@ -770,17 +770,17 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
+		packageID, _, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		pkg, err := client.GetPackage(appID, deploymentID, packageID)
+		pkg, err := client.GetPackage(cmd.Context(), appID, deploymentID, packageID)
 		if err != nil {
 			return fmt.Errorf("getting package: %w", err)
 		}
@@ -831,17 +831,17 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, packageLabel, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
+		packageID, packageLabel, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		status, err := client.GetPackageStatus(appID, deploymentID, packageID)
+		status, err := client.GetPackageStatus(cmd.Context(), appID, deploymentID, packageID)
 		if err != nil {
 			return fmt.Errorf("getting package status: %w", err)
 		}
@@ -888,17 +888,17 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(client, appID, deploymentID, packageLabel, out)
+		packageID, _, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		if err := client.DeletePackage(appID, deploymentID, packageID); err != nil {
+		if err := client.DeletePackage(cmd.Context(), appID, deploymentID, packageID); err != nil {
 			return fmt.Errorf("deleting package: %w", err)
 		}
 
@@ -937,12 +937,12 @@ Requires --yes to confirm.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(client, appID, args[0], out)
+		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
 		if err != nil {
 			return err
 		}
 
-		packages, err := client.ListPackages(appID, deploymentID)
+		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
@@ -954,7 +954,7 @@ Requires --yes to confirm.`,
 
 		deleted := 0
 		for _, pkg := range packages {
-			if err := client.DeletePackage(appID, deploymentID, pkg.ID); err != nil {
+			if err := client.DeletePackage(cmd.Context(), appID, deploymentID, pkg.ID); err != nil {
 				return fmt.Errorf("deleting package %s: %w", pkg.Label, err)
 			}
 			deleted++

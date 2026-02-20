@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"io"
 	"time"
 )
@@ -229,18 +230,18 @@ type PatchResult struct {
 
 // Client defines the CodePush API operations.
 type Client interface {
-	ListDeployments(appID string) ([]Deployment, error)
-	CreateDeployment(appID string, req CreateDeploymentRequest) (*Deployment, error)
-	GetDeployment(appID, deploymentID string) (*Deployment, error)
-	RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
-	DeleteDeployment(appID, deploymentID string) error
-	GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
-	UploadFile(req UploadFileRequest) error
-	GetPackageStatus(appID, deploymentID, packageID string) (*PackageStatus, error)
-	ListPackages(appID, deploymentID string) ([]Package, error)
-	GetPackage(appID, deploymentID, packageID string) (*Package, error)
-	PatchPackage(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
-	DeletePackage(appID, deploymentID, packageID string) error
-	Rollback(appID, deploymentID string, req RollbackRequest) (*Package, error)
-	Promote(appID, deploymentID string, req PromoteRequest) (*Package, error)
+	ListDeployments(ctx context.Context, appID string) ([]Deployment, error)
+	CreateDeployment(ctx context.Context, appID string, req CreateDeploymentRequest) (*Deployment, error)
+	GetDeployment(ctx context.Context, appID, deploymentID string) (*Deployment, error)
+	RenameDeployment(ctx context.Context, appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	DeleteDeployment(ctx context.Context, appID, deploymentID string) error
+	GetUploadURL(ctx context.Context, appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
+	UploadFile(ctx context.Context, req UploadFileRequest) error
+	GetPackageStatus(ctx context.Context, appID, deploymentID, packageID string) (*PackageStatus, error)
+	ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error)
+	GetPackage(ctx context.Context, appID, deploymentID, packageID string) (*Package, error)
+	PatchPackage(ctx context.Context, appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	DeletePackage(ctx context.Context, appID, deploymentID, packageID string) error
+	Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Package, error)
+	Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Package, error)
 }

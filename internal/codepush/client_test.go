@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -25,7 +26,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		deployments, err := client.ListDeployments("app-123")
+		deployments, err := client.ListDeployments(context.Background(),"app-123")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -49,7 +50,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "bad-token")
-		_, err := client.ListDeployments("app-123")
+		_, err := client.ListDeployments(context.Background(),"app-123")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -66,7 +67,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		deployments, err := client.ListDeployments("app-123")
+		deployments, err := client.ListDeployments(context.Background(),"app-123")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -103,7 +104,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		dep, err := client.CreateDeployment("app-123", CreateDeploymentRequest{Name: "QA"})
+		dep, err := client.CreateDeployment(context.Background(),"app-123", CreateDeploymentRequest{Name: "QA"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -124,7 +125,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.CreateDeployment("app-123", CreateDeploymentRequest{Name: "QA"})
+		_, err := client.CreateDeployment(context.Background(),"app-123", CreateDeploymentRequest{Name: "QA"})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -150,7 +151,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		dep, err := client.GetDeployment("app-123", "dep-456")
+		dep, err := client.GetDeployment(context.Background(),"app-123", "dep-456")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -174,7 +175,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetDeployment("app-123", "dep-456")
+		_, err := client.GetDeployment(context.Background(),"app-123", "dep-456")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -208,7 +209,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		dep, err := client.RenameDeployment("app-123", "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
+		dep, err := client.RenameDeployment(context.Background(),"app-123", "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -226,7 +227,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.RenameDeployment("app-123", "dep-456", RenameDeploymentRequest{Name: ""})
+		_, err := client.RenameDeployment(context.Background(),"app-123", "dep-456", RenameDeploymentRequest{Name: ""})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -251,7 +252,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeleteDeployment("app-123", "dep-456")
+		err := client.DeleteDeployment(context.Background(),"app-123", "dep-456")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -265,7 +266,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeleteDeployment("app-123", "dep-456")
+		err := client.DeleteDeployment(context.Background(),"app-123", "dep-456")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -306,7 +307,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		resp, err := client.GetUploadURL("app-123", "dep-456", "pkg-789", UploadURLRequest{
+		resp, err := client.GetUploadURL(context.Background(),"app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 1024,
@@ -344,7 +345,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetUploadURL("app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(),"app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
@@ -367,7 +368,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetUploadURL("app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(),"app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
@@ -386,7 +387,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetUploadURL("app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(),"app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
@@ -423,7 +424,7 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient("", "test-token")
-		err := client.UploadFile(UploadFileRequest{
+		err := client.UploadFile(context.Background(),UploadFileRequest{
 			URL:           server.URL,
 			Method:        http.MethodPut,
 			Headers:       map[string]string{"Content-Type": "application/zip"},
@@ -443,7 +444,7 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient("", "test-token")
-		err := client.UploadFile(UploadFileRequest{
+		err := client.UploadFile(context.Background(),UploadFileRequest{
 			URL:           server.URL,
 			Method:        http.MethodPut,
 			Body:          strings.NewReader("data"),
@@ -472,7 +473,7 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		status, err := client.GetPackageStatus("app-123", "dep-456", "pkg-789")
+		status, err := client.GetPackageStatus(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -493,7 +494,7 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		status, err := client.GetPackageStatus("app-123", "dep-456", "pkg-789")
+		status, err := client.GetPackageStatus(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -514,7 +515,7 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetPackageStatus("app-123", "dep-456", "pkg-789")
+		_, err := client.GetPackageStatus(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -540,7 +541,7 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		packages, err := client.ListPackages("app-123", "dep-456")
+		packages, err := client.ListPackages(context.Background(),"app-123", "dep-456")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -561,7 +562,7 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		packages, err := client.ListPackages("app-123", "dep-456")
+		packages, err := client.ListPackages(context.Background(),"app-123", "dep-456")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -578,7 +579,7 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.ListPackages("app-123", "dep-456")
+		_, err := client.ListPackages(context.Background(),"app-123", "dep-456")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -607,7 +608,7 @@ func TestHTTPClientGetPackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.GetPackage("app-123", "dep-456", "pkg-789")
+		pkg, err := client.GetPackage(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -634,7 +635,7 @@ func TestHTTPClientGetPackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetPackage("app-123", "dep-456", "pkg-789")
+		_, err := client.GetPackage(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -676,7 +677,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 		rollout := 50
 		mandatory := true
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+		pkg, err := client.PatchPackage(context.Background(),"app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout:   &rollout,
 			Mandatory: &mandatory,
 		})
@@ -713,7 +714,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 
 		rollout := 50
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchPackage(context.Background(),"app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		if err != nil {
@@ -730,7 +731,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 
 		rollout := 50
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.PatchPackage("app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchPackage(context.Background(),"app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		if err == nil {
@@ -757,7 +758,7 @@ func TestHTTPClientDeletePackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeletePackage("app-123", "dep-456", "pkg-789")
+		err := client.DeletePackage(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -771,7 +772,7 @@ func TestHTTPClientDeletePackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeletePackage("app-123", "dep-456", "pkg-789")
+		err := client.DeletePackage(context.Background(),"app-123", "dep-456", "pkg-789")
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -811,7 +812,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.Rollback("app-123", "dep-456", RollbackRequest{PackageID: "pkg-target"})
+		pkg, err := client.Rollback(context.Background(),"app-123", "dep-456", RollbackRequest{PackageID: "pkg-target"})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -837,7 +838,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.Rollback("app-123", "dep-456", RollbackRequest{})
+		_, err := client.Rollback(context.Background(),"app-123", "dep-456", RollbackRequest{})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -851,7 +852,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.Rollback("app-123", "dep-456", RollbackRequest{})
+		_, err := client.Rollback(context.Background(),"app-123", "dep-456", RollbackRequest{})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -897,7 +898,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.Promote("app-123", "dep-src", PromoteRequest{
+		pkg, err := client.Promote(context.Background(),"app-123", "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 			AppVersion:         "3.0.0",
 			Mandatory:          "true",
@@ -932,7 +933,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.Promote("app-123", "dep-src", PromoteRequest{
+		_, err := client.Promote(context.Background(),"app-123", "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 		})
 		if err != nil {
@@ -948,7 +949,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.Promote("app-123", "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
+		_, err := client.Promote(context.Background(),"app-123", "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

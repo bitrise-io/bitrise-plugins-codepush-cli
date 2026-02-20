@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -9,12 +10,12 @@ import (
 
 // Rollback executes the rollback workflow: validate, resolve deployment,
 // optionally resolve target label to package ID, call API, export summary.
-func Rollback(client Client, opts *RollbackOptions, out *output.Writer) (*RollbackResult, error) {
+func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *output.Writer) (*RollbackResult, error) {
 	if err := validateRollbackOptions(opts); err != nil {
 		return nil, err
 	}
 
-	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID, out)
+	deploymentID, err := ResolveDeployment(ctx, client, opts.AppID, opts.DeploymentID, out)
 	if err != nil {
 		return nil, err
 	}
@@ -22,7 +23,7 @@ func Rollback(client Client, opts *RollbackOptions, out *output.Writer) (*Rollba
 	req := RollbackRequest{}
 
 	if opts.TargetLabel != "" {
-		packageID, err := resolvePackageLabel(client, opts.AppID, deploymentID, opts.TargetLabel, out)
+		packageID, err := resolvePackageLabel(ctx, client, opts.AppID, deploymentID, opts.TargetLabel, out)
 		if err != nil {
 			return nil, err
 		}
@@ -30,7 +31,7 @@ func Rollback(client Client, opts *RollbackOptions, out *output.Writer) (*Rollba
 	}
 
 	out.Step("Rolling back deployment")
-	pkg, err := client.Rollback(opts.AppID, deploymentID, req)
+	pkg, err := client.Rollback(ctx, opts.AppID, deploymentID, req)
 	if err != nil {
 		return nil, fmt.Errorf("rollback failed: %w", err)
 	}
@@ -61,9 +62,9 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 }
 
 // resolvePackageLabel finds a package by its label (e.g. "v3") within a deployment.
-func resolvePackageLabel(client Client, appID, deploymentID, label string, out *output.Writer) (string, error) {
+func resolvePackageLabel(ctx context.Context, client Client, appID, deploymentID, label string, out *output.Writer) (string, error) {
 	out.Step("Resolving release label %q", label)
-	packages, err := client.ListPackages(appID, deploymentID)
+	packages, err := client.ListPackages(ctx, appID, deploymentID)
 	if err != nil {
 		return "", fmt.Errorf("listing packages: %w", err)
 	}
@@ -77,4 +78,3 @@ func resolvePackageLabel(client Client, appID, deploymentID, label string, out *
 
 	return "", fmt.Errorf("release label %q not found in deployment: check the label or omit --target-release to rollback to the previous release", label)
 }
-

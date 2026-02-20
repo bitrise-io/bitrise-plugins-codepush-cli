@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -13,17 +14,17 @@ import (
 )
 
 // Push executes the full push workflow: zip, upload, and poll for completion.
-func Push(client Client, opts *PushOptions, out *output.Writer) (*PushResult, error) {
-	return PushWithConfig(client, opts, DefaultPollConfig, out)
+func Push(ctx context.Context, client Client, opts *PushOptions, out *output.Writer) (*PushResult, error) {
+	return PushWithConfig(ctx, client, opts, DefaultPollConfig, out)
 }
 
 // PushWithConfig executes the push workflow with a configurable poll config.
-func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *output.Writer) (*PushResult, error) {
+func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollCfg PollConfig, out *output.Writer) (*PushResult, error) {
 	if err := validatePushOptions(opts); err != nil {
 		return nil, err
 	}
 
-	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID, out)
+	deploymentID, err := ResolveDeployment(ctx, client, opts.AppID, opts.DeploymentID, out)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +45,7 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 	packageID := uuid.New().String()
 
 	out.Step("Requesting upload URL")
-	uploadResp, err := client.GetUploadURL(opts.AppID, deploymentID, packageID, UploadURLRequest{
+	uploadResp, err := client.GetUploadURL(ctx, opts.AppID, deploymentID, packageID, UploadURLRequest{
 		AppVersion:    opts.AppVersion,
 		FileName:      filepath.Base(zipPath),
 		FileSizeBytes: zipInfo.Size(),
@@ -64,7 +65,7 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 		}
 		defer zipFile.Close()
 
-		return client.UploadFile(UploadFileRequest{
+		return client.UploadFile(ctx, UploadFileRequest{
 			URL:           uploadResp.URL,
 			Method:        uploadResp.Method,
 			Headers:       uploadResp.Headers,
@@ -79,7 +80,7 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 	var status *PackageStatus
 	err = out.Spinner("Processing package", func() error {
 		var pollErr error
-		status, pollErr = pollStatus(client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
+		status, pollErr = pollStatus(ctx, client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
 		return pollErr
 	})
 	if err != nil {
@@ -129,13 +130,13 @@ func validatePushOptions(opts *PushOptions) error {
 // ResolveDeployment resolves a deployment name or UUID to a deployment ID.
 // If the input is already a valid UUID, it is returned as-is.
 // Otherwise, it lists all deployments and finds the one matching by name.
-func ResolveDeployment(client Client, appID, deploymentNameOrID string, out *output.Writer) (string, error) {
+func ResolveDeployment(ctx context.Context, client Client, appID, deploymentNameOrID string, out *output.Writer) (string, error) {
 	if _, err := uuid.Parse(deploymentNameOrID); err == nil {
 		return deploymentNameOrID, nil
 	}
 
 	out.Step("Resolving deployment %q", deploymentNameOrID)
-	deployments, err := client.ListDeployments(appID)
+	deployments, err := client.ListDeployments(ctx, appID)
 	if err != nil {
 		return "", fmt.Errorf("listing deployments: %w", err)
 	}
@@ -150,9 +151,9 @@ func ResolveDeployment(client Client, appID, deploymentNameOrID string, out *out
 	return "", fmt.Errorf("deployment %q not found: check the deployment name or use a deployment UUID", deploymentNameOrID)
 }
 
-func pollStatus(client Client, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
+func pollStatus(ctx context.Context, client Client, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
 	for attempt := 0; attempt < cfg.MaxAttempts; attempt++ {
-		status, err := client.GetPackageStatus(ref.AppID, ref.DeploymentID, ref.PackageID)
+		status, err := client.GetPackageStatus(ctx, ref.AppID, ref.DeploymentID, ref.PackageID)
 		if err != nil {
 			return nil, fmt.Errorf("checking package status: %w", err)
 		}

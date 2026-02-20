@@ -1,6 +1,7 @@
 package codepush
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -31,7 +32,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		result, err := Promote(client, opts, testOut)
+		result, err := Promote(context.Background(), client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -68,7 +69,7 @@ func TestPromote(t *testing.T) {
 			Rollout:            "50",
 		}
 
-		_, err := Promote(client, opts, testOut)
+		_, err := Promote(context.Background(), client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -110,7 +111,7 @@ func TestPromote(t *testing.T) {
 			Label:              "v2",
 		}
 
-		_, err := Promote(client, opts, testOut)
+		_, err := Promote(context.Background(), client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -144,7 +145,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts, testOut)
+		_, err := Promote(context.Background(), client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -165,7 +166,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(&mockClient{}, opts, testOut)
+		_, err := Promote(context.Background(), &mockClient{}, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -188,7 +189,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts, testOut)
+		_, err := Promote(context.Background(), client, opts, testOut)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -215,7 +216,7 @@ func TestPromote(t *testing.T) {
 			Token:              "test-token",
 		}
 
-		_, err := Promote(client, opts, testOut)
+		_, err := Promote(context.Background(), client, opts, testOut)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
