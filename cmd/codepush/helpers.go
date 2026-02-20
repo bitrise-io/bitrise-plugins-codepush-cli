@@ -7,6 +7,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/google/uuid"
+
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
@@ -132,6 +134,41 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// resolveAppIDInteractive resolves the app ID using the priority:
+// 1. --app-id flag
+// 2. CODEPUSH_APP_ID environment variable
+// 3. .codepush.json config file
+// 4. Interactive terminal input prompt
+// 5. Non-interactive error with flag hint
+func resolveAppIDInteractive() (string, error) {
+	appID := resolveAppID()
+	if appID != "" {
+		if _, err := uuid.Parse(appID); err != nil {
+			return "", fmt.Errorf("invalid app ID %q: must be a valid UUID", appID)
+		}
+		return appID, nil
+	}
+
+	if !out.IsInteractive() {
+		return "", fmt.Errorf("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
+	}
+
+	appID, err := out.Input("Enter your app ID (UUID)", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
+	if err != nil {
+		return "", err
+	}
+
+	if appID == "" {
+		return "", fmt.Errorf("app ID is required")
+	}
+
+	if _, err := uuid.Parse(appID); err != nil {
+		return "", fmt.Errorf("invalid app ID %q: must be a valid UUID", appID)
+	}
+
+	return appID, nil
 }
 
 // resolveDeploymentInteractive resolves a deployment using the priority:

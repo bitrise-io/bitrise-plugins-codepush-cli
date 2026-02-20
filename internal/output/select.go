@@ -56,3 +56,25 @@ func (w *Writer) Input(title, placeholder string) (string, error) {
 
 	return value, nil
 }
+
+// SecureInput shows an interactive input prompt with masked characters.
+// Use this for sensitive values like API tokens. Returns an error in
+// non-interactive mode (CI or piped output).
+func (w *Writer) SecureInput(title, placeholder string) (string, error) {
+	if !w.interactive {
+		return "", fmt.Errorf("cannot prompt for input in non-interactive mode")
+	}
+
+	var value string
+	err := huh.NewInput().
+		Title(title).
+		Placeholder(placeholder).
+		EchoMode(huh.EchoModePassword).
+		Value(&value).
+		Run()
+	if err != nil {
+		return "", fmt.Errorf("input prompt failed: %w", err)
+	}
+
+	return value, nil
+}

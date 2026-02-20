@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
@@ -20,13 +19,9 @@ var initCmd = &cobra.Command{
 This stores the app ID so you don't need to pass --app-id on every command.
 The file is safe to commit to version control.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := globalAppID
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id")
-		}
-
-		if _, err := uuid.Parse(appID); err != nil {
-			return fmt.Errorf("invalid app ID %q: must be a valid UUID", appID)
+		appID, err := resolveAppIDInteractive()
+		if err != nil {
+			return err
 		}
 
 		return writeProjectConfig(appID)

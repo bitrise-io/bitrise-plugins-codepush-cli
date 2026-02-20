@@ -59,3 +59,18 @@ func TestInput_NonInteractive(t *testing.T) {
 		t.Errorf("error should mention non-interactive mode, got: %v", err)
 	}
 }
+
+func TestSecureInput_NonInteractive(t *testing.T) {
+	w := NewTest(io.Discard)
+
+	value, err := w.SecureInput("Enter token", "")
+	if err == nil {
+		t.Fatal("expected error in non-interactive mode, got nil")
+	}
+	if value != "" {
+		t.Errorf("expected empty value, got %q", value)
+	}
+	if !strings.Contains(err.Error(), "non-interactive") {
+		t.Errorf("error should mention non-interactive mode, got: %v", err)
+	}
+}
