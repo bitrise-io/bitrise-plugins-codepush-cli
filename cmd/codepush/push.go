@@ -71,11 +71,16 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return err
 		}
 
+		appVersion, err := resolveInputInteractive(pushAppVersion, "App version", "1.0.0")
+		if err != nil {
+			return err
+		}
+
 		opts := &codepush.PushOptions{
 			AppID:        appID,
 			DeploymentID: deploymentID,
 			Token:        token,
-			AppVersion:   pushAppVersion,
+			AppVersion:   appVersion,
 			Description:  pushDescription,
 			Mandatory:    pushMandatory,
 			Rollout:      pushRollout,
