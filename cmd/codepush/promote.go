@@ -33,14 +33,27 @@ flag, or description for the promoted release.
 
 Example: promote from Staging to Production after testing.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		sourceDeployment := resolveFlag(promoteSourceDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken()
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		sourceDeploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, promoteSourceDeployment, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
+			return err
+		}
+
+		destDeploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, promoteDestDeployment, "")
+		if err != nil {
+			return err
+		}
 
 		opts := &codepush.PromoteOptions{
 			AppID:              appID,
-			SourceDeploymentID: sourceDeployment,
-			DestDeploymentID:   promoteDestDeployment,
+			SourceDeploymentID: sourceDeploymentID,
+			DestDeploymentID:   destDeploymentID,
 			Token:              token,
 			Label:              promoteLabel,
 			AppVersion:         promoteAppVersion,
@@ -50,7 +63,6 @@ Example: promote from Staging to Production after testing.`,
 			Rollout:            promoteRollout,
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Promote(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("promote failed: %w", err)
@@ -65,7 +77,7 @@ Example: promote from Staging to Production after testing.`,
 			{Key: "Package ID", Value: result.PackageID},
 			{Key: "Label", Value: result.Label},
 			{Key: "App version", Value: result.AppVersion},
-			{Key: "Destination", Value: promoteDestDeployment},
+			{Key: "Destination", Value: result.DestDeployment},
 		})
 
 		if bitrise.IsBitriseEnvironment() {

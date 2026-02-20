@@ -35,9 +35,11 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if pushAutoBundle {
-			if bundlePlatform == "" {
-				return fmt.Errorf("--platform is required when using --bundle")
+			platform, err := resolvePlatformInteractive(bundlePlatform)
+			if err != nil {
+				return err
 			}
+			bundlePlatform = platform
 
 			result, err := runBundleWithOpts()
 			if err != nil {
@@ -57,15 +59,28 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
 
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken()
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, pushDeployment, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
+			return err
+		}
+
+		appVersion, err := resolveInputInteractive(pushAppVersion, "App version", "1.0.0")
+		if err != nil {
+			return err
+		}
 
 		opts := &codepush.PushOptions{
 			AppID:        appID,
-			DeploymentID: deployment,
+			DeploymentID: deploymentID,
 			Token:        token,
-			AppVersion:   pushAppVersion,
+			AppVersion:   appVersion,
 			Description:  pushDescription,
 			Mandatory:    pushMandatory,
 			Rollout:      pushRollout,
@@ -73,7 +88,6 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			BundlePath:   bundlePath,
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Push(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
@@ -114,4 +128,5 @@ func registerPushFlags() {
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+	pushCmd.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 }

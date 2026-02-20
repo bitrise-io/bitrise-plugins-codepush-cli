@@ -2,6 +2,8 @@ package codepush
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 )
@@ -30,11 +32,50 @@ type UploadURLRequest struct {
 	Rollout       int
 }
 
+// HeaderMap is a map[string]string that can unmarshal from either a JSON object
+// or a JSON array of {"key": "...", "value": "..."} objects, as returned by
+// the upload-url API endpoint.
+type HeaderMap map[string]string
+
+// UnmarshalJSON handles both object and array-of-objects formats.
+func (h *HeaderMap) UnmarshalJSON(data []byte) error {
+	// Try object format first: {"Content-Type": "application/zip"}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err == nil {
+		*h = m
+		return nil
+	}
+
+	// Try array-of-objects format: [{"key": "k", "value": "v"}] or [{"name": "k", "value": "v"}]
+	var arr []struct {
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return fmt.Errorf("headers: expected object or array of {key, value}, got %s", string(data))
+	}
+
+	result := make(map[string]string, len(arr))
+	for _, item := range arr {
+		k := item.Key
+		if k == "" {
+			k = item.Name
+		}
+		if k == "" {
+			continue
+		}
+		result[k] = item.Value
+	}
+	*h = result
+	return nil
+}
+
 // UploadURLResponse is returned by the GET upload-url endpoint.
 type UploadURLResponse struct {
-	URL     string            `json:"url"`
-	Method  string            `json:"method"`
-	Headers map[string]string `json:"headers"`
+	URL     string    `json:"url"`
+	Method  string    `json:"method"`
+	Headers HeaderMap `json:"headers"`
 }
 
 // UploadFileRequest holds all parameters needed to upload a file.
@@ -107,26 +148,35 @@ var DefaultPollConfig = PollConfig{
 
 // Status constants for package processing.
 const (
-	StatusProcessing = "processing"
-	StatusDone       = "done"
-	StatusFailed     = "failed"
+	StatusCreated        = "created"
+	StatusUploaded       = "uploaded"
+	StatusProcessedValid = "processed_valid"
+	StatusProcessedError = "processed_invalid"
 )
+
+// PackageCreator identifies the user who created a package.
+type PackageCreator struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
+}
 
 // Package represents a CodePush release in a deployment.
 type Package struct {
-	ID            string `json:"id"`
-	Label         string `json:"label"`
-	AppVersion    string `json:"app_version"`
-	Description   string `json:"description"`
-	Mandatory     bool   `json:"mandatory"`
-	Disabled      bool   `json:"disabled"`
-	Rollout       int    `json:"rollout"`
-	DeploymentID  string `json:"deployment_id"`
-	FileSizeBytes int64  `json:"file_size_bytes"`
-	CreatedAt     string `json:"created_at,omitempty"`
-	Hash          string `json:"hash,omitempty"`
-	FileName      string `json:"file_name,omitempty"`
-	CreatedBy     string `json:"created_by,omitempty"`
+	ID            string          `json:"id"`
+	Label         string          `json:"label"`
+	AppVersion    string          `json:"app_version"`
+	Description   string          `json:"description"`
+	Mandatory     bool            `json:"mandatory"`
+	Disabled      bool            `json:"disabled"`
+	Rollout       float64         `json:"rollout"`
+	DeploymentID  string          `json:"deployment_id"`
+	FileSizeBytes int64           `json:"file_size_bytes"`
+	CreatedAt     string          `json:"created_at,omitempty"`
+	Hash          string          `json:"hash,omitempty"`
+	FileName      string          `json:"file_name,omitempty"`
+	CreatedBy     *PackageCreator `json:"created_by,omitempty"`
 }
 
 // PackageListResponse wraps the list packages API response.

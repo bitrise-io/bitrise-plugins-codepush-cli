@@ -24,6 +24,12 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor, out *output.
 		return nil, err
 	}
 
+	if !opts.SkipInstall {
+		if err := installDependencies(opts.ProjectDir, executor, out); err != nil {
+			return nil, err
+		}
+	}
+
 	config, err := DetectProject(opts.ProjectDir, opts.Platform, hermesMode)
 	if err != nil {
 		return nil, err

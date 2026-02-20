@@ -22,6 +22,7 @@ var (
 	bundleExtraBundlerOpts []string
 	bundleProjectDir       string
 	bundleMetroConfig      string
+	bundleSkipInstall      bool
 )
 
 var bundleCmd = &cobra.Command{
@@ -38,8 +39,7 @@ ready for use with 'codepush push'.`,
 }
 
 func registerBundleFlags() {
-	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
-	_ = bundleCmd.MarkFlagRequired("platform")
+	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android")
 	bundleCmd.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
 	bundleCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
 	bundleCmd.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
@@ -49,9 +49,16 @@ func registerBundleFlags() {
 	bundleCmd.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	bundleCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	bundleCmd.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
+	bundleCmd.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 }
 
 func runBundle() error {
+	platform, err := resolvePlatformInteractive(bundlePlatform)
+	if err != nil {
+		return err
+	}
+	bundlePlatform = platform
+
 	if err := bundler.ValidatePlatform(bundler.Platform(bundlePlatform)); err != nil {
 		return err
 	}
@@ -130,6 +137,7 @@ func runBundleWithOpts() (*bundler.BundleResult, error) {
 		ExtraBundlerOpts: bundleExtraBundlerOpts,
 		ProjectDir:       bundleProjectDir,
 		MetroConfig:      bundleMetroConfig,
+		SkipInstall:      bundleSkipInstall,
 	}
 
 	return bundler.Run(opts, out)

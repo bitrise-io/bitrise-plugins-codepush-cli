@@ -623,7 +623,7 @@ func TestHTTPClientGetPackage(t *testing.T) {
 			t.Error("mandatory should be true")
 		}
 		if pkg.Rollout != 50 {
-			t.Errorf("rollout: got %d", pkg.Rollout)
+			t.Errorf("rollout: got %v", pkg.Rollout)
 		}
 	})
 
@@ -689,7 +689,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 			t.Errorf("id: got %q", pkg.ID)
 		}
 		if pkg.Rollout != 50 {
-			t.Errorf("rollout: got %d", pkg.Rollout)
+			t.Errorf("rollout: got %v", pkg.Rollout)
 		}
 	})
 

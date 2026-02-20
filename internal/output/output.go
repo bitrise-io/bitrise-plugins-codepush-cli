@@ -163,15 +163,17 @@ func (w *Writer) Table(headers []string, rows [][]string) {
 		BorderTop(false).
 		BorderBottom(false)
 
+	cellStyle := lipgloss.NewStyle().PaddingRight(1)
+	headerStyle := cellStyle
 	if w.color {
-		headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("6"))
-		t = t.StyleFunc(func(row, col int) lipgloss.Style {
-			if row == table.HeaderRow {
-				return headerStyle
-			}
-			return lipgloss.NewStyle()
-		})
+		headerStyle = headerStyle.Bold(true).Foreground(lipgloss.Color("6"))
 	}
+	t = t.StyleFunc(func(row, col int) lipgloss.Style {
+		if row == table.HeaderRow {
+			return headerStyle
+		}
+		return cellStyle
+	})
 
 	fmt.Fprintln(w.w, t.Render())
 }

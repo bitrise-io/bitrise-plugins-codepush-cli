@@ -31,11 +31,13 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 	RunE: func(cmd *cobra.Command, args []string) error {
 		token := authLoginToken
 		if token == "" {
+			if !out.IsInteractive() {
+				return fmt.Errorf("token is required: set --token or BITRISE_API_TOKEN")
+			}
 			out.Println("")
 			out.Info("Generate a token at: %s", auth.TokenGenerationURL)
-			out.Println("")
-			out.Println("  Paste your personal access token: ")
-			input, err := auth.ReadTokenSecure()
+
+			input, err := out.SecureInput("Paste your personal access token", "")
 			if err != nil {
 				return fmt.Errorf("reading token: %w", err)
 			}

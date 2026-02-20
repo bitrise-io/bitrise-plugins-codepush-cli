@@ -45,24 +45,25 @@ codepush version
 
 ## Quick Start
 
-Authenticate, bundle, and push your first OTA update:
+Authenticate, configure your project, and push your first OTA update:
 
 ```bash
 # 1. Store your Bitrise API token
 codepush auth login --token <YOUR_BITRISE_API_TOKEN>
 
-# 2. Bundle your JavaScript for iOS
+# 2. Initialize project config (prompts for app ID, saves for all future commands)
+codepush init
+
+# 3. Bundle your JavaScript for iOS
 codepush bundle --platform ios
 
-# 3. Push the bundle to Staging
+# 4. Push the bundle to Staging (no --app-id needed)
 codepush push ./codepush-bundle \
-  --app-id <APP_UUID> \
   --deployment Staging \
   --app-version 1.0.0
 
 # Or bundle and push in one step
 codepush push --bundle --platform ios \
-  --app-id <APP_UUID> \
   --deployment Staging \
   --app-version 1.0.0
 ```
@@ -94,6 +95,26 @@ codepush auth revoke
 The token is stored in the user config directory with restricted permissions (0600):
 - macOS: `~/Library/Application Support/codepush/config.json`
 - Linux: `~/.config/codepush/config.json`
+
+## Project Configuration
+
+Running `codepush init` creates a `.codepush.json` file in the current directory that stores your app ID:
+
+```bash
+codepush init
+```
+
+The command prompts for your app ID interactively. You can also pass it via the global `--app-id` flag or `CODEPUSH_APP_ID` environment variable.
+
+This file is safe to commit to version control so your team shares the same configuration. Once initialized, you no longer need to pass `--app-id` on every command.
+
+The app ID is resolved in this order:
+
+1. `--app-id` flag (highest priority)
+2. `CODEPUSH_APP_ID` environment variable
+3. `.codepush.json` file in current directory
+
+Use `--force` to overwrite an existing `.codepush.json`.
 
 ## Commands
 
@@ -134,10 +155,11 @@ The token is stored in the user config directory with restricted permissions (06
 | `package status <deployment>` | Show package processing status |
 | `package remove <deployment>` | Delete a package (`--label` required, `--yes` to confirm) |
 
-### Authentication
+### Setup
 
 | Command | Description |
 |---------|-------------|
+| `init` | Initialize project config (`.codepush.json`) with app ID |
 | `auth login` | Store a Bitrise API token locally |
 | `auth revoke` | Remove the stored API token |
 

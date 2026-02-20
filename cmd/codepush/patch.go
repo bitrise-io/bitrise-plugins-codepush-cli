@@ -35,13 +35,21 @@ Examples:
   codepush patch --deployment Production --rollout 50
   codepush patch --deployment Staging --label v5 --mandatory true --disabled false`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		deployment := resolveFlag(patchDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken()
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, patchDeployment, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
+			return err
+		}
 
 		opts := &codepush.PatchOptions{
 			AppID:        appID,
-			DeploymentID: deployment,
+			DeploymentID: deploymentID,
 			Token:        token,
 			Label:        patchLabel,
 			Rollout:      patchRollout,
@@ -51,7 +59,6 @@ Examples:
 			AppVersion:   patchAppVersion,
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Patch(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("patch failed: %w", err)

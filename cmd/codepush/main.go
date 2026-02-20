@@ -25,7 +25,7 @@ var (
 	globalJSON  bool
 )
 
-const defaultAPIURL = "https://api.bitrise.io/release-management"
+const defaultAPIURL = "https://api.bitrise.io/release-management/v1"
 
 func main() {
 	out = output.New()
@@ -43,6 +43,8 @@ var rootCmd = &cobra.Command{
 and helps integrate the Bitrise CodePush SDK into your projects.
 
 Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 var versionCmd = &cobra.Command{
@@ -78,6 +80,7 @@ func init() {
 	registerDeploymentFlags()
 	registerPackageFlags()
 	registerAuthFlags()
+	registerInitFlags()
 }
 
 func registerCommandTree() {
@@ -96,9 +99,11 @@ func registerCommandTree() {
 	deploymentCmd.GroupID = "deployment"
 	packageCmd.GroupID = "package"
 	authCmd.GroupID = "setup"
+	initCmd.GroupID = "setup"
 	integrateCmd.GroupID = "setup"
 
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)
