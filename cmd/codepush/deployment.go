@@ -58,17 +58,26 @@ var deploymentListCmd = &cobra.Command{
 }
 
 var deploymentAddCmd = &cobra.Command{
-	Use:   "add <name>",
+	Use:   "add [name]",
 	Short: "Create a new deployment",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
 			return err
 		}
 
+		var name string
+		if len(args) > 0 {
+			name = args[0]
+		}
+		name, err = resolveInputInteractive(name, "Enter deployment name", "e.g. Staging, Production")
+		if err != nil {
+			return err
+		}
+
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
-		dep, err := client.CreateDeployment(cmd.Context(), appID, codepush.CreateDeploymentRequest{Name: args[0]})
+		dep, err := client.CreateDeployment(cmd.Context(), appID, codepush.CreateDeploymentRequest{Name: name})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
@@ -163,9 +172,6 @@ var deploymentRenameCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		if deploymentRenameName == "" {
-			return fmt.Errorf("new name is required: set --name")
-		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
@@ -179,7 +185,12 @@ var deploymentRenameCmd = &cobra.Command{
 			return err
 		}
 
-		dep, err := client.RenameDeployment(cmd.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: deploymentRenameName})
+		newName, err := resolveInputInteractive(deploymentRenameName, "Enter new deployment name", "e.g. Staging, Production")
+		if err != nil {
+			return err
+		}
+
+		dep, err := client.RenameDeployment(cmd.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: newName})
 		if err != nil {
 			return fmt.Errorf("renaming deployment: %w", err)
 		}

@@ -136,6 +136,29 @@ func formatBytes(b int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
+// resolveInputInteractive returns the value if non-empty, otherwise prompts
+// interactively. In non-interactive mode it returns an error with a hint.
+func resolveInputInteractive(value, title, placeholder string) (string, error) {
+	if value != "" {
+		return value, nil
+	}
+
+	if !out.IsInteractive() {
+		return "", fmt.Errorf("%s: required in non-interactive mode", title)
+	}
+
+	result, err := out.Input(title, placeholder)
+	if err != nil {
+		return "", err
+	}
+
+	if result == "" {
+		return "", fmt.Errorf("value is required")
+	}
+
+	return result, nil
+}
+
 // resolveAppIDInteractive resolves the app ID using the priority:
 // 1. --app-id flag
 // 2. CODEPUSH_APP_ID environment variable
