@@ -33,7 +33,7 @@ flag, or description for the promoted release.
 
 Example: promote from Staging to Production after testing.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		appID := resolveAppID()
 		sourceDeployment := resolveFlag(promoteSourceDeployment, "CODEPUSH_DEPLOYMENT")
 		token := resolveToken()
 

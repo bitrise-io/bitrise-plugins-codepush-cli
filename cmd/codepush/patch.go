@@ -35,7 +35,7 @@ Examples:
   codepush patch --deployment Production --rollout 50
   codepush patch --deployment Staging --label v5 --mandatory true --disabled false`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		appID := resolveAppID()
 		deployment := resolveFlag(patchDeployment, "CODEPUSH_DEPLOYMENT")
 		token := resolveToken()
 

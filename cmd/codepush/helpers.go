@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
 )
 
 // outputJSON marshals v as JSON to stdout. Used when --json is set.
@@ -44,13 +45,37 @@ func resolveToken() string {
 	return storedToken
 }
 
+// resolveAppID returns the app ID using the priority:
+// 1. --app-id flag
+// 2. CODEPUSH_APP_ID environment variable
+// 3. .codepush.json file in current directory
+func resolveAppID() string {
+	if globalAppID != "" {
+		return globalAppID
+	}
+	if envValue := os.Getenv("CODEPUSH_APP_ID"); envValue != "" {
+		return envValue
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		if out != nil {
+			out.Warning("could not load %s: %v", config.FileName, err)
+		}
+		return ""
+	}
+	if cfg != nil {
+		return cfg.AppID
+	}
+	return ""
+}
+
 // requireCredentials resolves and validates the app ID and API token.
 func requireCredentials() (appID, token string, err error) {
-	appID = resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+	appID = resolveAppID()
 	token = resolveToken()
 
 	if appID == "" {
-		return "", "", fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+		return "", "", fmt.Errorf("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
 	}
 	if token == "" {
 		return "", "", fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")

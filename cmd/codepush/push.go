@@ -57,7 +57,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
 
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		appID := resolveAppID()
 		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
 		token := resolveToken()
 

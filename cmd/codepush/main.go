@@ -78,6 +78,7 @@ func init() {
 	registerDeploymentFlags()
 	registerPackageFlags()
 	registerAuthFlags()
+	registerInitFlags()
 }
 
 func registerCommandTree() {
@@ -96,9 +97,11 @@ func registerCommandTree() {
 	deploymentCmd.GroupID = "deployment"
 	packageCmd.GroupID = "package"
 	authCmd.GroupID = "setup"
+	initCmd.GroupID = "setup"
 	integrateCmd.GroupID = "setup"
 
 	rootCmd.AddCommand(versionCmd)
+	rootCmd.AddCommand(initCmd)
 	rootCmd.AddCommand(bundleCmd)
 	rootCmd.AddCommand(pushCmd)
 	rootCmd.AddCommand(rollbackCmd)

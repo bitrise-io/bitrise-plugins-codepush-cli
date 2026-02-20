@@ -25,7 +25,7 @@ Creates a new release that mirrors a previous version. By default,
 rolls back to the immediately previous release. Use --target-release
 to specify a specific version label (e.g. v3).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+		appID := resolveAppID()
 		deployment := resolveFlag(rollbackDeployment, "CODEPUSH_DEPLOYMENT")
 		token := resolveToken()
 
