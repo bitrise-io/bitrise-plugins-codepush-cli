@@ -45,7 +45,7 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		AppVersion:   pkg.AppVersion,
 		Mandatory:    pkg.Mandatory,
 		Disabled:     pkg.Disabled,
-		Rollout:      pkg.Rollout,
+		Rollout:      int(pkg.Rollout),
 		Description:  pkg.Description,
 	}
 

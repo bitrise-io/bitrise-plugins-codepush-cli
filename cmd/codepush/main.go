@@ -25,7 +25,7 @@ var (
 	globalJSON  bool
 )
 
-const defaultAPIURL = "https://api.bitrise.io/release-management"
+const defaultAPIURL = "https://api.bitrise.io/release-management/v1"
 
 func main() {
 	out = output.New()

@@ -112,21 +112,29 @@ const (
 	StatusFailed     = "failed"
 )
 
+// PackageCreator identifies the user who created a package.
+type PackageCreator struct {
+	ID        string `json:"id"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
+	AvatarURL string `json:"avatar_url"`
+}
+
 // Package represents a CodePush release in a deployment.
 type Package struct {
-	ID            string `json:"id"`
-	Label         string `json:"label"`
-	AppVersion    string `json:"app_version"`
-	Description   string `json:"description"`
-	Mandatory     bool   `json:"mandatory"`
-	Disabled      bool   `json:"disabled"`
-	Rollout       int    `json:"rollout"`
-	DeploymentID  string `json:"deployment_id"`
-	FileSizeBytes int64  `json:"file_size_bytes"`
-	CreatedAt     string `json:"created_at,omitempty"`
-	Hash          string `json:"hash,omitempty"`
-	FileName      string `json:"file_name,omitempty"`
-	CreatedBy     string `json:"created_by,omitempty"`
+	ID            string          `json:"id"`
+	Label         string          `json:"label"`
+	AppVersion    string          `json:"app_version"`
+	Description   string          `json:"description"`
+	Mandatory     bool            `json:"mandatory"`
+	Disabled      bool            `json:"disabled"`
+	Rollout       float64         `json:"rollout"`
+	DeploymentID  string          `json:"deployment_id"`
+	FileSizeBytes int64           `json:"file_size_bytes"`
+	CreatedAt     string          `json:"created_at,omitempty"`
+	Hash          string          `json:"hash,omitempty"`
+	FileName      string          `json:"file_name,omitempty"`
+	CreatedBy     *PackageCreator `json:"created_by,omitempty"`
 }
 
 // PackageListResponse wraps the list packages API response.

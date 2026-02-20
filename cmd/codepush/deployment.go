@@ -139,7 +139,7 @@ var deploymentInfoCmd = &cobra.Command{
 				{Key: "Label", Value: latest.Label},
 				{Key: "App version", Value: latest.AppVersion},
 				{Key: "Mandatory", Value: fmt.Sprintf("%v", latest.Mandatory)},
-				{Key: "Rollout", Value: fmt.Sprintf("%d%%", latest.Rollout)},
+				{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", latest.Rollout)},
 			})
 		} else {
 			out.Info("No releases.")
@@ -263,7 +263,7 @@ var deploymentHistoryCmd = &cobra.Command{
 		for i, p := range packages {
 			rows[i] = []string{
 				p.Label, p.AppVersion, fmt.Sprintf("%v", p.Mandatory),
-				fmt.Sprintf("%d%%", p.Rollout), fmt.Sprintf("%v", p.Disabled),
+				fmt.Sprintf("%.0f%%", p.Rollout), fmt.Sprintf("%v", p.Disabled),
 				truncate(p.Description, 30), p.CreatedAt,
 			}
 		}

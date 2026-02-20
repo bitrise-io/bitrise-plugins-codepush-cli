@@ -61,7 +61,7 @@ By default shows the latest package. Use --label to specify a version.`,
 			{Key: "App version", Value: pkg.AppVersion},
 			{Key: "Mandatory", Value: fmt.Sprintf("%v", pkg.Mandatory)},
 			{Key: "Disabled", Value: fmt.Sprintf("%v", pkg.Disabled)},
-			{Key: "Rollout", Value: fmt.Sprintf("%d%%", pkg.Rollout)},
+			{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", pkg.Rollout)},
 		}
 		if pkg.Description != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Description", Value: pkg.Description})
@@ -73,8 +73,8 @@ By default shows the latest package. Use --label to specify a version.`,
 		if pkg.CreatedAt != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Created", Value: pkg.CreatedAt})
 		}
-		if pkg.CreatedBy != "" {
-			pairs = append(pairs, output.KeyValue{Key: "Created by", Value: pkg.CreatedBy})
+		if pkg.CreatedBy != nil && pkg.CreatedBy.Email != "" {
+			pairs = append(pairs, output.KeyValue{Key: "Created by", Value: pkg.CreatedBy.Email})
 		}
 		out.Result(pairs)
 
