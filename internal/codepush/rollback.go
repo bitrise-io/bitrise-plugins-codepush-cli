@@ -61,8 +61,13 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 	return nil
 }
 
+// packageLister is the subset of Client needed by resolvePackageLabel.
+type packageLister interface {
+	ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error)
+}
+
 // resolvePackageLabel finds a package by its label (e.g. "v3") within a deployment.
-func resolvePackageLabel(ctx context.Context, client Client, appID, deploymentID, label string, out *output.Writer) (string, error) {
+func resolvePackageLabel(ctx context.Context, client packageLister, appID, deploymentID, label string, out *output.Writer) (string, error) {
 	out.Step("Resolving release label %q", label)
 	packages, err := client.ListPackages(ctx, appID, deploymentID)
 	if err != nil {

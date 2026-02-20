@@ -71,7 +71,7 @@ func validatePatchOptions(opts *PatchOptions) error {
 
 // ResolvePackageForPatch resolves a package by label or finds the latest package.
 // Returns the package ID and label.
-func ResolvePackageForPatch(ctx context.Context, client Client, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
+func ResolvePackageForPatch(ctx context.Context, client packageLister, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
 	if label != "" {
 		id, err := resolvePackageLabel(ctx, client, appID, deploymentID, label, out)
 		if err != nil {

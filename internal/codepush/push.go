@@ -127,10 +127,15 @@ func validatePushOptions(opts *PushOptions) error {
 	return nil
 }
 
+// deploymentLister is the subset of Client needed by ResolveDeployment.
+type deploymentLister interface {
+	ListDeployments(ctx context.Context, appID string) ([]Deployment, error)
+}
+
 // ResolveDeployment resolves a deployment name or UUID to a deployment ID.
 // If the input is already a valid UUID, it is returned as-is.
 // Otherwise, it lists all deployments and finds the one matching by name.
-func ResolveDeployment(ctx context.Context, client Client, appID, deploymentNameOrID string, out *output.Writer) (string, error) {
+func ResolveDeployment(ctx context.Context, client deploymentLister, appID, deploymentNameOrID string, out *output.Writer) (string, error) {
 	if _, err := uuid.Parse(deploymentNameOrID); err == nil {
 		return deploymentNameOrID, nil
 	}
@@ -151,7 +156,12 @@ func ResolveDeployment(ctx context.Context, client Client, appID, deploymentName
 	return "", fmt.Errorf("deployment %q not found: check the deployment name or use a deployment UUID", deploymentNameOrID)
 }
 
-func pollStatus(ctx context.Context, client Client, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
+// statusChecker is the subset of Client needed by pollStatus.
+type statusChecker interface {
+	GetPackageStatus(ctx context.Context, appID, deploymentID, packageID string) (*PackageStatus, error)
+}
+
+func pollStatus(ctx context.Context, client statusChecker, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
 	for attempt := 0; attempt < cfg.MaxAttempts; attempt++ {
 		status, err := client.GetPackageStatus(ctx, ref.AppID, ref.DeploymentID, ref.PackageID)
 		if err != nil {
