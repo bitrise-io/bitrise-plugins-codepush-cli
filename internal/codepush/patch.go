@@ -1,7 +1,7 @@
 package codepush
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
 	"strconv"
 
@@ -11,17 +11,17 @@ import (
 
 // Patch executes the patch workflow: validate, resolve deployment,
 // resolve label (or find latest), build request, call API, export summary.
-func Patch(client Client, opts *PatchOptions, out *output.Writer) (*PatchResult, error) {
+func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.Writer) (*PatchResult, error) {
 	if err := validatePatchOptions(opts); err != nil {
 		return nil, err
 	}
 
-	deploymentID, err := ResolveDeployment(client, opts.AppID, opts.DeploymentID, out)
+	deploymentID, err := ResolveDeployment(ctx, client, opts.AppID, opts.DeploymentID, out)
 	if err != nil {
 		return nil, err
 	}
 
-	packageID, packageLabel, err := ResolvePackageForPatch(client, opts.AppID, deploymentID, opts.Label, out)
+	packageID, packageLabel, err := ResolvePackageForPatch(ctx, client, opts.AppID, deploymentID, opts.Label, out)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func Patch(client Client, opts *PatchOptions, out *output.Writer) (*PatchResult,
 	}
 
 	out.Step("Patching release %s", packageLabel)
-	pkg, err := client.PatchPackage(opts.AppID, deploymentID, packageID, req)
+	pkg, err := client.PatchPackage(ctx, opts.AppID, deploymentID, packageID, req)
 	if err != nil {
 		return nil, fmt.Errorf("patch failed: %w", err)
 	}
@@ -50,21 +50,18 @@ func Patch(client Client, opts *PatchOptions, out *output.Writer) (*PatchResult,
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportPatchSummary(result, out)
+		exportSummary("codepush-patch-summary.json", result, out)
 	}
 
 	return result, nil
 }
 
 func validatePatchOptions(opts *PatchOptions) error {
-	if opts.AppID == "" {
-		return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	if err := validateBaseOptions(opts.AppID, opts.Token); err != nil {
+		return err
 	}
 	if opts.DeploymentID == "" {
 		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
-	}
-	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
 	}
 	if opts.Rollout == "" && opts.Mandatory == "" && opts.Disabled == "" && opts.Description == "" && opts.AppVersion == "" {
 		return fmt.Errorf("at least one change is required: set --rollout, --mandatory, --disabled, --description, or --app-version")
@@ -74,9 +71,9 @@ func validatePatchOptions(opts *PatchOptions) error {
 
 // ResolvePackageForPatch resolves a package by label or finds the latest package.
 // Returns the package ID and label.
-func ResolvePackageForPatch(client Client, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
+func ResolvePackageForPatch(ctx context.Context, client packageLister, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
 	if label != "" {
-		id, err := resolvePackageLabel(client, appID, deploymentID, label, out)
+		id, err := resolvePackageLabel(ctx, client, appID, deploymentID, label, out)
 		if err != nil {
 			return "", "", err
 		}
@@ -84,7 +81,7 @@ func ResolvePackageForPatch(client Client, appID, deploymentID, label string, ou
 	}
 
 	out.Step("Resolving latest release")
-	packages, err := client.ListPackages(appID, deploymentID)
+	packages, err := client.ListPackages(ctx, appID, deploymentID)
 	if err != nil {
 		return "", "", fmt.Errorf("listing packages: %w", err)
 	}
@@ -134,44 +131,4 @@ func buildPatchRequest(opts *PatchOptions) (PatchRequest, error) {
 	}
 
 	return req, nil
-}
-
-type patchSummary struct {
-	PackageID    string `json:"package_id"`
-	AppID        string `json:"app_id"`
-	DeploymentID string `json:"deployment_id"`
-	Label        string `json:"label"`
-	AppVersion   string `json:"app_version"`
-	Mandatory    bool   `json:"mandatory"`
-	Disabled     bool   `json:"disabled"`
-	Rollout      int    `json:"rollout"`
-	Description  string `json:"description"`
-}
-
-func exportPatchSummary(result *PatchResult, out *output.Writer) {
-	summary := patchSummary{
-		PackageID:    result.PackageID,
-		AppID:        result.AppID,
-		DeploymentID: result.DeploymentID,
-		Label:        result.Label,
-		AppVersion:   result.AppVersion,
-		Mandatory:    result.Mandatory,
-		Disabled:     result.Disabled,
-		Rollout:      result.Rollout,
-		Description:  result.Description,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal patch summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export patch summary: %v", err)
-		return
-	}
-
-	out.Info("Patch summary exported to: %s", path)
 }

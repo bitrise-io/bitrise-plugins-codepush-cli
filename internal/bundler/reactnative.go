@@ -2,11 +2,20 @@ package bundler
 
 import (
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
+
+// bundlePaths groups the derived file paths used during bundling.
+type bundlePaths struct {
+	outputDir     string
+	bundlePath    string
+	assetsDir     string
+	sourcemapPath string
+}
 
 // ReactNativeBundler bundles using "npx react-native bundle" (Metro bundler).
 type ReactNativeBundler struct {
@@ -38,7 +47,13 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 		sourcemapPath = bundlePath + ".map"
 	}
 
-	args := b.buildArgs(config, opts, outputDir, bundlePath, assetsDir, sourcemapPath)
+	paths := bundlePaths{
+		outputDir:     outputDir,
+		bundlePath:    bundlePath,
+		assetsDir:     assetsDir,
+		sourcemapPath: sourcemapPath,
+	}
+	args := b.buildArgs(config, opts, paths)
 
 	b.out.Info("Running: npx %s", strings.Join(args, " "))
 
@@ -68,14 +83,7 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 }
 
 // buildArgs constructs the argument list for "npx react-native bundle".
-func (b *ReactNativeBundler) buildArgs(
-	config *ProjectConfig,
-	opts *BundleOptions,
-	outputDir string,
-	bundlePath string,
-	assetsDir string,
-	sourcemapPath string,
-) []string {
+func (b *ReactNativeBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, paths bundlePaths) []string {
 	entryFile := opts.EntryFile
 	if entryFile == "" {
 		entryFile = config.EntryFile
@@ -91,12 +99,12 @@ func (b *ReactNativeBundler) buildArgs(
 		"--entry-file", entryFile,
 		"--platform", string(opts.Platform),
 		"--dev", devStr,
-		"--bundle-output", bundlePath,
-		"--assets-dest", assetsDir,
+		"--bundle-output", paths.bundlePath,
+		"--assets-dest", paths.assetsDir,
 	}
 
-	if sourcemapPath != "" {
-		args = append(args, "--sourcemap-output", sourcemapPath)
+	if paths.sourcemapPath != "" {
+		args = append(args, "--sourcemap-output", paths.sourcemapPath)
 	}
 
 	metroConfig := opts.MetroConfig

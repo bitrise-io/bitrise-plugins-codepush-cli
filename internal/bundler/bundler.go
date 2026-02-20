@@ -2,10 +2,11 @@ package bundler
 
 import (
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"io"
 	"os"
 	"os/exec"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // DefaultOutputDir is the default output directory for bundle generation.

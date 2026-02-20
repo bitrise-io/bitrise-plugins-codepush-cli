@@ -9,39 +9,13 @@ import (
 	"path/filepath"
 )
 
-// Directory creates a zip archive from the contents of srcDir.
-// The zip file is created as a sibling to srcDir with a .zip extension.
-// Returns the path to the created zip file.
-func Directory(srcDir string) (string, error) {
-	absDir, err := filepath.Abs(srcDir)
-	if err != nil {
-		return "", fmt.Errorf("resolving directory path: %w", err)
-	}
-
-	info, err := os.Stat(absDir)
-	if err != nil {
-		return "", fmt.Errorf("source directory does not exist: %w", err)
-	}
-	if !info.IsDir() {
-		return "", fmt.Errorf("source path is not a directory: %s", absDir)
-	}
-
-	zipPath := absDir + ".zip"
-	f, err := os.Create(zipPath)
-	if err != nil {
-		return "", fmt.Errorf("creating zip file: %w", err)
-	}
-	defer f.Close()
-
-	w := zip.NewWriter(f)
-	defer w.Close()
-
-	err = filepath.Walk(absDir, func(path string, info os.FileInfo, err error) error {
+func addFileToZip(w *zip.Writer, baseDir string) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		relPath, err := filepath.Rel(absDir, path)
+		relPath, err := filepath.Rel(baseDir, path)
 		if err != nil {
 			return fmt.Errorf("computing relative path: %w", err)
 		}
@@ -71,7 +45,37 @@ func Directory(srcDir string) (string, error) {
 
 		_, err = io.Copy(writer, file)
 		return err
-	})
+	}
+}
+
+// Directory creates a zip archive from the contents of srcDir.
+// The zip file is created as a sibling to srcDir with a .zip extension.
+// Returns the path to the created zip file.
+func Directory(srcDir string) (string, error) {
+	absDir, err := filepath.Abs(srcDir)
+	if err != nil {
+		return "", fmt.Errorf("resolving directory path: %w", err)
+	}
+
+	info, err := os.Stat(absDir)
+	if err != nil {
+		return "", fmt.Errorf("source directory does not exist: %w", err)
+	}
+	if !info.IsDir() {
+		return "", fmt.Errorf("source path is not a directory: %s", absDir)
+	}
+
+	zipPath := absDir + ".zip"
+	f, err := os.Create(zipPath)
+	if err != nil {
+		return "", fmt.Errorf("creating zip file: %w", err)
+	}
+	defer f.Close()
+
+	w := zip.NewWriter(f)
+	defer w.Close()
+
+	err = filepath.Walk(absDir, addFileToZip(w, absDir))
 
 	if err != nil {
 		return "", fmt.Errorf("adding files to zip: %w", err)
