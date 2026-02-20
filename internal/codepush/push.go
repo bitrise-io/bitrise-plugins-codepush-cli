@@ -29,16 +29,42 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 		return nil, err
 	}
 
+	packageID, fileSizeBytes, err := uploadBundle(ctx, client, opts, deploymentID, out)
+	if err != nil {
+		return nil, err
+	}
+
+	var status *PackageStatus
+	err = out.Spinner("Processing package", func() error {
+		var pollErr error
+		status, pollErr = pollStatus(ctx, client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
+		return pollErr
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &PushResult{
+		PackageID:     packageID,
+		AppID:         opts.AppID,
+		DeploymentID:  deploymentID,
+		AppVersion:    opts.AppVersion,
+		Status:        status.Status,
+		FileSizeBytes: fileSizeBytes,
+	}, nil
+}
+
+func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploymentID string, out *output.Writer) (string, int64, error) {
 	out.Step("Packaging bundle: %s", opts.BundlePath)
 	zipPath, err := ziputil.Directory(opts.BundlePath)
 	if err != nil {
-		return nil, fmt.Errorf("packaging bundle: %w", err)
+		return "", 0, fmt.Errorf("packaging bundle: %w", err)
 	}
 	defer os.Remove(zipPath)
 
 	zipInfo, err := os.Stat(zipPath)
 	if err != nil {
-		return nil, fmt.Errorf("reading zip file info: %w", err)
+		return "", 0, fmt.Errorf("reading zip file info: %w", err)
 	}
 	out.Info("Package size: %d bytes", zipInfo.Size())
 
@@ -55,7 +81,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 		Rollout:       opts.Rollout,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("requesting upload URL: %w", err)
+		return "", 0, fmt.Errorf("requesting upload URL: %w", err)
 	}
 
 	err = out.Spinner("Uploading package", func() error {
@@ -74,29 +100,10 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 		})
 	})
 	if err != nil {
-		return nil, fmt.Errorf("uploading package: %w", err)
+		return "", 0, fmt.Errorf("uploading package: %w", err)
 	}
 
-	var status *PackageStatus
-	err = out.Spinner("Processing package", func() error {
-		var pollErr error
-		status, pollErr = pollStatus(ctx, client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
-		return pollErr
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	result := &PushResult{
-		PackageID:     packageID,
-		AppID:         opts.AppID,
-		DeploymentID:  deploymentID,
-		AppVersion:    opts.AppVersion,
-		Status:        status.Status,
-		FileSizeBytes: zipInfo.Size(),
-	}
-
-	return result, nil
+	return packageID, zipInfo.Size(), nil
 }
 
 func validatePushOptions(opts *PushOptions) error {
