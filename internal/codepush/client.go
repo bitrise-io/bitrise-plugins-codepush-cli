@@ -148,14 +148,14 @@ func (c *HTTPClient) GetUploadURL(appID, deploymentID, packageID string, req Upl
 }
 
 // UploadFile uploads the zip file to the signed URL.
-func (c *HTTPClient) UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error {
-	req, err := http.NewRequest(method, uploadURL, body)
+func (c *HTTPClient) UploadFile(ufr UploadFileRequest) error {
+	req, err := http.NewRequest(ufr.Method, ufr.URL, ufr.Body)
 	if err != nil {
 		return fmt.Errorf("creating upload request: %w", err)
 	}
 
-	req.ContentLength = contentLength
-	for k, v := range headers {
+	req.ContentLength = ufr.ContentLength
+	for k, v := range ufr.Headers {
 		req.Header.Set(k, v)
 	}
 

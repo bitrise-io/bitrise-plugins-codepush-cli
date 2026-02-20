@@ -28,14 +28,14 @@ func TestPush(t *testing.T) {
 					Headers: map[string]string{"Content-Type": "application/zip"},
 				}, nil
 			},
-			uploadFileFunc: func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error {
-				if uploadURL != "https://storage.example.com/upload" {
-					t.Errorf("uploadURL: got %q", uploadURL)
+			uploadFileFunc: func(req UploadFileRequest) error {
+				if req.URL != "https://storage.example.com/upload" {
+					t.Errorf("uploadURL: got %q", req.URL)
 				}
-				if method != "PUT" {
-					t.Errorf("method: got %q", method)
+				if req.Method != "PUT" {
+					t.Errorf("method: got %q", req.Method)
 				}
-				capturedUploadBody, _ = io.ReadAll(body)
+				capturedUploadBody, _ = io.ReadAll(req.Body)
 				return nil
 			},
 			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
@@ -209,7 +209,7 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			uploadFileFunc: func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error {
+			uploadFileFunc: func(req UploadFileRequest) error {
 				return fmt.Errorf("upload failed with HTTP 403: URL expired")
 			},
 		}
@@ -457,7 +457,8 @@ func TestPollStatus(t *testing.T) {
 			},
 		}
 
-		status, err := pollStatus(client, "app", "dep", "pkg", PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
+		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		status, err := pollStatus(client, ref, PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -476,7 +477,8 @@ func TestPollStatus(t *testing.T) {
 			},
 		}
 
-		_, err := pollStatus(client, "app", "dep", "pkg", fastPollConfig)
+		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		_, err := pollStatus(client, ref, fastPollConfig)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -492,7 +494,8 @@ func TestPollStatus(t *testing.T) {
 			},
 		}
 
-		_, err := pollStatus(client, "app", "dep", "pkg", PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
+		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		_, err := pollStatus(client, ref, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

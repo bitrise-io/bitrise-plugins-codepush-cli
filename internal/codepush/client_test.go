@@ -423,13 +423,13 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient("", "test-token")
-		err := client.UploadFile(
-			server.URL,
-			http.MethodPut,
-			map[string]string{"Content-Type": "application/zip"},
-			strings.NewReader("zip content"),
-			11,
-		)
+		err := client.UploadFile(UploadFileRequest{
+			URL:           server.URL,
+			Method:        http.MethodPut,
+			Headers:       map[string]string{"Content-Type": "application/zip"},
+			Body:          strings.NewReader("zip content"),
+			ContentLength: 11,
+		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -443,7 +443,12 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient("", "test-token")
-		err := client.UploadFile(server.URL, http.MethodPut, nil, strings.NewReader("data"), 4)
+		err := client.UploadFile(UploadFileRequest{
+			URL:           server.URL,
+			Method:        http.MethodPut,
+			Body:          strings.NewReader("data"),
+			ContentLength: 4,
+		})
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

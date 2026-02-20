@@ -14,7 +14,7 @@ type mockClient struct {
 	renameDeploymentFunc   func(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
 	deleteDeploymentFunc   func(appID, deploymentID string) error
 	getUploadURLFunc       func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
-	uploadFileFunc         func(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
+	uploadFileFunc         func(req UploadFileRequest) error
 	getPackageStatusFunc   func(appID, deploymentID, packageID string) (*PackageStatus, error)
 	listPackagesFunc       func(appID, deploymentID string) ([]Package, error)
 	getPackageFunc         func(appID, deploymentID, packageID string) (*Package, error)
@@ -66,9 +66,9 @@ func (m *mockClient) GetUploadURL(appID, deploymentID, packageID string, req Upl
 	return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
 }
 
-func (m *mockClient) UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error {
+func (m *mockClient) UploadFile(req UploadFileRequest) error {
 	if m.uploadFileFunc != nil {
-		return m.uploadFileFunc(uploadURL, method, headers, body, contentLength)
+		return m.uploadFileFunc(req)
 	}
 	return nil
 }

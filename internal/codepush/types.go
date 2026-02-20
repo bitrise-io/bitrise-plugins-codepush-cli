@@ -36,6 +36,22 @@ type UploadURLResponse struct {
 	Headers map[string]string `json:"headers"`
 }
 
+// UploadFileRequest holds all parameters needed to upload a file.
+type UploadFileRequest struct {
+	URL           string
+	Method        string
+	Headers       map[string]string
+	Body          io.Reader
+	ContentLength int64
+}
+
+// PackageRef identifies a specific package within a deployment.
+type PackageRef struct {
+	AppID        string
+	DeploymentID string
+	PackageID    string
+}
+
 // PackageStatus is returned by the GET status endpoint.
 type PackageStatus struct {
 	PackageID    string `json:"package_id"`
@@ -219,7 +235,7 @@ type Client interface {
 	RenameDeployment(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
 	DeleteDeployment(appID, deploymentID string) error
 	GetUploadURL(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
-	UploadFile(uploadURL, method string, headers map[string]string, body io.Reader, contentLength int64) error
+	UploadFile(req UploadFileRequest) error
 	GetPackageStatus(appID, deploymentID, packageID string) (*PackageStatus, error)
 	ListPackages(appID, deploymentID string) ([]Package, error)
 	GetPackage(appID, deploymentID, packageID string) (*Package, error)

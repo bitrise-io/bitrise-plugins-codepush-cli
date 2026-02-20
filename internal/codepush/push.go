@@ -64,7 +64,13 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 		}
 		defer zipFile.Close()
 
-		return client.UploadFile(uploadResp.URL, uploadResp.Method, uploadResp.Headers, zipFile, zipInfo.Size())
+		return client.UploadFile(UploadFileRequest{
+			URL:           uploadResp.URL,
+			Method:        uploadResp.Method,
+			Headers:       uploadResp.Headers,
+			Body:          zipFile,
+			ContentLength: zipInfo.Size(),
+		})
 	})
 	if err != nil {
 		return nil, fmt.Errorf("uploading package: %w", err)
@@ -73,7 +79,7 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 	var status *PackageStatus
 	err = out.Spinner("Processing package", func() error {
 		var pollErr error
-		status, pollErr = pollStatus(client, opts.AppID, deploymentID, packageID, pollCfg)
+		status, pollErr = pollStatus(client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
 		return pollErr
 	})
 	if err != nil {
@@ -144,9 +150,9 @@ func ResolveDeployment(client Client, appID, deploymentNameOrID string, out *out
 	return "", fmt.Errorf("deployment %q not found: check the deployment name or use a deployment UUID", deploymentNameOrID)
 }
 
-func pollStatus(client Client, appID, deploymentID, packageID string, cfg PollConfig) (*PackageStatus, error) {
+func pollStatus(client Client, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
 	for attempt := 0; attempt < cfg.MaxAttempts; attempt++ {
-		status, err := client.GetPackageStatus(appID, deploymentID, packageID)
+		status, err := client.GetPackageStatus(ref.AppID, ref.DeploymentID, ref.PackageID)
 		if err != nil {
 			return nil, fmt.Errorf("checking package status: %w", err)
 		}
