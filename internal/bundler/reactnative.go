@@ -2,10 +2,11 @@ package bundler
 
 import (
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // ReactNativeBundler bundles using "npx react-native bundle" (Metro bundler).

@@ -114,7 +114,7 @@ func validatePushOptions(opts *PushOptions) error {
 
 	info, err := os.Stat(opts.BundlePath)
 	if err != nil {
-		return fmt.Errorf("bundle path does not exist: %s", opts.BundlePath)
+		return fmt.Errorf("bundle path does not exist: %w", err)
 	}
 	if !info.IsDir() {
 		return fmt.Errorf("bundle path is not a directory: %s", opts.BundlePath)

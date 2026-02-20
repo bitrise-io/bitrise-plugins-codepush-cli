@@ -2,10 +2,11 @@ package bundler
 
 import (
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // ExpoBundler bundles using "npx expo export" for Expo-managed projects.

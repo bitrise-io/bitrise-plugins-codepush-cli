@@ -2,9 +2,10 @@ package bundler
 
 import (
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // HermesCompiler handles Hermes bytecode compilation of JS bundles.

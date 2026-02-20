@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/spf13/cobra"
+
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -130,9 +131,9 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print version information",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("CodePush CLI %s\n", version)
-		fmt.Printf("  commit: %s\n", commit)
-		fmt.Printf("  built: %s\n", date)
+		out.Println("CodePush CLI %s", version)
+		out.Info("commit: %s", commit)
+		out.Info("built: %s", date)
 	},
 }
 
@@ -251,7 +252,7 @@ to specify a specific version label (e.g. v3).`,
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Rollback(client, opts, out)
 		if err != nil {
-			return err
+			return fmt.Errorf("rollback failed: %w", err)
 		}
 
 		if globalJSON {
@@ -307,7 +308,7 @@ Example: promote from Staging to Production after testing.`,
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Promote(client, opts, out)
 		if err != nil {
-			return err
+			return fmt.Errorf("promote failed: %w", err)
 		}
 
 		if globalJSON {
@@ -366,7 +367,7 @@ Examples:
 		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Patch(client, opts, out)
 		if err != nil {
-			return err
+			return fmt.Errorf("patch failed: %w", err)
 		}
 
 		if globalJSON {
@@ -431,10 +432,10 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 			out.Println("")
 			out.Info("Generate a token at: %s", auth.TokenGenerationURL)
 			out.Println("")
-			fmt.Fprint(os.Stderr, "  Paste your personal access token: ")
+			out.Println("  Paste your personal access token: ")
 			input, err := auth.ReadTokenSecure()
 			if err != nil {
-				return err
+				return fmt.Errorf("reading token: %w", err)
 			}
 			token = input
 		}

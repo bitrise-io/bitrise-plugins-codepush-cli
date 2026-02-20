@@ -2,7 +2,6 @@ package bundler
 
 import (
 	"io"
-
 	"os"
 	"path/filepath"
 	"testing"

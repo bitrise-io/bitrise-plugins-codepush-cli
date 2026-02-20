@@ -12,17 +12,17 @@ import (
 
 // HTTPClient implements Client using net/http.
 type HTTPClient struct {
-	BaseURL    string
-	Token      string
-	HTTPClient *http.Client
+	BaseURL string
+	Token   string
+	client  *http.Client
 }
 
 // NewHTTPClient creates a new HTTPClient.
 func NewHTTPClient(baseURL, token string) *HTTPClient {
 	return &HTTPClient{
-		BaseURL:    baseURL,
-		Token:      token,
-		HTTPClient: &http.Client{},
+		BaseURL: baseURL,
+		Token:   token,
+		client:  &http.Client{},
 	}
 }
 
@@ -159,7 +159,7 @@ func (c *HTTPClient) UploadFile(uploadURL, method string, headers map[string]str
 		req.Header.Set(k, v)
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return fmt.Errorf("uploading file: %w", err)
 	}
@@ -317,7 +317,7 @@ func (c *HTTPClient) doJSONRequest(method, path string, body interface{}) (*http
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sending request to %s: %w", path, err)
 	}
@@ -336,7 +336,7 @@ func (c *HTTPClient) doRequest(method, path string, body io.Reader) (*http.Respo
 	req.Header.Set("Authorization", c.Token)
 	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.HTTPClient.Do(req)
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("sending request to %s: %w", path, err)
 	}

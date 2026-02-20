@@ -533,7 +533,9 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 
 		gradleDir := filepath.Join(dir, "android", "app")
-		os.MkdirAll(gradleDir, 0o755)
+		if err := os.MkdirAll(gradleDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `react { hermesEnabled = false }`)
 
 		enabled, err := detectHermes(dir, PlatformAndroid)

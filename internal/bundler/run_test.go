@@ -257,7 +257,9 @@ func TestRunWithExecutor(t *testing.T) {
 		dir := t.TempDir()
 		outputDir := filepath.Join(dir, "output")
 		deployDir := filepath.Join(dir, "deploy")
-		os.MkdirAll(deployDir, 0o755)
+		if err := os.MkdirAll(deployDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 		writeFile(t, filepath.Join(dir, "index.js"), "")

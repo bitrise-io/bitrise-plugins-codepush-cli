@@ -226,7 +226,9 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Create the compose script path so it's found
 		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
-		os.MkdirAll(scriptDir, 0o755)
+		if err := os.MkdirAll(scriptDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
 
 		writeFile(t, bundlePath, "bytecode")
@@ -255,7 +257,9 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Create the compose script path
 		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
-		os.MkdirAll(scriptDir, 0o755)
+		if err := os.MkdirAll(scriptDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
 		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
 
 		writeFile(t, bundlePath, "bytecode")
