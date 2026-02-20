@@ -1,10 +1,9 @@
 # CodePush CLI
 
 [![Build Status](https://app.bitrise.io/app/7b3ab048-138e-4d17-899c-4ea776b5711f/status.svg?token=-eUGFSXpQwDpmLX18KJUeA&branch=main)](https://app.bitrise.io/app/7b3ab048-138e-4d17-899c-4ea776b5711f)
-[![Go Version](https://img.shields.io/github/go-mod/go-version/bitrise-io/bitrise-plugins-codepush-cli)](go.mod)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A CLI tool for managing over-the-air (OTA) updates for React Native and Expo mobile applications using the Bitrise CodePush service. Works as a standalone CLI or as a [Bitrise CLI plugin](https://devcenter.bitrise.io/en/bitrise-cli/bitrise-cli-plugins.html).
+A CLI tool for managing over-the-air (OTA) updates for React Native and Expo mobile applications using the Bitrise CodePush service. Works as a standalone CLI or as a Bitrise CLI plugin.
 
 ## What is CodePush?
 

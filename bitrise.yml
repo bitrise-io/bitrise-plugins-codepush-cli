@@ -7,10 +7,15 @@ trigger_map:
   pipeline: pipeline_ci
 - pull_request_target_branch: main
   pipeline: pipeline_ci
+- tag: "*.*.*"
+  pipeline: pipeline_release
 pipelines:
   pipeline_ci:
     workflows:
       ci: {}
+  pipeline_release:
+    workflows:
+      release: {}
 workflows:
   ci:
     steps:
@@ -94,3 +99,47 @@ workflows:
             set -euo pipefail
             curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v1.64.8
             "$(go env GOPATH)/bin/golangci-lint" run
+  release:
+    steps:
+    - git-clone@8:
+        inputs:
+        - clone_depth: "0"
+    - go-list@1: {}
+    - script@1:
+        title: Validate tag matches code version
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+
+            TAG_VERSION="$BITRISE_GIT_TAG"
+            CODE_VERSION=$(grep 'version = ' cmd/codepush/main.go | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            PLUGIN_VERSION=$(grep -oP 'download/\K[^/]+' bitrise-plugin.yml | head -1)
+
+            echo "Tag version:    $TAG_VERSION"
+            echo "Code version:   $CODE_VERSION"
+            echo "Plugin version: $PLUGIN_VERSION"
+
+            if [ "$TAG_VERSION" != "$CODE_VERSION" ]; then
+                echo "FAIL: tag $TAG_VERSION does not match main.go version $CODE_VERSION"
+                exit 1
+            fi
+            if [ "$TAG_VERSION" != "$PLUGIN_VERSION" ]; then
+                echo "FAIL: tag $TAG_VERSION does not match bitrise-plugin.yml version $PLUGIN_VERSION"
+                exit 1
+            fi
+            echo "PASS: all versions are $TAG_VERSION"
+    - script@1:
+        title: Install GoReleaser
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+            brew install goreleaser
+    - script@1:
+        title: Run GoReleaser
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+            goreleaser release --clean
