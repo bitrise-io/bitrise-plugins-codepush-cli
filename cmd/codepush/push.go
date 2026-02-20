@@ -123,4 +123,5 @@ func registerPushFlags() {
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+	pushCmd.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 }

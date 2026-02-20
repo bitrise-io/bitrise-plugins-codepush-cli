@@ -40,6 +40,7 @@ type BundleOptions struct {
 	ExtraBundlerOpts []string
 	ProjectDir       string
 	MetroConfig      string
+	SkipInstall      bool
 }
 
 // BundleResult contains the output of a successful bundle operation.

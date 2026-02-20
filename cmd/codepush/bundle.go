@@ -22,6 +22,7 @@ var (
 	bundleExtraBundlerOpts []string
 	bundleProjectDir       string
 	bundleMetroConfig      string
+	bundleSkipInstall      bool
 )
 
 var bundleCmd = &cobra.Command{
@@ -48,6 +49,7 @@ func registerBundleFlags() {
 	bundleCmd.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	bundleCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	bundleCmd.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
+	bundleCmd.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 }
 
 func runBundle() error {
@@ -135,6 +137,7 @@ func runBundleWithOpts() (*bundler.BundleResult, error) {
 		ExtraBundlerOpts: bundleExtraBundlerOpts,
 		ProjectDir:       bundleProjectDir,
 		MetroConfig:      bundleMetroConfig,
+		SkipInstall:      bundleSkipInstall,
 	}
 
 	return bundler.Run(opts, out)
