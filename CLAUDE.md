@@ -333,6 +333,24 @@ go build -o codepush ./cmd/codepush
 5. **Does this need documentation?** Update README.md and/or CONTRIBUTING.md
 6. **Does this affect the release?** Check `.goreleaser.yml` and `bitrise-plugin.yml`
 
+## README Maintenance
+
+The README follows a specific section order. Keep it up to date when making changes:
+
+**Section order**: Title/Badges, What is CodePush, Installation, Quick Start, Authentication, Commands (reference tables), Bundling, Pushing Updates, Promoting and Patching, Rollback, Deployment Management, Package Management, Workflow Examples, JSON Output, Environment Variables, Bitrise CI Integration, Contributing/License
+
+**When adding a new command**: Add it to the Commands reference table in the correct group (Release Management, Deployment Management, Package Management, Authentication). If it is a core workflow command, add a dedicated section with examples.
+
+**When adding a new flag**: Update the relevant flag table in the command's section (e.g., Bundle Flags, Push Flags).
+
+**When adding a new environment variable**: Update the Environment Variables section. Use the correct sub-table: input variables, Bitrise CI auto-read variables, or exported variables.
+
+**Do not document commands that are not yet implemented.** Only add a command to the README when its `RunE` function contains real logic.
+
+**Keep the Quick Start and Workflow Examples sections current** with the primary workflows.
+
+**Development/build/test instructions belong in CONTRIBUTING.md**, not README.md.
+
 ## Workflow
 
 - Always work on a branch, never commit directly to `main`
