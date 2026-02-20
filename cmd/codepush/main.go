@@ -995,6 +995,19 @@ func formatBytes(b int64) string {
 }
 
 func init() {
+	registerCommandTree()
+	registerGlobalFlags()
+	registerBundleFlags()
+	registerPushFlags()
+	registerRollbackFlags()
+	registerPromoteFlags()
+	registerPatchFlags()
+	registerDeploymentFlags()
+	registerPackageFlags()
+	registerAuthFlags()
+}
+
+func registerCommandTree() {
 	rootCmd.AddGroup(
 		&cobra.Group{ID: "release", Title: "Release Management:"},
 		&cobra.Group{ID: "deployment", Title: "Deployment Management:"},
@@ -1034,8 +1047,14 @@ func init() {
 	packageCmd.AddCommand(packageInfoCmd)
 	packageCmd.AddCommand(packageStatusCmd)
 	packageCmd.AddCommand(packageRemoveCmd)
+}
 
-	// Bundle command flags
+func registerGlobalFlags() {
+	rootCmd.PersistentFlags().StringVar(&globalAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
+	rootCmd.PersistentFlags().BoolVar(&globalJSON, "json", false, "output results as JSON to stdout")
+}
+
+func registerBundleFlags() {
 	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
 	_ = bundleCmd.MarkFlagRequired("platform")
 	bundleCmd.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
@@ -1047,55 +1066,28 @@ func init() {
 	bundleCmd.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	bundleCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	bundleCmd.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
+}
 
-	// Push command: --bundle flag and shared bundling flags
+func registerPushFlags() {
 	pushCmd.Flags().BoolVar(&pushAutoBundle, "bundle", false, "bundle JavaScript before pushing")
 	pushCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform for bundling: ios or android")
 	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
 	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
-
-	// Shared API flags (inherited by all subcommands)
-	rootCmd.PersistentFlags().StringVar(&globalAppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
-	rootCmd.PersistentFlags().BoolVar(&globalJSON, "json", false, "output results as JSON to stdout")
-
-	// Auth login flags
-	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
-
-	// Push command: API flags
 	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+}
 
-	// Rollback command flags
+func registerRollbackFlags() {
 	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	rollbackCmd.Flags().StringVar(&rollbackTargetRelease, "target-release", "", "specific release label to rollback to (e.g. v3)")
+}
 
-	// Patch command flags
-	patchCmd.Flags().StringVar(&patchDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	patchCmd.Flags().StringVar(&patchLabel, "label", "", "specific release label to patch (e.g. v5, defaults to latest)")
-	patchCmd.Flags().StringVar(&patchRollout, "rollout", "", "rollout percentage (1-100)")
-	patchCmd.Flags().StringVar(&patchMandatory, "mandatory", "", "mark update as mandatory (true/false)")
-	patchCmd.Flags().StringVar(&patchDisabled, "disabled", "", "disable update (true/false)")
-	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
-	patchCmd.Flags().StringVar(&patchAppVersion, "app-version", "", "target app version")
-
-	// Deployment command flags
-	deploymentRenameCmd.Flags().StringVar(&deploymentRenameName, "name", "", "new deployment name (required)")
-	deploymentRemoveCmd.Flags().BoolVar(&deploymentRemoveYes, "yes", false, "skip confirmation prompt")
-	deploymentHistoryCmd.Flags().IntVar(&deploymentHistoryMax, "limit", 10, "maximum number of releases to show")
-
-	// Package command flags
-	packageInfoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	packageStatusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	packageRemoveCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
-	packageRemoveCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
-	deploymentClearCmd.Flags().BoolVar(&deploymentClearYes, "yes", false, "skip confirmation prompt")
-
-	// Promote command flags
+func registerPromoteFlags() {
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	promoteCmd.Flags().StringVar(&promoteDestDeployment, "destination-deployment", "", "destination deployment name or UUID (required)")
 	promoteCmd.Flags().StringVar(&promoteLabel, "label", "", "specific release label to promote (e.g. v5)")
@@ -1104,6 +1096,34 @@ func init() {
 	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
+}
+
+func registerPatchFlags() {
+	patchCmd.Flags().StringVar(&patchDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	patchCmd.Flags().StringVar(&patchLabel, "label", "", "specific release label to patch (e.g. v5, defaults to latest)")
+	patchCmd.Flags().StringVar(&patchRollout, "rollout", "", "rollout percentage (1-100)")
+	patchCmd.Flags().StringVar(&patchMandatory, "mandatory", "", "mark update as mandatory (true/false)")
+	patchCmd.Flags().StringVar(&patchDisabled, "disabled", "", "disable update (true/false)")
+	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
+	patchCmd.Flags().StringVar(&patchAppVersion, "app-version", "", "target app version")
+}
+
+func registerDeploymentFlags() {
+	deploymentRenameCmd.Flags().StringVar(&deploymentRenameName, "name", "", "new deployment name (required)")
+	deploymentRemoveCmd.Flags().BoolVar(&deploymentRemoveYes, "yes", false, "skip confirmation prompt")
+	deploymentHistoryCmd.Flags().IntVar(&deploymentHistoryMax, "limit", 10, "maximum number of releases to show")
+	deploymentClearCmd.Flags().BoolVar(&deploymentClearYes, "yes", false, "skip confirmation prompt")
+}
+
+func registerPackageFlags() {
+	packageInfoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	packageStatusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	packageRemoveCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
+	packageRemoveCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
+}
+
+func registerAuthFlags() {
+	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
 }
 
 // outputJSON marshals v as JSON to stdout. Used when --json is set.
