@@ -73,10 +73,31 @@ internal/codepush/     Core CodePush logic
 
 ## Release Process
 
+Releases are automated via Bitrise. Pushing a tag triggers the `pipeline_release` pipeline, which runs GoReleaser to build binaries and create a GitHub Release.
+
+### Using the Claude Code skill (recommended)
+
+```
+/bump-version-and-release X.Y.Z
+```
+
+This walks you through the full flow: version bump, PR, tag, and verification.
+
+### Manual steps
+
 1. Update version in `cmd/codepush/main.go`
-2. Update URLs in `bitrise-plugin.yml` with new version
-3. Commit: `git commit -m "chore: bump version to X.Y.Z"`
-4. Push to `main`
-5. Tag: `git tag -a X.Y.Z -m "Release X.Y.Z"`
-6. Release: `GITHUB_TOKEN=$(gh auth token) goreleaser release --clean`
-7. Verify: `gh release view X.Y.Z`
+2. Update download URLs in `bitrise-plugin.yml` with the new version
+3. Open a PR, wait for CI to pass, and merge to `main`
+4. Create and push the tag:
+   ```bash
+   git pull origin main
+   git tag -a X.Y.Z -m "Release X.Y.Z"
+   git push origin X.Y.Z
+   ```
+5. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
+6. Verify: `gh release view X.Y.Z`
+
+### Prerequisites
+
+- A `GITHUB_TOKEN` Bitrise Secret with `repo` scope (or fine-grained `contents: write`)
+- Tags use bare semantic versions without `v` prefix: `0.1.0`, not `v0.1.0`

@@ -272,19 +272,34 @@ destPath, err := bitrise.WriteToDeployDir("result.json", jsonData)
 
 ## Release Process
 
-### Prerequisites
-- `goreleaser` installed (`brew install goreleaser`)
-- GitHub CLI authenticated (`gh auth login`)
-- Clean git working directory, all tests passing
+Releases are automated via Bitrise. Pushing a git tag triggers the `pipeline_release` pipeline, which runs GoReleaser to build binaries and create a GitHub Release.
 
-### Steps
+### Using the Claude Code skill (recommended)
+
+```
+/bump-version-and-release X.Y.Z
+```
+
+This walks you through the full flow: version bump, PR creation, tagging, and verification.
+
+### Manual steps
 
 1. Update version in `cmd/codepush/main.go`
 2. Update `bitrise-plugin.yml` executable URLs with new version
-3. Commit: `git commit -m "chore: bump version to X.Y.Z"`
-4. Tag: `git tag -a X.Y.Z -m "Release X.Y.Z"`
-5. Release: `GITHUB_TOKEN=$(gh auth token) goreleaser release --clean`
+3. Open a PR, wait for CI to pass, and merge to `main`
+4. Create and push the tag:
+   ```bash
+   git pull origin main
+   git tag -a X.Y.Z -m "Release X.Y.Z"
+   git push origin X.Y.Z
+   ```
+5. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
 6. Verify: `gh release view X.Y.Z`
+
+### Prerequisites
+- A `GITHUB_TOKEN` Bitrise Secret with `repo` scope (or fine-grained `contents: write`)
+- GitHub CLI authenticated (`gh auth login`) for PR creation and verification
+- Tags use bare semantic versions without `v` prefix: `0.1.0`, not `v0.1.0`
 
 ### Release Artifacts
 
