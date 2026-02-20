@@ -146,12 +146,12 @@ func validateTokenWithURL(token, url string, client *http.Client) (*UserInfo, er
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusUnauthorized {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("invalid token: the API returned 401 Unauthorized")
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		io.Copy(io.Discard, resp.Body)
+		_, _ = io.Copy(io.Discard, resp.Body)
 		return nil, fmt.Errorf("token validation failed: the API returned HTTP %d", resp.StatusCode)
 	}
 
@@ -159,7 +159,7 @@ func validateTokenWithURL(token, url string, client *http.Client) (*UserInfo, er
 		Data UserInfo `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, nil //nolint: user info is best-effort
+		return nil, nil //nolint:nilerr // user info is best-effort
 	}
 
 	return &result.Data, nil

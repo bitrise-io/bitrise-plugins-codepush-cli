@@ -54,6 +54,7 @@ Run **all** commands after making changes. Fix any failures before committing.
 go build ./cmd/codepush                  # Build the binary
 go test ./...                            # Run all tests
 go vet ./...                             # Static analysis
+golangci-lint run                        # Lint (complexity, style)
 ```
 
 CI enforces a **75% minimum test coverage** threshold. See `bitrise.yml` for the full pipeline.
@@ -112,6 +113,8 @@ bitrise :codepush rollback
 - **Never use em dashes** (`---` or `\u2014`) in any content: titles, descriptions, metadata, UI copy, or comments. Use commas, periods, colons, or rewrite the sentence.
 
 ## Go Code Quality
+
+These conventions are enforced by **golangci-lint** (see `.golangci.yml`). Run `golangci-lint run` locally before committing.
 
 ### Function Size
 - Functions should be under **50 lines** as a guideline

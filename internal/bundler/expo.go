@@ -96,7 +96,7 @@ func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 
 	// Fallback: scan the output directory for .js bundle files (not sourcemaps)
 	var jsFiles []string
-	filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil
 		}

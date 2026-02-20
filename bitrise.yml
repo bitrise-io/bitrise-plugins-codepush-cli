@@ -86,3 +86,11 @@ workflows:
         title: go vet
         inputs:
         - content: go vet ./...
+    - script@1:
+        title: golangci-lint
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+            go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+            golangci-lint run
