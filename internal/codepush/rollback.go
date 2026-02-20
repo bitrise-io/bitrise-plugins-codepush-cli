@@ -1,7 +1,6 @@
 package codepush
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -45,21 +44,18 @@ func Rollback(client Client, opts *RollbackOptions, out *output.Writer) (*Rollba
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportRollbackSummary(result, out)
+		exportSummary("codepush-rollback-summary.json", result, out)
 	}
 
 	return result, nil
 }
 
 func validateRollbackOptions(opts *RollbackOptions) error {
-	if opts.AppID == "" {
-		return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	if err := validateBaseOptions(opts.AppID, opts.Token); err != nil {
+		return err
 	}
 	if opts.DeploymentID == "" {
 		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
-	}
-	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
 	}
 	return nil
 }
@@ -82,34 +78,3 @@ func resolvePackageLabel(client Client, appID, deploymentID, label string, out *
 	return "", fmt.Errorf("release label %q not found in deployment: check the label or omit --target-release to rollback to the previous release", label)
 }
 
-type rollbackSummary struct {
-	PackageID    string `json:"package_id"`
-	AppID        string `json:"app_id"`
-	DeploymentID string `json:"deployment_id"`
-	Label        string `json:"label"`
-	AppVersion   string `json:"app_version"`
-}
-
-func exportRollbackSummary(result *RollbackResult, out *output.Writer) {
-	summary := rollbackSummary{
-		PackageID:    result.PackageID,
-		AppID:        result.AppID,
-		DeploymentID: result.DeploymentID,
-		Label:        result.Label,
-		AppVersion:   result.AppVersion,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal rollback summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-rollback-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export rollback summary: %v", err)
-		return
-	}
-
-	out.Info("Rollback summary exported to: %s", path)
-}

@@ -93,14 +93,11 @@ func PushWithConfig(client Client, opts *PushOptions, pollCfg PollConfig, out *o
 }
 
 func validatePushOptions(opts *PushOptions) error {
-	if opts.AppID == "" {
-		return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	if err := validateBaseOptions(opts.AppID, opts.Token); err != nil {
+		return err
 	}
 	if opts.DeploymentID == "" {
 		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
-	}
-	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
 	}
 	if opts.AppVersion == "" {
 		return fmt.Errorf("app version is required: set --app-version")

@@ -218,7 +218,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		})
 
 		if bitrise.IsBitriseEnvironment() {
-			exportPushSummary(result)
+			exportDeploySummary("codepush-push-summary.json", result)
 			exportEnvVars(map[string]string{
 				"CODEPUSH_PACKAGE_ID":  result.PackageID,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
@@ -385,7 +385,7 @@ Examples:
 		})
 
 		if bitrise.IsBitriseEnvironment() {
-			exportPatchSummary(result)
+			exportDeploySummary("codepush-patch-summary.json", result)
 			exportEnvVars(map[string]string{
 				"CODEPUSH_PACKAGE_ID":  result.PackageID,
 				"CODEPUSH_LABEL":       result.Label,
@@ -503,14 +503,9 @@ var deploymentListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all deployments",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -543,14 +538,9 @@ var deploymentAddCmd = &cobra.Command{
 	Short: "Create a new deployment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -573,14 +563,9 @@ var deploymentInfoCmd = &cobra.Command{
 	Short: "Show deployment details",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -645,14 +630,9 @@ var deploymentRenameCmd = &cobra.Command{
 	Short: "Rename a deployment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 		if deploymentRenameName == "" {
 			return fmt.Errorf("new name is required: set --name")
@@ -684,14 +664,9 @@ var deploymentRemoveCmd = &cobra.Command{
 	Short: "Delete a deployment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		if err := out.ConfirmDestructive(
@@ -728,14 +703,9 @@ var deploymentHistoryCmd = &cobra.Command{
 	Short: "Show release history for a deployment",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -793,14 +763,9 @@ var packageInfoCmd = &cobra.Command{
 By default shows the latest package. Use --label to specify a version.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -859,14 +824,9 @@ var packageStatusCmd = &cobra.Command{
 By default shows the latest package. Use --label to specify a version.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
@@ -911,14 +871,9 @@ var packageRemoveCmd = &cobra.Command{
 Requires --label to identify the package and --yes to confirm deletion.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 		if packageLabel == "" {
 			return fmt.Errorf("label is required: set --label to identify the package to delete")
@@ -968,14 +923,9 @@ This is a destructive operation that removes all release history.
 Requires --yes to confirm.`,
 	Args: cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveFlag(globalAppID, "CODEPUSH_APP_ID")
-		token := resolveToken()
-
-		if appID == "" {
-			return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
-		}
-		if token == "" {
-			return fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
 		}
 
 		if err := out.ConfirmDestructive(
@@ -1190,6 +1140,37 @@ func resolveToken() string {
 	return storedToken
 }
 
+// requireCredentials resolves and validates the app ID and API token.
+func requireCredentials() (appID, token string, err error) {
+	appID = resolveFlag(globalAppID, "CODEPUSH_APP_ID")
+	token = resolveToken()
+
+	if appID == "" {
+		return "", "", fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	}
+	if token == "" {
+		return "", "", fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+	}
+	return appID, token, nil
+}
+
+// exportDeploySummary writes a JSON summary to the Bitrise deploy directory.
+func exportDeploySummary(filename string, v interface{}) {
+	data, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		out.Warning("failed to marshal %s: %v", filename, err)
+		return
+	}
+
+	path, err := bitrise.WriteToDeployDir(filename, data)
+	if err != nil {
+		out.Warning("failed to export %s: %v", filename, err)
+		return
+	}
+
+	out.Info("Summary exported to: %s", path)
+}
+
 func runBundle() error {
 	if err := bundler.ValidatePlatform(bundler.Platform(bundlePlatform)); err != nil {
 		return err
@@ -1237,7 +1218,21 @@ func runBundle() error {
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportBundleSummary(result)
+		exportDeploySummary("codepush-bundle-summary.json", struct {
+			Platform      string `json:"platform"`
+			ProjectType   string `json:"project_type"`
+			BundlePath    string `json:"bundle_path"`
+			AssetsDir     string `json:"assets_dir"`
+			SourcemapPath string `json:"sourcemap_path,omitempty"`
+			HermesApplied bool   `json:"hermes_applied"`
+		}{
+			Platform:      string(result.Platform),
+			ProjectType:   result.ProjectType.String(),
+			BundlePath:    result.BundlePath,
+			AssetsDir:     result.AssetsDir,
+			SourcemapPath: result.SourcemapPath,
+			HermesApplied: result.HermesApplied,
+		})
 	}
 
 	return nil
@@ -1269,69 +1264,3 @@ func exportEnvVars(vars map[string]string) {
 	}
 }
 
-// exportPushSummary writes a JSON push summary to the Bitrise deploy directory.
-func exportPushSummary(result *codepush.PushResult) {
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal push summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-push-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export push summary: %v", err)
-		return
-	}
-
-	out.Info("Push summary exported to: %s", path)
-}
-
-// exportPatchSummary writes a JSON patch summary to the Bitrise deploy directory.
-func exportPatchSummary(result *codepush.PatchResult) {
-	data, err := json.MarshalIndent(result, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal patch summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export patch summary: %v", err)
-		return
-	}
-
-	out.Info("Patch summary exported to: %s", path)
-}
-
-// exportBundleSummary writes a JSON bundle summary to the Bitrise deploy directory.
-func exportBundleSummary(result *bundler.BundleResult) {
-	summary := struct {
-		Platform      string `json:"platform"`
-		ProjectType   string `json:"project_type"`
-		BundlePath    string `json:"bundle_path"`
-		AssetsDir     string `json:"assets_dir"`
-		SourcemapPath string `json:"sourcemap_path,omitempty"`
-		HermesApplied bool   `json:"hermes_applied"`
-	}{
-		Platform:      string(result.Platform),
-		ProjectType:   result.ProjectType.String(),
-		BundlePath:    result.BundlePath,
-		AssetsDir:     result.AssetsDir,
-		SourcemapPath: result.SourcemapPath,
-		HermesApplied: result.HermesApplied,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal bundle summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-bundle-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export bundle summary: %v", err)
-		return
-	}
-
-	out.Info("Bundle summary exported to: %s", path)
-}

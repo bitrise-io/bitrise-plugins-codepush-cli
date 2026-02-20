@@ -1,7 +1,6 @@
 package codepush
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 
@@ -50,21 +49,18 @@ func Patch(client Client, opts *PatchOptions, out *output.Writer) (*PatchResult,
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportPatchSummary(result, out)
+		exportSummary("codepush-patch-summary.json", result, out)
 	}
 
 	return result, nil
 }
 
 func validatePatchOptions(opts *PatchOptions) error {
-	if opts.AppID == "" {
-		return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	if err := validateBaseOptions(opts.AppID, opts.Token); err != nil {
+		return err
 	}
 	if opts.DeploymentID == "" {
 		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
-	}
-	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
 	}
 	if opts.Rollout == "" && opts.Mandatory == "" && opts.Disabled == "" && opts.Description == "" && opts.AppVersion == "" {
 		return fmt.Errorf("at least one change is required: set --rollout, --mandatory, --disabled, --description, or --app-version")
@@ -136,42 +132,3 @@ func buildPatchRequest(opts *PatchOptions) (PatchRequest, error) {
 	return req, nil
 }
 
-type patchSummary struct {
-	PackageID    string `json:"package_id"`
-	AppID        string `json:"app_id"`
-	DeploymentID string `json:"deployment_id"`
-	Label        string `json:"label"`
-	AppVersion   string `json:"app_version"`
-	Mandatory    bool   `json:"mandatory"`
-	Disabled     bool   `json:"disabled"`
-	Rollout      int    `json:"rollout"`
-	Description  string `json:"description"`
-}
-
-func exportPatchSummary(result *PatchResult, out *output.Writer) {
-	summary := patchSummary{
-		PackageID:    result.PackageID,
-		AppID:        result.AppID,
-		DeploymentID: result.DeploymentID,
-		Label:        result.Label,
-		AppVersion:   result.AppVersion,
-		Mandatory:    result.Mandatory,
-		Disabled:     result.Disabled,
-		Rollout:      result.Rollout,
-		Description:  result.Description,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal patch summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-patch-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export patch summary: %v", err)
-		return
-	}
-
-	out.Info("Patch summary exported to: %s", path)
-}

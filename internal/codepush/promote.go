@@ -1,7 +1,6 @@
 package codepush
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -59,15 +58,15 @@ func Promote(client Client, opts *PromoteOptions, out *output.Writer) (*PromoteR
 	}
 
 	if bitrise.IsBitriseEnvironment() {
-		exportPromoteSummary(result, out)
+		exportSummary("codepush-promote-summary.json", result, out)
 	}
 
 	return result, nil
 }
 
 func validatePromoteOptions(opts *PromoteOptions) error {
-	if opts.AppID == "" {
-		return fmt.Errorf("app ID is required: set --app-id or CODEPUSH_APP_ID")
+	if err := validateBaseOptions(opts.AppID, opts.Token); err != nil {
+		return err
 	}
 	if opts.SourceDeploymentID == "" {
 		return fmt.Errorf("source deployment is required: set --source-deployment")
@@ -75,47 +74,9 @@ func validatePromoteOptions(opts *PromoteOptions) error {
 	if opts.DestDeploymentID == "" {
 		return fmt.Errorf("destination deployment is required: set --destination-deployment")
 	}
-	if opts.Token == "" {
-		return fmt.Errorf("API token is required: set --token, BITRISE_API_TOKEN, or run 'codepush auth login'")
-	}
 	if opts.SourceDeploymentID == opts.DestDeploymentID {
 		return fmt.Errorf("source and destination deployments must be different")
 	}
 	return nil
 }
 
-type promoteSummary struct {
-	PackageID        string `json:"package_id"`
-	AppID            string `json:"app_id"`
-	SourceDeployment string `json:"source_deployment_id"`
-	DestDeployment   string `json:"dest_deployment_id"`
-	Label            string `json:"label"`
-	AppVersion       string `json:"app_version"`
-	Description      string `json:"description"`
-}
-
-func exportPromoteSummary(result *PromoteResult, out *output.Writer) {
-	summary := promoteSummary{
-		PackageID:        result.PackageID,
-		AppID:            result.AppID,
-		SourceDeployment: result.SourceDeployment,
-		DestDeployment:   result.DestDeployment,
-		Label:            result.Label,
-		AppVersion:       result.AppVersion,
-		Description:      result.Description,
-	}
-
-	data, err := json.MarshalIndent(summary, "", "  ")
-	if err != nil {
-		out.Warning("failed to marshal promote summary: %v", err)
-		return
-	}
-
-	path, err := bitrise.WriteToDeployDir("codepush-promote-summary.json", data)
-	if err != nil {
-		out.Warning("failed to export promote summary: %v", err)
-		return
-	}
-
-	out.Info("Promote summary exported to: %s", path)
-}
