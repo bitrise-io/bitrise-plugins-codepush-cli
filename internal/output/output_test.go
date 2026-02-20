@@ -2,6 +2,7 @@ package output
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -170,4 +171,61 @@ func TestIsInteractive(t *testing.T) {
 	if w.IsInteractive() {
 		t.Error("NewTest writer should not be interactive")
 	}
+}
+
+func TestSpinnerNonInteractiveError(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewTest(&buf)
+
+	wantErr := "upload failed"
+	err := w.Spinner("Uploading", func() error {
+		return fmt.Errorf("%s", wantErr)
+	})
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if err.Error() != wantErr {
+		t.Errorf("error = %q, want %q", err.Error(), wantErr)
+	}
+
+	got := buf.String()
+	if !strings.Contains(got, "Uploading") {
+		t.Errorf("Spinner should print step before action, got %q", got)
+	}
+}
+
+func TestConfirmDestructiveNonInteractiveIncludesMessage(t *testing.T) {
+	w := NewTest(&bytes.Buffer{})
+	err := w.ConfirmDestructive("delete deployment Staging", false)
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "delete deployment Staging") {
+		t.Errorf("error should include the message, got: %v", err)
+	}
+}
+
+func TestNewWriter(t *testing.T) {
+	// NewWriter with a non-terminal writer should produce a non-interactive writer
+	var buf bytes.Buffer
+	w := NewWriter(&buf)
+	if w.IsInteractive() {
+		t.Error("NewWriter with bytes.Buffer should not be interactive")
+	}
+
+	// Verify it can write output
+	w.Step("test step")
+	if !strings.Contains(buf.String(), "test step") {
+		t.Errorf("output should contain step text, got %q", buf.String())
+	}
+}
+
+func TestNew(t *testing.T) {
+	w := New()
+	if w == nil {
+		t.Fatal("New() returned nil")
+	}
+	// New() targets stderr; just verify it returns a usable writer
+	w.Step("smoke test")
 }
