@@ -22,12 +22,12 @@ var packageCmd = &cobra.Command{
 }
 
 var packageInfoCmd = &cobra.Command{
-	Use:   "info <deployment>",
+	Use:   "info [deployment]",
 	Short: "Show package details",
 	Long: `Show details for a specific package in a deployment.
 
 By default shows the latest package. Use --label to specify a version.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -36,7 +36,12 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}
@@ -83,12 +88,12 @@ By default shows the latest package. Use --label to specify a version.`,
 }
 
 var packageStatusCmd = &cobra.Command{
-	Use:   "status <deployment>",
+	Use:   "status [deployment]",
 	Short: "Show package processing status",
 	Long: `Show the processing status of a specific package.
 
 By default shows the latest package. Use --label to specify a version.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -97,7 +102,12 @@ By default shows the latest package. Use --label to specify a version.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}
@@ -130,12 +140,12 @@ By default shows the latest package. Use --label to specify a version.`,
 }
 
 var packageRemoveCmd = &cobra.Command{
-	Use:   "remove <deployment>",
+	Use:   "remove [deployment]",
 	Short: "Delete a package from a deployment",
 	Long: `Delete a specific package from a deployment.
 
 Requires --label to identify the package and --yes to confirm deletion.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -154,7 +164,12 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}

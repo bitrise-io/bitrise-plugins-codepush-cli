@@ -38,8 +38,7 @@ ready for use with 'codepush push'.`,
 }
 
 func registerBundleFlags() {
-	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android (required)")
-	_ = bundleCmd.MarkFlagRequired("platform")
+	bundleCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android")
 	bundleCmd.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
 	bundleCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
 	bundleCmd.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
@@ -52,6 +51,12 @@ func registerBundleFlags() {
 }
 
 func runBundle() error {
+	platform, err := resolvePlatformInteractive(bundlePlatform)
+	if err != nil {
+		return err
+	}
+	bundlePlatform = platform
+
 	if err := bundler.ValidatePlatform(bundler.Platform(bundlePlatform)); err != nil {
 		return err
 	}

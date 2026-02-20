@@ -83,9 +83,9 @@ var deploymentAddCmd = &cobra.Command{
 }
 
 var deploymentInfoCmd = &cobra.Command{
-	Use:   "info <deployment>",
+	Use:   "info [deployment]",
 	Short: "Show deployment details",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -94,7 +94,12 @@ var deploymentInfoCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}
@@ -150,9 +155,9 @@ var deploymentInfoCmd = &cobra.Command{
 }
 
 var deploymentRenameCmd = &cobra.Command{
-	Use:   "rename <deployment>",
+	Use:   "rename [deployment]",
 	Short: "Rename a deployment",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -164,7 +169,12 @@ var deploymentRenameCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}
@@ -184,26 +194,36 @@ var deploymentRenameCmd = &cobra.Command{
 }
 
 var deploymentRemoveCmd = &cobra.Command{
-	Use:   "remove <deployment>",
+	Use:   "remove [deployment]",
 	Short: "Delete a deployment",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
 			return err
 		}
 
-		if err := out.ConfirmDestructive(
-			fmt.Sprintf("This will permanently delete deployment %q and all its releases", args[0]),
-			deploymentRemoveYes,
-		); err != nil {
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		displayName := argValue
+		if displayName == "" {
+			displayName = deploymentID
+		}
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
-		if err != nil {
+		if err := out.ConfirmDestructive(
+			fmt.Sprintf("This will permanently delete deployment %q and all its releases", displayName),
+			deploymentRemoveYes,
+		); err != nil {
 			return err
 		}
 
@@ -217,15 +237,15 @@ var deploymentRemoveCmd = &cobra.Command{
 			}{Deleted: deploymentID})
 		}
 
-		out.Success("Deployment %q deleted", args[0])
+		out.Success("Deployment %q deleted", displayName)
 		return nil
 	},
 }
 
 var deploymentHistoryCmd = &cobra.Command{
-	Use:   "history <deployment>",
+	Use:   "history [deployment]",
 	Short: "Show release history for a deployment",
-	Args:  cobra.ExactArgs(1),
+	Args:  cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
@@ -234,7 +254,12 @@ var deploymentHistoryCmd = &cobra.Command{
 
 		client := codepush.NewHTTPClient(defaultAPIURL, token)
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
 		if err != nil {
 			return err
 		}
@@ -274,30 +299,40 @@ var deploymentHistoryCmd = &cobra.Command{
 }
 
 var deploymentClearCmd = &cobra.Command{
-	Use:   "clear <deployment>",
+	Use:   "clear [deployment]",
 	Short: "Delete all packages from a deployment",
 	Long: `Delete all packages (releases) from a deployment.
 
 This is a destructive operation that removes all release history.
 Requires --yes to confirm.`,
-	Args: cobra.ExactArgs(1),
+	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		appID, token, err := requireCredentials()
 		if err != nil {
 			return err
 		}
 
-		if err := out.ConfirmDestructive(
-			fmt.Sprintf("This will permanently delete all releases from %q", args[0]),
-			deploymentClearYes,
-		); err != nil {
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		var argValue string
+		if len(args) > 0 {
+			argValue = args[0]
+		}
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		displayName := argValue
+		if displayName == "" {
+			displayName = deploymentID
+		}
 
-		deploymentID, err := codepush.ResolveDeployment(cmd.Context(), client, appID, args[0], out)
-		if err != nil {
+		if err := out.ConfirmDestructive(
+			fmt.Sprintf("This will permanently delete all releases from %q", displayName),
+			deploymentClearYes,
+		); err != nil {
 			return err
 		}
 
@@ -326,7 +361,7 @@ Requires --yes to confirm.`,
 			}{Deployment: deploymentID, Deleted: deleted})
 		}
 
-		out.Success("Deleted %d package(s) from %q", deleted, args[0])
+		out.Success("Deleted %d package(s) from %q", deleted, displayName)
 		return nil
 	},
 }

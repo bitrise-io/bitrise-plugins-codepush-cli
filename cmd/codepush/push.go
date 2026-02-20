@@ -35,9 +35,11 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if pushAutoBundle {
-			if bundlePlatform == "" {
-				return fmt.Errorf("--platform is required when using --bundle")
+			platform, err := resolvePlatformInteractive(bundlePlatform)
+			if err != nil {
+				return err
 			}
+			bundlePlatform = platform
 
 			result, err := runBundleWithOpts()
 			if err != nil {
@@ -57,13 +59,21 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
 
-		appID := resolveAppID()
-		deployment := resolveFlag(pushDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken()
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, pushDeployment, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
+			return err
+		}
 
 		opts := &codepush.PushOptions{
 			AppID:        appID,
-			DeploymentID: deployment,
+			DeploymentID: deploymentID,
 			Token:        token,
 			AppVersion:   pushAppVersion,
 			Description:  pushDescription,
@@ -73,7 +83,6 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			BundlePath:   bundlePath,
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Push(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)

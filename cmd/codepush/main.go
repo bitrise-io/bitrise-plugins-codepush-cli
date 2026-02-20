@@ -43,6 +43,8 @@ var rootCmd = &cobra.Command{
 and helps integrate the Bitrise CodePush SDK into your projects.
 
 Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
 }
 
 var versionCmd = &cobra.Command{

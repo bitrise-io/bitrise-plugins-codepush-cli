@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -8,7 +9,9 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // outputJSON marshals v as JSON to stdout. Used when --json is set.
@@ -129,4 +132,58 @@ func formatBytes(b int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// resolveDeploymentInteractive resolves a deployment using the priority:
+// 1. Flag value (passed directly)
+// 2. Environment variable
+// 3. Interactive terminal selector (fetches deployments from API)
+// 4. Non-interactive error with flag hint
+func resolveDeploymentInteractive(ctx context.Context, client codepush.Client, appID, flagValue, envKey string) (string, error) {
+	deployment := resolveFlag(flagValue, envKey)
+
+	if deployment != "" {
+		return codepush.ResolveDeployment(ctx, client, appID, deployment, out)
+	}
+
+	if !out.IsInteractive() {
+		if envKey != "" {
+			return "", fmt.Errorf("deployment is required: set --deployment or %s", envKey)
+		}
+		return "", fmt.Errorf("deployment is required: provide a deployment name or UUID")
+	}
+
+	deployments, err := client.ListDeployments(ctx, appID)
+	if err != nil {
+		return "", fmt.Errorf("listing deployments: %w", err)
+	}
+
+	if len(deployments) == 0 {
+		return "", fmt.Errorf("no deployments found: create one with 'codepush deployment add'")
+	}
+
+	options := make([]output.SelectOption, len(deployments))
+	for i, d := range deployments {
+		options[i] = output.SelectOption{Label: d.Name, Value: d.ID}
+	}
+
+	return out.Select("Select deployment", options)
+}
+
+// resolvePlatformInteractive resolves the platform flag interactively.
+// If the flag value is set, returns it. Otherwise prompts if interactive
+// or returns an error with a flag hint.
+func resolvePlatformInteractive(flagValue string) (string, error) {
+	if flagValue != "" {
+		return flagValue, nil
+	}
+
+	if !out.IsInteractive() {
+		return "", fmt.Errorf("--platform is required: set --platform to ios or android")
+	}
+
+	return out.Select("Select platform", []output.SelectOption{
+		{Label: "iOS", Value: "ios"},
+		{Label: "Android", Value: "android"},
+	})
 }

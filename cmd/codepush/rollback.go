@@ -25,18 +25,25 @@ Creates a new release that mirrors a previous version. By default,
 rolls back to the immediately previous release. Use --target-release
 to specify a specific version label (e.g. v3).`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		appID := resolveAppID()
-		deployment := resolveFlag(rollbackDeployment, "CODEPUSH_DEPLOYMENT")
-		token := resolveToken()
+		appID, token, err := requireCredentials()
+		if err != nil {
+			return err
+		}
+
+		client := codepush.NewHTTPClient(defaultAPIURL, token)
+
+		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, rollbackDeployment, "CODEPUSH_DEPLOYMENT")
+		if err != nil {
+			return err
+		}
 
 		opts := &codepush.RollbackOptions{
 			AppID:        appID,
-			DeploymentID: deployment,
+			DeploymentID: deploymentID,
 			Token:        token,
 			TargetLabel:  rollbackTargetRelease,
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, opts.Token)
 		result, err := codepush.Rollback(cmd.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("rollback failed: %w", err)
