@@ -4,6 +4,7 @@ linters:
     - funlen
     - gocognit
     - nestif
+    - revive
 
 linters-settings:
   cyclop:
@@ -15,8 +16,12 @@ linters-settings:
     min-complexity: 20
   nestif:
     min-complexity: 5
+  revive:
+    rules:
+      - name: file-length-limit
+        arguments: [{max: 500}]
 
 issues:
   exclude-rules:
     - path: _test\.go
-      linters: [funlen, gocognit, cyclop, errcheck]
+      linters: [funlen, gocognit, cyclop, errcheck, revive]
