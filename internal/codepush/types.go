@@ -2,6 +2,8 @@ package codepush
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"time"
 )
@@ -30,11 +32,50 @@ type UploadURLRequest struct {
 	Rollout       int
 }
 
+// HeaderMap is a map[string]string that can unmarshal from either a JSON object
+// or a JSON array of {"key": "...", "value": "..."} objects, as returned by
+// the upload-url API endpoint.
+type HeaderMap map[string]string
+
+// UnmarshalJSON handles both object and array-of-objects formats.
+func (h *HeaderMap) UnmarshalJSON(data []byte) error {
+	// Try object format first: {"Content-Type": "application/zip"}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err == nil {
+		*h = m
+		return nil
+	}
+
+	// Try array-of-objects format: [{"key": "k", "value": "v"}] or [{"name": "k", "value": "v"}]
+	var arr []struct {
+		Key   string `json:"key"`
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
+	if err := json.Unmarshal(data, &arr); err != nil {
+		return fmt.Errorf("headers: expected object or array of {key, value}, got %s", string(data))
+	}
+
+	result := make(map[string]string, len(arr))
+	for _, item := range arr {
+		k := item.Key
+		if k == "" {
+			k = item.Name
+		}
+		if k == "" {
+			continue
+		}
+		result[k] = item.Value
+	}
+	*h = result
+	return nil
+}
+
 // UploadURLResponse is returned by the GET upload-url endpoint.
 type UploadURLResponse struct {
-	URL     string            `json:"url"`
-	Method  string            `json:"method"`
-	Headers map[string]string `json:"headers"`
+	URL     string    `json:"url"`
+	Method  string    `json:"method"`
+	Headers HeaderMap `json:"headers"`
 }
 
 // UploadFileRequest holds all parameters needed to upload a file.
