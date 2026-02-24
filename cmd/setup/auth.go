@@ -1,20 +1,21 @@
-package main
+package setup
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
 )
 
-// Auth flags.
 var authLoginToken string
 
 var authCmd = &cobra.Command{
-	Use:   "auth",
-	Short: "Manage authentication",
-	Long:  `Manage the Bitrise API token used for CodePush operations.`,
+	Use:     "auth",
+	Short:   "Manage authentication",
+	Long:    `Manage the Bitrise API token used for CodePush operations.`,
+	GroupID: cmd.GroupSetup,
 }
 
 var authLoginCmd = &cobra.Command{
@@ -28,7 +29,8 @@ by commands that require authentication (push, rollback).
 Generate a personal access token at: ` + auth.TokenGenerationURL + `
 
 Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
 		token := authLoginToken
 		if token == "" {
 			if !out.IsInteractive() {
@@ -87,7 +89,9 @@ var authRevokeCmd = &cobra.Command{
 
 After revoking, commands that require authentication will need
 a --token flag or BITRISE_API_TOKEN environment variable.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
 		if err := auth.RemoveToken(); err != nil {
 			return fmt.Errorf("removing token: %w", err)
 		}
@@ -97,6 +101,8 @@ a --token flag or BITRISE_API_TOKEN environment variable.`,
 	},
 }
 
-func registerAuthFlags() {
+func init() {
 	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
+	authCmd.AddCommand(authLoginCmd, authRevokeCmd)
+	cmd.RootCmd.AddCommand(authCmd)
 }

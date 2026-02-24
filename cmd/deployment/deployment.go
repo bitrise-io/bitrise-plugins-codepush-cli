@@ -1,45 +1,49 @@
-package main
+package deployment
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
-// Deployment command flags
 var (
-	deploymentRenameName string
-	deploymentRemoveYes  bool
-	deploymentHistoryMax int
-	deploymentClearYes   bool
+	renameName string
+	removeYes  bool
+	historyMax int
+	clearYes   bool
 )
 
 var deploymentCmd = &cobra.Command{
-	Use:   "deployment",
-	Short: "Manage deployments",
-	Long:  `Create, list, inspect, rename, and delete CodePush deployments.`,
+	Use:     "deployment",
+	Short:   "Manage deployments",
+	Long:    `Create, list, inspect, rename, and delete CodePush deployments.`,
+	GroupID: cmd.GroupDeployment,
 }
 
-var deploymentListCmd = &cobra.Command{
+var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List all deployments",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
-		deployments, err := client.ListDeployments(cmd.Context(), appID)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		deployments, err := client.ListDeployments(c.Context(), appID)
 		if err != nil {
 			return fmt.Errorf("listing deployments: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(deployments)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(deployments)
 		}
 
 		if len(deployments) == 0 {
@@ -57,12 +61,14 @@ var deploymentListCmd = &cobra.Command{
 	},
 }
 
-var deploymentAddCmd = &cobra.Command{
+var addCmd = &cobra.Command{
 	Use:   "add [name]",
 	Short: "Create a new deployment",
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
@@ -71,19 +77,19 @@ var deploymentAddCmd = &cobra.Command{
 		if len(args) > 0 {
 			name = args[0]
 		}
-		name, err = resolveInputInteractive(name, "Enter deployment name", "e.g. Staging, Production")
+		name, err = cmdutil.ResolveInputInteractive(name, "Enter deployment name", "e.g. Staging, Production", out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
-		dep, err := client.CreateDeployment(cmd.Context(), appID, codepush.CreateDeploymentRequest{Name: name})
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(dep)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(dep)
 		}
 
 		out.Success("Deployment %q created (ID: %s)", dep.Name, dep.ID)
@@ -91,39 +97,41 @@ var deploymentAddCmd = &cobra.Command{
 	},
 }
 
-var deploymentInfoCmd = &cobra.Command{
+var infoCmd = &cobra.Command{
 	Use:   "info [deployment]",
 	Short: "Show deployment details",
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		dep, err := client.GetDeployment(cmd.Context(), appID, deploymentID)
+		dep, err := client.GetDeployment(c.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("getting deployment: %w", err)
 		}
 
-		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
+		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
 
-		if globalJSON {
+		if cmd.JSONOutput {
 			info := struct {
 				codepush.Deployment
 				LatestPackage *codepush.Package `json:"latest_package,omitempty"`
@@ -131,7 +139,7 @@ var deploymentInfoCmd = &cobra.Command{
 			if len(packages) > 0 {
 				info.LatestPackage = &packages[len(packages)-1]
 			}
-			return outputJSON(info)
+			return cmdutil.OutputJSON(info)
 		}
 
 		out.Step("Deployment: %s", dep.Name)
@@ -163,40 +171,42 @@ var deploymentInfoCmd = &cobra.Command{
 	},
 }
 
-var deploymentRenameCmd = &cobra.Command{
+var renameCmd = &cobra.Command{
 	Use:   "rename [deployment]",
 	Short: "Rename a deployment",
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		newName, err := resolveInputInteractive(deploymentRenameName, "Enter new deployment name", "e.g. Staging, Production")
+		newName, err := cmdutil.ResolveInputInteractive(renameName, "Enter new deployment name", "e.g. Staging, Production", out)
 		if err != nil {
 			return err
 		}
 
-		dep, err := client.RenameDeployment(cmd.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: newName})
+		dep, err := client.RenameDeployment(c.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: newName})
 		if err != nil {
 			return fmt.Errorf("renaming deployment: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(dep)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(dep)
 		}
 
 		out.Success("Deployment renamed to %q", dep.Name)
@@ -204,24 +214,26 @@ var deploymentRenameCmd = &cobra.Command{
 	},
 }
 
-var deploymentRemoveCmd = &cobra.Command{
+var removeCmd = &cobra.Command{
 	Use:   "remove [deployment]",
 	Short: "Delete a deployment",
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
@@ -233,17 +245,17 @@ var deploymentRemoveCmd = &cobra.Command{
 
 		if err := out.ConfirmDestructive(
 			fmt.Sprintf("This will permanently delete deployment %q and all its releases", displayName),
-			deploymentRemoveYes,
+			removeYes,
 		); err != nil {
 			return err
 		}
 
-		if err := client.DeleteDeployment(cmd.Context(), appID, deploymentID); err != nil {
+		if err := client.DeleteDeployment(c.Context(), appID, deploymentID); err != nil {
 			return fmt.Errorf("deleting deployment: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(struct {
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(struct {
 				Deleted string `json:"deleted"`
 			}{Deleted: deploymentID})
 		}
@@ -253,40 +265,41 @@ var deploymentRemoveCmd = &cobra.Command{
 	},
 }
 
-var deploymentHistoryCmd = &cobra.Command{
+var historyCmd = &cobra.Command{
 	Use:   "history [deployment]",
 	Short: "Show release history for a deployment",
 	Args:  cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
+		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
 
-		// Apply limit: show the most recent entries
-		if deploymentHistoryMax > 0 && len(packages) > deploymentHistoryMax {
-			packages = packages[len(packages)-deploymentHistoryMax:]
+		if historyMax > 0 && len(packages) > historyMax {
+			packages = packages[len(packages)-historyMax:]
 		}
 
-		if globalJSON {
-			return outputJSON(packages)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(packages)
 		}
 
 		if len(packages) == 0 {
@@ -300,7 +313,7 @@ var deploymentHistoryCmd = &cobra.Command{
 			rows[i] = []string{
 				p.Label, p.AppVersion, fmt.Sprintf("%v", p.Mandatory),
 				fmt.Sprintf("%.0f%%", p.Rollout), fmt.Sprintf("%v", p.Disabled),
-				truncate(p.Description, 30), p.CreatedAt,
+				cmdutil.Truncate(p.Description, 30), p.CreatedAt,
 			}
 		}
 		out.Table(headers, rows)
@@ -309,7 +322,7 @@ var deploymentHistoryCmd = &cobra.Command{
 	},
 }
 
-var deploymentClearCmd = &cobra.Command{
+var clearCmd = &cobra.Command{
 	Use:   "clear [deployment]",
 	Short: "Delete all packages from a deployment",
 	Long: `Delete all packages (releases) from a deployment.
@@ -317,20 +330,22 @@ var deploymentClearCmd = &cobra.Command{
 This is a destructive operation that removes all release history.
 Requires --yes to confirm.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
@@ -342,12 +357,12 @@ Requires --yes to confirm.`,
 
 		if err := out.ConfirmDestructive(
 			fmt.Sprintf("This will permanently delete all releases from %q", displayName),
-			deploymentClearYes,
+			clearYes,
 		); err != nil {
 			return err
 		}
 
-		packages, err := client.ListPackages(cmd.Context(), appID, deploymentID)
+		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing packages: %w", err)
 		}
@@ -359,14 +374,14 @@ Requires --yes to confirm.`,
 
 		deleted := 0
 		for _, pkg := range packages {
-			if err := client.DeletePackage(cmd.Context(), appID, deploymentID, pkg.ID); err != nil {
+			if err := client.DeletePackage(c.Context(), appID, deploymentID, pkg.ID); err != nil {
 				return fmt.Errorf("deleting package %s: %w", pkg.Label, err)
 			}
 			deleted++
 		}
 
-		if globalJSON {
-			return outputJSON(struct {
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(struct {
 				Deployment string `json:"deployment"`
 				Deleted    int    `json:"deleted"`
 			}{Deployment: deploymentID, Deleted: deleted})
@@ -377,9 +392,14 @@ Requires --yes to confirm.`,
 	},
 }
 
-func registerDeploymentFlags() {
-	deploymentRenameCmd.Flags().StringVar(&deploymentRenameName, "name", "", "new deployment name (required)")
-	deploymentRemoveCmd.Flags().BoolVar(&deploymentRemoveYes, "yes", false, "skip confirmation prompt")
-	deploymentHistoryCmd.Flags().IntVar(&deploymentHistoryMax, "limit", 10, "maximum number of releases to show")
-	deploymentClearCmd.Flags().BoolVar(&deploymentClearYes, "yes", false, "skip confirmation prompt")
+func init() {
+	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupDeployment, Title: "Deployment Management:"})
+
+	renameCmd.Flags().StringVar(&renameName, "name", "", "new deployment name (required)")
+	removeCmd.Flags().BoolVar(&removeYes, "yes", false, "skip confirmation prompt")
+	historyCmd.Flags().IntVar(&historyMax, "limit", 10, "maximum number of releases to show")
+	clearCmd.Flags().BoolVar(&clearYes, "yes", false, "skip confirmation prompt")
+
+	deploymentCmd.AddCommand(listCmd, addCmd, infoCmd, renameCmd, removeCmd, historyCmd, clearCmd)
+	cmd.RootCmd.AddCommand(deploymentCmd)
 }

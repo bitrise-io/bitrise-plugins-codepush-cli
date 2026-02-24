@@ -1,16 +1,17 @@
-package main
+package release
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
-// Promote command flags
 var (
 	promoteSourceDeployment string
 	promoteDestDeployment   string
@@ -32,20 +33,23 @@ destination deployment. Override metadata like rollout percentage, mandatory
 flag, or description for the promoted release.
 
 Example: promote from Staging to Production after testing.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	GroupID: cmd.GroupRelease,
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
-		sourceDeploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, promoteSourceDeployment, "CODEPUSH_DEPLOYMENT")
+		sourceDeploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, promoteSourceDeployment, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		destDeploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, promoteDestDeployment, "")
+		destDeploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, promoteDestDeployment, "", out)
 		if err != nil {
 			return err
 		}
@@ -63,13 +67,13 @@ Example: promote from Staging to Production after testing.`,
 			Rollout:            promoteRollout,
 		}
 
-		result, err := codepush.Promote(cmd.Context(), client, opts, out)
+		result, err := codepush.Promote(c.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("promote failed: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(result)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(result)
 		}
 
 		out.Success("Promote successful")
@@ -81,17 +85,17 @@ Example: promote from Staging to Production after testing.`,
 		})
 
 		if bitrise.IsBitriseEnvironment() {
-			exportEnvVars(map[string]string{
+			cmdutil.ExportEnvVars(map[string]string{
 				"CODEPUSH_PACKAGE_ID":  result.PackageID,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
-			})
+			}, out)
 		}
 
 		return nil
 	},
 }
 
-func registerPromoteFlags() {
+func init() {
 	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	promoteCmd.Flags().StringVar(&promoteDestDeployment, "destination-deployment", "", "destination deployment name or UUID (required)")
 	promoteCmd.Flags().StringVar(&promoteLabel, "label", "", "specific release label to promote (e.g. v5)")
@@ -100,4 +104,5 @@ func registerPromoteFlags() {
 	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
+	cmd.RootCmd.AddCommand(promoteCmd)
 }

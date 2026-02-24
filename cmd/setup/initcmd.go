@@ -1,4 +1,4 @@
-package main
+package setup
 
 import (
 	"fmt"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
 )
 
@@ -18,8 +20,11 @@ var initCmd = &cobra.Command{
 
 This stores the app ID so you don't need to pass --app-id on every command.
 The file is safe to commit to version control.`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, err := resolveAppIDInteractive()
+	GroupID: cmd.GroupSetup,
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, err := cmdutil.ResolveAppIDInteractive(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
@@ -29,6 +34,8 @@ The file is safe to commit to version control.`,
 }
 
 func writeProjectConfig(appID string) error {
+	out := cmd.Out
+
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("determining working directory: %w", err)
@@ -50,8 +57,8 @@ func writeProjectConfig(appID string) error {
 		return err
 	}
 
-	if globalJSON {
-		return outputJSON(cfg)
+	if cmd.JSONOutput {
+		return cmdutil.OutputJSON(cfg)
 	}
 
 	out.Success("Created %s", config.FileName)
@@ -60,6 +67,7 @@ func writeProjectConfig(appID string) error {
 	return nil
 }
 
-func registerInitFlags() {
+func init() {
 	initCmd.Flags().BoolVar(&initForce, "force", false, "overwrite existing config file")
+	cmd.RootCmd.AddCommand(initCmd)
 }
