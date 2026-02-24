@@ -65,8 +65,8 @@ internal/codepush/     Core CodePush logic
 
 ## Adding a Command
 
-1. Define a `cobra.Command` in `cmd/codepush/main.go`
-2. Register with `rootCmd.AddCommand()` in `init()`
+1. Create the command in the appropriate group package (`cmd/release/`, `cmd/deployment/`, `cmd/packagecmd/`, or `cmd/setup/`)
+2. Register with `cmd.RootCmd.AddCommand()` in the file's `init()` function
 3. Implement logic in `internal/` packages
 4. Add tests
 5. Update README.md
@@ -85,7 +85,7 @@ This walks you through the full flow: version bump, PR, tag, and verification.
 
 ### Manual steps
 
-1. Update version in `cmd/codepush/main.go`
+1. Update version in `cmd/codepush/version.go`
 2. Update download URLs in `bitrise-plugin.yml` with the new version
 3. Open a PR, wait for CI to pass, and merge to `main`
 4. Create and push the tag:

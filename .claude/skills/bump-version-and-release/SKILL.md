@@ -7,7 +7,7 @@ allowed-tools: Bash(go *), Bash(git *), Bash(gh *), Bash(golangci-lint *), Read,
 
 # Bump Version and Release
 
-Current version in main.go: !`grep 'version = ' cmd/codepush/main.go | head -1 | sed 's/.*"\(.*\)".*/\1/'`
+Current version in main.go: !`grep 'version = ' cmd/codepush/version.go | head -1 | sed 's/.*"\(.*\)".*/\1/'`
 New version: $ARGUMENTS
 
 ## Instructions
@@ -28,11 +28,11 @@ Follow these steps in order. Stop and report if any step fails.
 
 ### Phase 2: Version bump
 
-1. Update `cmd/codepush/main.go`: change `version = "OLD"` to `version = "NEW"`
+1. Update `cmd/codepush/version.go`: change `version = "OLD"` to `version = "NEW"`
 2. Update `bitrise-plugin.yml`: replace the old version in all three download URLs with the new version
 3. Verify both files have the new version:
    ```bash
-   grep 'version = ' cmd/codepush/main.go
+   grep 'version = ' cmd/codepush/version.go
    grep 'download/' bitrise-plugin.yml
    ```
 4. Run `go build ./cmd/codepush` to verify the build still works
@@ -45,7 +45,7 @@ Follow these steps in order. Stop and report if any step fails.
    ```
 2. Stage and commit:
    ```bash
-   git add cmd/codepush/main.go bitrise-plugin.yml
+   git add cmd/codepush/version.go bitrise-plugin.yml
    git commit -m "chore: bump version to $ARGUMENTS"
    ```
 3. Push and create PR:
