@@ -66,11 +66,11 @@ workflows:
             #!/bin/bash
             set -euo pipefail
 
-            CODE_VERSION=$(grep 'version = ' cmd/codepush/main.go | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            CODE_VERSION=$(grep 'version = ' cmd/codepush/version.go | head -1 | sed 's/.*"\(.*\)".*/\1/')
             PLUGIN_VERSION=$(grep -oP 'download/\K[^/]+' bitrise-plugin.yml | head -1)
 
             if [ -z "$CODE_VERSION" ]; then
-                echo "FAIL: could not parse version from cmd/codepush/main.go"
+                echo "FAIL: could not parse version from cmd/codepush/version.go"
                 exit 1
             fi
 
@@ -81,8 +81,8 @@ workflows:
 
             if [ "$CODE_VERSION" != "$PLUGIN_VERSION" ]; then
                 echo "FAIL: version mismatch"
-                echo "  cmd/codepush/main.go: $CODE_VERSION"
-                echo "  bitrise-plugin.yml:   $PLUGIN_VERSION"
+                echo "  cmd/codepush/version.go: $CODE_VERSION"
+                echo "  bitrise-plugin.yml:      $PLUGIN_VERSION"
                 exit 1
             fi
 

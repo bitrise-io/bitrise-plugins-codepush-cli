@@ -1,63 +1,67 @@
-package main
+package packagecmd
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
-// Package command flags
 var (
 	packageLabel     string
 	packageRemoveYes bool
 )
 
 var packageCmd = &cobra.Command{
-	Use:   "package",
-	Short: "Inspect packages (releases)",
-	Long:  `View details and processing status of CodePush packages.`,
+	Use:     "package",
+	Short:   "Inspect packages (releases)",
+	Long:    `View details and processing status of CodePush packages.`,
+	GroupID: cmd.GroupPackage,
 }
 
-var packageInfoCmd = &cobra.Command{
+var infoCmd = &cobra.Command{
 	Use:   "info [deployment]",
 	Short: "Show package details",
 	Long: `Show details for a specific package in a deployment.
 
 By default shows the latest package. Use --label to specify a version.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
+		packageID, _, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		pkg, err := client.GetPackage(cmd.Context(), appID, deploymentID, packageID)
+		pkg, err := client.GetPackage(c.Context(), appID, deploymentID, packageID)
 		if err != nil {
 			return fmt.Errorf("getting package: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(pkg)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(pkg)
 		}
 
 		out.Step("Package: %s", pkg.Label)
@@ -71,7 +75,7 @@ By default shows the latest package. Use --label to specify a version.`,
 		if pkg.Description != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Description", Value: pkg.Description})
 		}
-		pairs = append(pairs, output.KeyValue{Key: "Size", Value: formatBytes(pkg.FileSizeBytes)})
+		pairs = append(pairs, output.KeyValue{Key: "Size", Value: cmdutil.FormatBytes(pkg.FileSizeBytes)})
 		if pkg.Hash != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Hash", Value: pkg.Hash})
 		}
@@ -87,47 +91,49 @@ By default shows the latest package. Use --label to specify a version.`,
 	},
 }
 
-var packageStatusCmd = &cobra.Command{
+var statusCmd = &cobra.Command{
 	Use:   "status [deployment]",
 	Short: "Show package processing status",
 	Long: `Show the processing status of a specific package.
 
 By default shows the latest package. Use --label to specify a version.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		packageID, packageLabel, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
+		packageID, pkgLabel, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		status, err := client.GetPackageStatus(cmd.Context(), appID, deploymentID, packageID)
+		status, err := client.GetPackageStatus(c.Context(), appID, deploymentID, packageID)
 		if err != nil {
 			return fmt.Errorf("getting package status: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(status)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(status)
 		}
 
 		pairs := []output.KeyValue{
-			{Key: "Package", Value: packageLabel},
+			{Key: "Package", Value: pkgLabel},
 			{Key: "Status", Value: status.Status},
 		}
 		if status.StatusReason != "" {
@@ -139,15 +145,17 @@ By default shows the latest package. Use --label to specify a version.`,
 	},
 }
 
-var packageRemoveCmd = &cobra.Command{
+var removeCmd = &cobra.Command{
 	Use:   "remove [deployment]",
 	Short: "Delete a package from a deployment",
 	Long: `Delete a specific package from a deployment.
 
 Requires --label to identify the package and --yes to confirm deletion.`,
 	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		appID, token, err := requireCredentials()
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
@@ -162,29 +170,29 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
 		var argValue string
 		if len(args) > 0 {
 			argValue = args[0]
 		}
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, argValue, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(cmd.Context(), client, appID, deploymentID, packageLabel, out)
+		packageID, _, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
 		if err != nil {
 			return err
 		}
 
-		if err := client.DeletePackage(cmd.Context(), appID, deploymentID, packageID); err != nil {
+		if err := client.DeletePackage(c.Context(), appID, deploymentID, packageID); err != nil {
 			return fmt.Errorf("deleting package: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(struct {
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(struct {
 				Deleted string `json:"deleted"`
 				Label   string `json:"label"`
 			}{Deleted: packageID, Label: packageLabel})
@@ -195,9 +203,14 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 	},
 }
 
-func registerPackageFlags() {
-	packageInfoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	packageStatusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	packageRemoveCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
-	packageRemoveCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
+func init() {
+	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupPackage, Title: "Package Management:"})
+
+	infoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	statusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
+	removeCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
+	removeCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
+
+	packageCmd.AddCommand(infoCmd, statusCmd, removeCmd)
+	cmd.RootCmd.AddCommand(packageCmd)
 }

@@ -1,4 +1,4 @@
-package main
+package release
 
 import (
 	"fmt"
@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
-// Push command flags
 var (
 	pushAutoBundle  bool
 	pushDeployment  string
@@ -32,16 +32,19 @@ Packages the specified bundle and deploys it to the CodePush server
 for distribution to connected devices.
 
 Use --bundle to automatically generate the JavaScript bundle before pushing.`,
-	Args: cobra.MaximumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	GroupID: cmd.GroupRelease,
+	Args:    cobra.MaximumNArgs(1),
+	RunE: func(c *cobra.Command, args []string) error {
+		out := cmd.Out
+
 		if pushAutoBundle {
-			platform, err := resolvePlatformInteractive(bundlePlatform)
+			platform, err := cmdutil.ResolvePlatformInteractive(bundlePlatform, out)
 			if err != nil {
 				return err
 			}
 			bundlePlatform = platform
 
-			result, err := runBundleWithOpts()
+			result, err := runBundleWithOpts(out)
 			if err != nil {
 				return fmt.Errorf("bundling failed: %w", err)
 			}
@@ -59,19 +62,19 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
 
-		appID, token, err := requireCredentials()
+		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
 		if err != nil {
 			return err
 		}
 
-		client := codepush.NewHTTPClient(defaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
 
-		deploymentID, err := resolveDeploymentInteractive(cmd.Context(), client, appID, pushDeployment, "CODEPUSH_DEPLOYMENT")
+		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, pushDeployment, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
 			return err
 		}
 
-		appVersion, err := resolveInputInteractive(pushAppVersion, "App version", "1.0.0")
+		appVersion, err := cmdutil.ResolveInputInteractive(pushAppVersion, "App version", "1.0.0", out)
 		if err != nil {
 			return err
 		}
@@ -88,13 +91,13 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			BundlePath:   bundlePath,
 		}
 
-		result, err := codepush.Push(cmd.Context(), client, opts, out)
+		result, err := codepush.Push(c.Context(), client, opts, out)
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
 		}
 
-		if globalJSON {
-			return outputJSON(result)
+		if cmd.JSONOutput {
+			return cmdutil.OutputJSON(result)
 		}
 
 		out.Success("Push successful")
@@ -105,28 +108,25 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		})
 
 		if bitrise.IsBitriseEnvironment() {
-			exportDeploySummary("codepush-push-summary.json", result)
-			exportEnvVars(map[string]string{
+			cmdutil.ExportDeploySummary("codepush-push-summary.json", result, out)
+			cmdutil.ExportEnvVars(map[string]string{
 				"CODEPUSH_PACKAGE_ID":  result.PackageID,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
-			})
+			}, out)
 		}
 
 		return nil
 	},
 }
 
-func registerPushFlags() {
+func init() {
 	pushCmd.Flags().BoolVar(&pushAutoBundle, "bundle", false, "bundle JavaScript before pushing")
-	pushCmd.Flags().StringVar(&bundlePlatform, "platform", "", "target platform for bundling: ios or android")
-	pushCmd.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
-	pushCmd.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
-	pushCmd.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
+	registerPushBundleFlagsOn(pushCmd)
 	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
 	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
 	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
-	pushCmd.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
+	cmd.RootCmd.AddCommand(pushCmd)
 }

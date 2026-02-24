@@ -25,10 +25,19 @@ CodePush CLI is a **Bitrise CLI plugin** and standalone CLI tool for managing ov
 
 ```
 bitrise-plugins-codepush-cli/
-├── cmd/codepush/            # CLI entry point (main.go)
+├── cmd/
+│   ├── root.go              # package cmd: RootCmd, Out, global flags, GroupID type
+│   ├── codepush/
+│   │   ├── main.go          # package main: minimal entry point, side-effect imports
+│   │   └── version.go       # version command (ldflags vars stay in package main)
+│   ├── release/             # Release Management group (push, rollback, bundle, promote, patch)
+│   ├── deployment/          # Deployment Management group (parent + subcommands)
+│   ├── packagecmd/          # Package Management group (parent + subcommands)
+│   └── setup/               # Setup group (auth, init, integrate)
 ├── internal/
 │   ├── bitrise/             # Bitrise CI integration (env detection, deploy export)
 │   ├── bundler/             # JS bundle generation (detect, bundle, Hermes)
+│   ├── cmdutil/             # Shared CLI helpers (resolve, format, export)
 │   ├── codepush/            # Core CodePush logic
 │   └── output/              # Styled terminal output (lipgloss, huh)
 ├── bitrise.yml              # CI pipeline (build, test, coverage, vet)
@@ -39,7 +48,10 @@ bitrise-plugins-codepush-cli/
 
 ### Key Files
 
-- **cmd/codepush/main.go**: CLI entry point, Cobra commands, flag parsing
+- **cmd/root.go**: Importable root command (`package cmd`), global flags, group ID constants
+- **cmd/codepush/main.go**: Minimal entry point with side-effect imports for all command packages
+- **cmd/codepush/version.go**: Version command with ldflags variables (`version`, `commit`, `date`)
+- **internal/cmdutil/**: Shared CLI helpers (credential resolution, JSON output, Bitrise export)
 - **internal/output/output.go**: Styled terminal output (Writer type, Step, Success, Error, etc.)
 - **internal/bitrise/env.go**: Bitrise environment detection, build metadata, deploy directory export
 - **internal/codepush/codepush.go**: Core CodePush business logic
@@ -199,7 +211,7 @@ All human-readable CLI output uses `internal/output.Writer` (Charmbracelet lipgl
 
 ### Patterns
 
-**Threading the Writer**: Pass `out *output.Writer` as a parameter to internal package functions. Do not use globals in `internal/` packages.
+**Threading the Writer**: In command packages (`cmd/release/`, etc.), access the shared writer via `cmd.Out`. Pass `out *output.Writer` as a parameter to `internal/` package functions. Do not use globals in `internal/` packages.
 
 ```go
 func Push(client Client, opts *PushOptions, out *output.Writer) (*PushResult, error) {
@@ -245,7 +257,7 @@ out.Result([]output.KeyValue{
 
 - Use `output.NewTest(io.Discard)` for suppressed output in tests
 - Use `output.NewTest(&buf)` when asserting on output content
-- In `cmd/codepush/main_test.go`: `TestMain` sets `out = output.NewTest(io.Discard)`
+- In command packages (`cmd/release/`, `cmd/setup/`, etc.): `TestMain` sets `cmd.Out = output.NewTest(io.Discard)`
 - In internal packages: pass `output.NewTest(io.Discard)` as the `out` parameter
 
 ## Bitrise Integration
@@ -287,7 +299,7 @@ This walks you through the full flow: version bump, PR creation, tagging, and ve
 
 ### Manual steps
 
-1. Update version in `cmd/codepush/main.go`
+1. Update version in `cmd/codepush/version.go`
 2. Update `bitrise-plugin.yml` executable URLs with new version
 3. Open a PR, wait for CI to pass, and merge to `main`
 4. Create and push the tag:
@@ -322,21 +334,53 @@ go build -o codepush ./cmd/codepush
 ```
 
 ### Adding a New Command
-1. Add `cobra.Command` in `cmd/codepush/main.go`
-2. Register with `rootCmd.AddCommand()` in `init()`
-3. Implement logic in `internal/` packages
-4. Add tests
-5. Update README.md
+
+Commands are organized into self-registering packages grouped by help-output category. Each package registers its commands via `init()` using side-effect imports.
+
+1. Create the command in the appropriate group package (`cmd/release/`, `cmd/deployment/`, `cmd/packagecmd/`, or `cmd/setup/`)
+2. Define the `cobra.Command` with `GroupID` set to the matching `cmd.Group*` constant
+3. Register flags and call `cmd.RootCmd.AddCommand()` in the file's `init()` function
+4. Use `cmd.Out` for output, `cmd.AppID`/`cmd.JSONOutput` for global flags, and `cmdutil.*` for shared helpers
+5. Implement business logic in `internal/` packages
+6. Add tests in the same package (use `cmd.Out = output.NewTest(io.Discard)` in `TestMain`)
+7. Update README.md
+
+Example pattern:
+```go
+// cmd/release/newcmd.go
+package release
+
+import (
+    "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
+)
+
+var newCmd = &cobra.Command{
+    Use:     "newcmd",
+    Short:   "...",
+    GroupID: cmd.GroupRelease,
+    RunE: func(c *cobra.Command, args []string) error {
+        out := cmd.Out
+        // ...
+    },
+}
+
+func init() {
+    newCmd.Flags().StringVar(&someFlag, "flag", "", "description")
+    cmd.RootCmd.AddCommand(newCmd)
+}
+```
+
+If adding a new command group, define the group ID constant in `cmd/root.go`, create a new package under `cmd/`, register the group with `cmd.RootCmd.AddGroup()` in the package's `init()`, and add a side-effect import in `cmd/codepush/main.go`.
 
 ### Adding a New Flag
-1. Add flag variable at package level in `main.go`
-2. Register with `cmd.Flags()` in `init()`
+1. Add flag variable at package level in the command's file
+2. Register with `cmd.Flags()` in the file's `init()` function
 3. Use in the command's `RunE` function
 4. Update README.md
 
 ## Common Pitfalls
 
-1. **Version sync**: When releasing, update BOTH `cmd/codepush/main.go` version AND `bitrise-plugin.yml` URLs. Missing either causes failures.
+1. **Version sync**: When releasing, update BOTH `cmd/codepush/version.go` version AND `bitrise-plugin.yml` URLs. Missing either causes failures.
 2. **Binary naming**: GoReleaser binary names must match `bitrise-plugin.yml` executable URLs exactly (`codepush-Darwin-arm64`, etc.).
 3. **CGO_ENABLED=0**: Required for cross-compilation. If you add C dependencies, the goreleaser config needs updating.
 4. **Stderr vs stdout**: Use `output.Writer` for all human output (goes to stderr). JSON (`--json`) goes to stdout. Never mix them.
@@ -345,11 +389,11 @@ go build -o codepush ./cmd/codepush
 ## Questions to Ask When Modifying
 
 1. **Does this affect Bitrise integration?** Check `internal/bitrise/`
-2. **Does this add a new command?** Update `main.go`, README.md
-3. **Does this add a new flag?** Update `main.go`, README.md
+2. **Does this add a new command?** Add to the appropriate `cmd/` group package, update README.md
+3. **Does this add a new flag?** Add in the command's file `init()`, update README.md
 4. **Does this need tests?** Yes, always add tests
 5. **Does this need documentation?** Update README.md and/or CONTRIBUTING.md
-6. **Does this affect the release?** Check `.goreleaser.yml` and `bitrise-plugin.yml`
+6. **Does this affect the release?** Check `.goreleaser.yml`, `bitrise-plugin.yml`, and `cmd/codepush/version.go`
 
 ## README Maintenance
 
