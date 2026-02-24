@@ -3,8 +3,10 @@ package main
 import (
 	"io"
 	"os"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
@@ -51,10 +53,7 @@ func TestResolveFlag(t *testing.T) {
 			if tt.envValue != "" {
 				t.Setenv(tt.envKey, tt.envValue)
 			}
-			got := resolveFlag(tt.flagValue, tt.envKey)
-			if got != tt.want {
-				t.Errorf("resolveFlag(%q, %q) = %q, want %q", tt.flagValue, tt.envKey, got, tt.want)
-			}
+			assert.Equal(t, tt.want, resolveFlag(tt.flagValue, tt.envKey))
 		})
 	}
 }
@@ -62,35 +61,24 @@ func TestResolveFlag(t *testing.T) {
 func TestResolveToken(t *testing.T) {
 	t.Run("env var takes priority", func(t *testing.T) {
 		t.Setenv("BITRISE_API_TOKEN", "env-token")
-		got := resolveToken()
-		if got != "env-token" {
-			t.Errorf("got %q, want %q", got, "env-token")
-		}
+		assert.Equal(t, "env-token", resolveToken())
 	})
 
 	t.Run("returns empty when nothing set", func(t *testing.T) {
 		t.Setenv("BITRISE_API_TOKEN", "")
-		got := resolveToken()
 		// May return empty or stored token; just verify no panic
-		_ = got
+		_ = resolveToken()
 	})
 }
 
 func TestVersionCommand(t *testing.T) {
-	cmd := versionCmd
-	if cmd.Use != "version" {
-		t.Errorf("Use: got %q, want %q", cmd.Use, "version")
-	}
+	assert.Equal(t, "version", versionCmd.Use)
 }
 
 func TestIntegrateReturnsError(t *testing.T) {
 	err := integrateCmd.RunE(integrateCmd, nil)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "not yet implemented") {
-		t.Errorf("error should mention not implemented: %v", err)
-	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "not yet implemented")
 }
 
 func TestCommandRegistration(t *testing.T) {
@@ -103,9 +91,7 @@ func TestCommandRegistration(t *testing.T) {
 	}
 
 	for _, name := range wantNames {
-		if !found[name] {
-			t.Errorf("command %q not registered on root command", name)
-		}
+		assert.True(t, found[name], "command %q not registered on root command", name)
 	}
 }
 
@@ -116,12 +102,8 @@ func TestAuthSubcommands(t *testing.T) {
 		found[cmd.Name()] = true
 	}
 
-	if !found["login"] {
-		t.Error("auth login subcommand not registered")
-	}
-	if !found["revoke"] {
-		t.Error("auth revoke subcommand not registered")
-	}
+	assert.True(t, found["login"], "auth login subcommand not registered")
+	assert.True(t, found["revoke"], "auth revoke subcommand not registered")
 }
 
 func TestPushCommandRequiresBundlePath(t *testing.T) {
@@ -131,12 +113,8 @@ func TestPushCommandRequiresBundlePath(t *testing.T) {
 	defer func() { pushAutoBundle = old }()
 
 	err := pushCmd.RunE(pushCmd, []string{})
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "bundle path is required") {
-		t.Errorf("error should mention bundle path: %v", err)
-	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "bundle path is required")
 }
 
 func TestRunBundleValidation(t *testing.T) {
@@ -146,12 +124,8 @@ func TestRunBundleValidation(t *testing.T) {
 		defer func() { bundlePlatform = old }()
 
 		err := runBundle()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "platform") {
-			t.Errorf("error should mention platform: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "platform")
 	})
 
 	t.Run("invalid hermes mode", func(t *testing.T) {
@@ -165,12 +139,8 @@ func TestRunBundleValidation(t *testing.T) {
 		}()
 
 		err := runBundle()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "hermes") {
-			t.Errorf("error should mention hermes: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "hermes")
 	})
 }
 
@@ -187,8 +157,10 @@ func TestValidatePlatform(t *testing.T) {
 
 	for _, tt := range tests {
 		err := bundler.ValidatePlatform(tt.platform)
-		if (err != nil) != tt.wantErr {
-			t.Errorf("ValidatePlatform(%q): err=%v, wantErr=%v", tt.platform, err, tt.wantErr)
+		if tt.wantErr {
+			assert.Error(t, err, "ValidatePlatform(%q)", tt.platform)
+		} else {
+			assert.NoError(t, err, "ValidatePlatform(%q)", tt.platform)
 		}
 	}
 }
@@ -207,8 +179,10 @@ func TestValidateHermesMode(t *testing.T) {
 
 	for _, tt := range tests {
 		err := bundler.ValidateHermesMode(tt.mode)
-		if (err != nil) != tt.wantErr {
-			t.Errorf("ValidateHermesMode(%q): err=%v, wantErr=%v", tt.mode, err, tt.wantErr)
+		if tt.wantErr {
+			assert.Error(t, err, "ValidateHermesMode(%q)", tt.mode)
+		} else {
+			assert.NoError(t, err, "ValidateHermesMode(%q)", tt.mode)
 		}
 	}
 }

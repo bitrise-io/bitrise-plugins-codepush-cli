@@ -3,8 +3,10 @@ package output
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStep(t *testing.T) {
@@ -12,10 +14,7 @@ func TestStep(t *testing.T) {
 	w := NewTest(&buf)
 	w.Step("Resolving deployment %q", "Staging")
 
-	got := buf.String()
-	if !strings.Contains(got, "-> Resolving deployment \"Staging\"") {
-		t.Errorf("Step output = %q, want substring %q", got, "-> Resolving deployment \"Staging\"")
-	}
+	assert.Contains(t, buf.String(), `-> Resolving deployment "Staging"`)
 }
 
 func TestSuccess(t *testing.T) {
@@ -23,10 +22,7 @@ func TestSuccess(t *testing.T) {
 	w := NewTest(&buf)
 	w.Success("Push successful")
 
-	got := buf.String()
-	if !strings.Contains(got, "OK Push successful") {
-		t.Errorf("Success output = %q, want substring %q", got, "OK Push successful")
-	}
+	assert.Contains(t, buf.String(), "OK Push successful")
 }
 
 func TestError(t *testing.T) {
@@ -34,10 +30,7 @@ func TestError(t *testing.T) {
 	w := NewTest(&buf)
 	w.Error("push failed: %v", "timeout")
 
-	got := buf.String()
-	if !strings.Contains(got, "ERROR push failed: timeout") {
-		t.Errorf("Error output = %q, want substring %q", got, "ERROR push failed: timeout")
-	}
+	assert.Contains(t, buf.String(), "ERROR push failed: timeout")
 }
 
 func TestWarning(t *testing.T) {
@@ -45,10 +38,7 @@ func TestWarning(t *testing.T) {
 	w := NewTest(&buf)
 	w.Warning("could not load token: %v", "file not found")
 
-	got := buf.String()
-	if !strings.Contains(got, "WARNING could not load token: file not found") {
-		t.Errorf("Warning output = %q, want substring %q", got, "WARNING could not load token: file not found")
-	}
+	assert.Contains(t, buf.String(), "WARNING could not load token: file not found")
 }
 
 func TestInfo(t *testing.T) {
@@ -57,13 +47,9 @@ func TestInfo(t *testing.T) {
 	w.Info("Resolved to abc-123")
 
 	got := buf.String()
-	if !strings.Contains(got, "Resolved to abc-123") {
-		t.Errorf("Info output = %q, want substring %q", got, "Resolved to abc-123")
-	}
+	assert.Contains(t, got, "Resolved to abc-123")
 	// Info should be indented
-	if !strings.HasPrefix(got, "   ") {
-		t.Errorf("Info output should be indented, got %q", got)
-	}
+	assert.True(t, len(got) >= 3 && got[:3] == "   ", "Info output should be indented, got %q", got)
 }
 
 func TestResult(t *testing.T) {
@@ -76,12 +62,10 @@ func TestResult(t *testing.T) {
 	})
 
 	got := buf.String()
-	if !strings.Contains(got, "Package ID") || !strings.Contains(got, "abc-123") {
-		t.Errorf("Result should contain key and value, got %q", got)
-	}
-	if !strings.Contains(got, "Status") || !strings.Contains(got, "done") {
-		t.Errorf("Result should contain all pairs, got %q", got)
-	}
+	assert.Contains(t, got, "Package ID")
+	assert.Contains(t, got, "abc-123")
+	assert.Contains(t, got, "Status")
+	assert.Contains(t, got, "done")
 }
 
 func TestResultEmpty(t *testing.T) {
@@ -89,9 +73,7 @@ func TestResultEmpty(t *testing.T) {
 	w := NewTest(&buf)
 	w.Result(nil)
 
-	if buf.Len() != 0 {
-		t.Errorf("Result with nil pairs should produce no output, got %q", buf.String())
-	}
+	assert.Empty(t, buf.String())
 }
 
 func TestTable(t *testing.T) {
@@ -106,9 +88,8 @@ func TestTable(t *testing.T) {
 	)
 
 	got := buf.String()
-	if !strings.Contains(got, "LABEL") || !strings.Contains(got, "v1") {
-		t.Errorf("Table output = %q, want headers and rows", got)
-	}
+	assert.Contains(t, got, "LABEL")
+	assert.Contains(t, got, "v1")
 }
 
 func TestPrintln(t *testing.T) {
@@ -116,10 +97,7 @@ func TestPrintln(t *testing.T) {
 	w := NewTest(&buf)
 	w.Println("CodePush CLI %s", "1.0.0")
 
-	got := buf.String()
-	if got != "CodePush CLI 1.0.0\n" {
-		t.Errorf("Println output = %q, want %q", got, "CodePush CLI 1.0.0\n")
-	}
+	assert.Equal(t, "CodePush CLI 1.0.0\n", buf.String())
 }
 
 func TestSpinnerNonInteractive(t *testing.T) {
@@ -132,45 +110,29 @@ func TestSpinnerNonInteractive(t *testing.T) {
 		return nil
 	})
 
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if !called {
-		t.Error("action was not called")
-	}
-
-	got := buf.String()
-	if !strings.Contains(got, "Processing") {
-		t.Errorf("Spinner output = %q, want substring %q", got, "Processing")
-	}
+	require.NoError(t, err)
+	assert.True(t, called)
+	assert.Contains(t, buf.String(), "Processing")
 }
 
 func TestConfirmDestructiveWithYesFlag(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewTest(&buf)
 	err := w.ConfirmDestructive("This will delete everything", true)
-	if err != nil {
-		t.Fatalf("unexpected error with yesFlag=true: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestConfirmDestructiveNonInteractiveNoYes(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewTest(&buf)
 	err := w.ConfirmDestructive("This will delete everything", false)
-	if err == nil {
-		t.Fatal("expected error for non-interactive without --yes, got nil")
-	}
-	if !strings.Contains(err.Error(), "--yes") {
-		t.Errorf("error should hint --yes, got: %v", err)
-	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "--yes")
 }
 
 func TestIsInteractive(t *testing.T) {
 	w := NewTest(&bytes.Buffer{})
-	if w.IsInteractive() {
-		t.Error("NewTest writer should not be interactive")
-	}
+	assert.False(t, w.IsInteractive())
 }
 
 func TestSpinnerNonInteractiveError(t *testing.T) {
@@ -182,50 +144,32 @@ func TestSpinnerNonInteractiveError(t *testing.T) {
 		return fmt.Errorf("%s", wantErr)
 	})
 
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if err.Error() != wantErr {
-		t.Errorf("error = %q, want %q", err.Error(), wantErr)
-	}
-
-	got := buf.String()
-	if !strings.Contains(got, "Uploading") {
-		t.Errorf("Spinner should print step before action, got %q", got)
-	}
+	require.Error(t, err)
+	assert.Equal(t, wantErr, err.Error())
+	assert.Contains(t, buf.String(), "Uploading")
 }
 
 func TestConfirmDestructiveNonInteractiveIncludesMessage(t *testing.T) {
 	w := NewTest(&bytes.Buffer{})
 	err := w.ConfirmDestructive("delete deployment Staging", false)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "delete deployment Staging") {
-		t.Errorf("error should include the message, got: %v", err)
-	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "delete deployment Staging")
 }
 
 func TestNewWriter(t *testing.T) {
 	// NewWriter with a non-terminal writer should produce a non-interactive writer
 	var buf bytes.Buffer
 	w := NewWriter(&buf)
-	if w.IsInteractive() {
-		t.Error("NewWriter with bytes.Buffer should not be interactive")
-	}
+	assert.False(t, w.IsInteractive())
 
 	// Verify it can write output
 	w.Step("test step")
-	if !strings.Contains(buf.String(), "test step") {
-		t.Errorf("output should contain step text, got %q", buf.String())
-	}
+	assert.Contains(t, buf.String(), "test step")
 }
 
 func TestNew(t *testing.T) {
 	w := New()
-	if w == nil {
-		t.Fatal("New() returned nil")
-	}
+	require.NotNil(t, w)
 	// New() targets stderr; just verify it returns a usable writer
 	w.Step("smoke test")
 }

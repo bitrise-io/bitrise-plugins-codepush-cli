@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPatch(t *testing.T) {
@@ -43,22 +45,12 @@ func TestPatch(t *testing.T) {
 		}
 
 		result, err := Patch(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedPackageID != "pkg-2" {
-			t.Errorf("package_id: got %q, want %q", capturedPackageID, "pkg-2")
-		}
-		if result.Label != "v2" {
-			t.Errorf("label: got %q", result.Label)
-		}
-		if *capturedReq.Rollout != 50 {
-			t.Errorf("rollout: got %d", *capturedReq.Rollout)
-		}
-		if *capturedReq.Mandatory != true {
-			t.Error("mandatory should be true")
-		}
+		assert.Equal(t, "pkg-2", capturedPackageID)
+		assert.Equal(t, "v2", result.Label)
+		assert.Equal(t, 50, *capturedReq.Rollout)
+		assert.Equal(t, true, *capturedReq.Mandatory)
 	})
 
 	t.Run("successful patch defaults to latest", func(t *testing.T) {
@@ -90,16 +82,10 @@ func TestPatch(t *testing.T) {
 		}
 
 		result, err := Patch(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedPackageID != "pkg-3" {
-			t.Errorf("should patch latest package: got %q, want %q", capturedPackageID, "pkg-3")
-		}
-		if result.Label != "v3" {
-			t.Errorf("label: got %q", result.Label)
-		}
+		assert.Equal(t, "pkg-3", capturedPackageID)
+		assert.Equal(t, "v3", result.Label)
 	})
 
 	t.Run("patch with all fields", func(t *testing.T) {
@@ -134,28 +120,14 @@ func TestPatch(t *testing.T) {
 		}
 
 		result, err := Patch(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if *capturedReq.Rollout != 75 {
-			t.Errorf("rollout: got %d", *capturedReq.Rollout)
-		}
-		if *capturedReq.Mandatory != true {
-			t.Error("mandatory should be true")
-		}
-		if *capturedReq.Disabled != false {
-			t.Error("disabled should be false")
-		}
-		if *capturedReq.Description != "hotfix" {
-			t.Errorf("description: got %q", *capturedReq.Description)
-		}
-		if *capturedReq.AppVersion != "3.0.0" {
-			t.Errorf("app_version: got %q", *capturedReq.AppVersion)
-		}
-		if result.Description != "hotfix" {
-			t.Errorf("result description: got %q", result.Description)
-		}
+		assert.Equal(t, 75, *capturedReq.Rollout)
+		assert.Equal(t, true, *capturedReq.Mandatory)
+		assert.Equal(t, false, *capturedReq.Disabled)
+		assert.Equal(t, "hotfix", *capturedReq.Description)
+		assert.Equal(t, "3.0.0", *capturedReq.AppVersion)
+		assert.Equal(t, "hotfix", result.Description)
 	})
 
 	t.Run("no releases in deployment", func(t *testing.T) {
@@ -173,12 +145,8 @@ func TestPatch(t *testing.T) {
 		}
 
 		_, err := Patch(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "no releases found") {
-			t.Errorf("error should mention no releases: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "no releases found")
 	})
 
 	t.Run("label not found", func(t *testing.T) {
@@ -197,12 +165,8 @@ func TestPatch(t *testing.T) {
 		}
 
 		_, err := Patch(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "v99") {
-			t.Errorf("error should mention label: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "v99")
 	})
 
 	t.Run("deployment name resolution", func(t *testing.T) {
@@ -231,13 +195,9 @@ func TestPatch(t *testing.T) {
 		}
 
 		_, err := Patch(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if resolvedDeploymentID != "dep-bbb" {
-			t.Errorf("resolved deployment: got %q, want %q", resolvedDeploymentID, "dep-bbb")
-		}
+		assert.Equal(t, "dep-bbb", resolvedDeploymentID)
 	})
 
 	t.Run("API error", func(t *testing.T) {
@@ -258,12 +218,8 @@ func TestPatch(t *testing.T) {
 		}
 
 		_, err := Patch(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "patch failed") {
-			t.Errorf("error should mention patch failed: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "patch failed")
 	})
 
 	t.Run("bitrise environment exports summary", func(t *testing.T) {
@@ -293,23 +249,15 @@ func TestPatch(t *testing.T) {
 		}
 
 		_, err := Patch(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		summaryPath := filepath.Join(deployDir, "codepush-patch-summary.json")
 		data, err := os.ReadFile(summaryPath)
-		if err != nil {
-			t.Fatalf("reading summary: %v", err)
-		}
+		require.NoError(t, err)
 
 		content := string(data)
-		if !strings.Contains(content, `"label": "v1"`) {
-			t.Errorf("summary should contain label: %s", content)
-		}
-		if !strings.Contains(content, `"rollout": 50`) {
-			t.Errorf("summary should contain rollout: %s", content)
-		}
+		assert.Contains(t, content, `"label": "v1"`)
+		assert.Contains(t, content, `"rollout": 50`)
 	})
 }
 
@@ -344,12 +292,8 @@ func TestValidatePatchOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validatePatchOptions(&tt.opts)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q should contain %q", err.Error(), tt.wantErr)
-			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -368,25 +312,18 @@ func TestBuildPatchRequest(t *testing.T) {
 		}
 
 		req, err := buildPatchRequest(opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if req.Rollout == nil || *req.Rollout != 75 {
-			t.Errorf("rollout: got %v", req.Rollout)
-		}
-		if req.Mandatory == nil || *req.Mandatory != true {
-			t.Errorf("mandatory: got %v", req.Mandatory)
-		}
-		if req.Disabled == nil || *req.Disabled != false {
-			t.Errorf("disabled: got %v", req.Disabled)
-		}
-		if req.Description == nil || *req.Description != "updated" {
-			t.Errorf("description: got %v", req.Description)
-		}
-		if req.AppVersion == nil || *req.AppVersion != "2.0.0" {
-			t.Errorf("app_version: got %v", req.AppVersion)
-		}
+		require.NotNil(t, req.Rollout)
+		assert.Equal(t, 75, *req.Rollout)
+		require.NotNil(t, req.Mandatory)
+		assert.Equal(t, true, *req.Mandatory)
+		require.NotNil(t, req.Disabled)
+		assert.Equal(t, false, *req.Disabled)
+		require.NotNil(t, req.Description)
+		assert.Equal(t, "updated", *req.Description)
+		require.NotNil(t, req.AppVersion)
+		assert.Equal(t, "2.0.0", *req.AppVersion)
 	})
 
 	t.Run("only rollout", func(t *testing.T) {
@@ -398,80 +335,49 @@ func TestBuildPatchRequest(t *testing.T) {
 		}
 
 		req, err := buildPatchRequest(opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if req.Rollout == nil || *req.Rollout != 50 {
-			t.Errorf("rollout: got %v", req.Rollout)
-		}
-		if req.Mandatory != nil {
-			t.Errorf("mandatory should be nil: got %v", req.Mandatory)
-		}
-		if req.Disabled != nil {
-			t.Errorf("disabled should be nil: got %v", req.Disabled)
-		}
-		if req.Description != nil {
-			t.Errorf("description should be nil: got %v", req.Description)
-		}
-		if req.AppVersion != nil {
-			t.Errorf("app_version should be nil: got %v", req.AppVersion)
-		}
+		require.NotNil(t, req.Rollout)
+		assert.Equal(t, 50, *req.Rollout)
+		assert.Nil(t, req.Mandatory)
+		assert.Nil(t, req.Disabled)
+		assert.Nil(t, req.Description)
+		assert.Nil(t, req.AppVersion)
 	})
 
 	t.Run("invalid rollout too low", func(t *testing.T) {
 		opts := &PatchOptions{Rollout: "0"}
 		_, err := buildPatchRequest(opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "rollout must be between") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "rollout must be between")
 	})
 
 	t.Run("invalid rollout too high", func(t *testing.T) {
 		opts := &PatchOptions{Rollout: "101"}
 		_, err := buildPatchRequest(opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "rollout must be between") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "rollout must be between")
 	})
 
 	t.Run("invalid rollout not a number", func(t *testing.T) {
 		opts := &PatchOptions{Rollout: "abc"}
 		_, err := buildPatchRequest(opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "rollout must be between") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "rollout must be between")
 	})
 
 	t.Run("invalid mandatory", func(t *testing.T) {
 		opts := &PatchOptions{Mandatory: "maybe"}
 		_, err := buildPatchRequest(opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "mandatory must be true or false") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "mandatory must be true or false")
 	})
 
 	t.Run("invalid disabled", func(t *testing.T) {
 		opts := &PatchOptions{Disabled: "maybe"}
 		_, err := buildPatchRequest(opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "disabled must be true or false") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "disabled must be true or false")
 	})
 }
 
@@ -487,15 +393,9 @@ func TestResolvePackageForPatch(t *testing.T) {
 		}
 
 		id, label, err := ResolvePackageForPatch(context.Background(), client, "app-123", "dep-456", "v2", testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if id != "pkg-2" {
-			t.Errorf("id: got %q, want %q", id, "pkg-2")
-		}
-		if label != "v2" {
-			t.Errorf("label: got %q, want %q", label, "v2")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "pkg-2", id)
+		assert.Equal(t, "v2", label)
 	})
 
 	t.Run("resolves latest when no label", func(t *testing.T) {
@@ -510,15 +410,9 @@ func TestResolvePackageForPatch(t *testing.T) {
 		}
 
 		id, label, err := ResolvePackageForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if id != "pkg-3" {
-			t.Errorf("id: got %q, want %q", id, "pkg-3")
-		}
-		if label != "v3" {
-			t.Errorf("label: got %q, want %q", label, "v3")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "pkg-3", id)
+		assert.Equal(t, "v3", label)
 	})
 
 	t.Run("empty deployment", func(t *testing.T) {
@@ -529,12 +423,8 @@ func TestResolvePackageForPatch(t *testing.T) {
 		}
 
 		_, _, err := ResolvePackageForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "no releases found") {
-			t.Errorf("error: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "no releases found")
 	})
 
 	t.Run("list packages error", func(t *testing.T) {
@@ -545,8 +435,6 @@ func TestResolvePackageForPatch(t *testing.T) {
 		}
 
 		_, _, err := ResolvePackageForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }

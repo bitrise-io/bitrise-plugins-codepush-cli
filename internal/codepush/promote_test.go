@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPromote(t *testing.T) {
@@ -33,19 +35,11 @@ func TestPromote(t *testing.T) {
 		}
 
 		result, err := Promote(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.PackageID != "pkg-promoted" {
-			t.Errorf("package_id: got %q", result.PackageID)
-		}
-		if capturedSourceDepID != "00000000-0000-0000-0000-000000000001" {
-			t.Errorf("source deployment: got %q", capturedSourceDepID)
-		}
-		if capturedReq.TargetDeploymentID != "00000000-0000-0000-0000-000000000002" {
-			t.Errorf("target deployment in request: got %q", capturedReq.TargetDeploymentID)
-		}
+		assert.Equal(t, "pkg-promoted", result.PackageID)
+		assert.Equal(t, "00000000-0000-0000-0000-000000000001", capturedSourceDepID)
+		assert.Equal(t, "00000000-0000-0000-0000-000000000002", capturedReq.TargetDeploymentID)
 	})
 
 	t.Run("promote with overrides", func(t *testing.T) {
@@ -70,22 +64,12 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedReq.AppVersion != "3.0.0" {
-			t.Errorf("app_version: got %q", capturedReq.AppVersion)
-		}
-		if capturedReq.Description != "production release" {
-			t.Errorf("description: got %q", capturedReq.Description)
-		}
-		if capturedReq.Mandatory != "true" {
-			t.Errorf("mandatory: got %q", capturedReq.Mandatory)
-		}
-		if capturedReq.Rollout != "50" {
-			t.Errorf("rollout: got %q", capturedReq.Rollout)
-		}
+		assert.Equal(t, "3.0.0", capturedReq.AppVersion)
+		assert.Equal(t, "production release", capturedReq.Description)
+		assert.Equal(t, "true", capturedReq.Mandatory)
+		assert.Equal(t, "50", capturedReq.Rollout)
 	})
 
 	t.Run("promote with label resolution", func(t *testing.T) {
@@ -112,13 +96,9 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedReq.PackageID != "pkg-2" {
-			t.Errorf("package_id: got %q, want %q", capturedReq.PackageID, "pkg-2")
-		}
+		assert.Equal(t, "pkg-2", capturedReq.PackageID)
 	})
 
 	t.Run("deployment name resolution for both source and dest", func(t *testing.T) {
@@ -146,16 +126,10 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedSourceDepID != "dep-aaa" {
-			t.Errorf("source deployment: got %q, want %q", capturedSourceDepID, "dep-aaa")
-		}
-		if capturedDestDepID != "dep-bbb" {
-			t.Errorf("dest deployment: got %q, want %q", capturedDestDepID, "dep-bbb")
-		}
+		assert.Equal(t, "dep-aaa", capturedSourceDepID)
+		assert.Equal(t, "dep-bbb", capturedDestDepID)
 	})
 
 	t.Run("same source and destination error", func(t *testing.T) {
@@ -167,12 +141,8 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), &mockClient{}, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "must be different") {
-			t.Errorf("error should mention different: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "must be different")
 	})
 
 	t.Run("API error", func(t *testing.T) {
@@ -190,12 +160,8 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "promote failed") {
-			t.Errorf("error should mention promote failed: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "promote failed")
 	})
 
 	t.Run("bitrise environment exports summary", func(t *testing.T) {
@@ -217,23 +183,15 @@ func TestPromote(t *testing.T) {
 		}
 
 		_, err := Promote(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		summaryPath := filepath.Join(deployDir, "codepush-promote-summary.json")
 		data, err := os.ReadFile(summaryPath)
-		if err != nil {
-			t.Fatalf("reading summary: %v", err)
-		}
+		require.NoError(t, err)
 
 		content := string(data)
-		if !strings.Contains(content, `"label": "v1"`) {
-			t.Errorf("summary should contain label: %s", content)
-		}
-		if !strings.Contains(content, `"dest_deployment_id"`) {
-			t.Errorf("summary should contain dest_deployment_id: %s", content)
-		}
+		assert.Contains(t, content, `"label": "v1"`)
+		assert.Contains(t, content, `"dest_deployment_id"`)
 	})
 }
 
@@ -273,12 +231,8 @@ func TestValidatePromoteOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validatePromoteOptions(&tt.opts)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q should contain %q", err.Error(), tt.wantErr)
-			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }

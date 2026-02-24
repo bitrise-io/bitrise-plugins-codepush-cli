@@ -6,9 +6,11 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestPush(t *testing.T) {
@@ -20,9 +22,7 @@ func TestPush(t *testing.T) {
 		client := &mockClient{
 			getUploadURLFunc: func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				capturedReq = req
-				if appID != "app-123" {
-					t.Errorf("appID: got %q", appID)
-				}
+				assert.Equal(t, "app-123", appID)
 				return &UploadURLResponse{
 					URL:     "https://storage.example.com/upload",
 					Method:  "PUT",
@@ -30,12 +30,8 @@ func TestPush(t *testing.T) {
 				}, nil
 			},
 			uploadFileFunc: func(req UploadFileRequest) error {
-				if req.URL != "https://storage.example.com/upload" {
-					t.Errorf("uploadURL: got %q", req.URL)
-				}
-				if req.Method != "PUT" {
-					t.Errorf("method: got %q", req.Method)
-				}
+				assert.Equal(t, "https://storage.example.com/upload", req.URL)
+				assert.Equal(t, "PUT", req.Method)
 				capturedUploadBody, _ = io.ReadAll(req.Body)
 				return nil
 			},
@@ -56,32 +52,16 @@ func TestPush(t *testing.T) {
 		}
 
 		result, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.AppVersion != "1.0.0" {
-			t.Errorf("app_version: got %q", result.AppVersion)
-		}
-		if result.Status != StatusProcessedValid {
-			t.Errorf("status: got %q", result.Status)
-		}
-		if result.PackageID == "" {
-			t.Error("package_id should not be empty")
-		}
-		if result.FileSizeBytes == 0 {
-			t.Error("file_size_bytes should not be 0")
-		}
+		assert.Equal(t, "1.0.0", result.AppVersion)
+		assert.Equal(t, StatusProcessedValid, result.Status)
+		assert.NotEmpty(t, result.PackageID)
+		assert.NotZero(t, result.FileSizeBytes)
 
-		if capturedReq.AppVersion != "1.0.0" {
-			t.Errorf("upload req app_version: got %q", capturedReq.AppVersion)
-		}
-		if capturedReq.Mandatory != true {
-			t.Error("upload req mandatory should be true")
-		}
-		if len(capturedUploadBody) == 0 {
-			t.Error("upload body should not be empty")
-		}
+		assert.Equal(t, "1.0.0", capturedReq.AppVersion)
+		assert.True(t, capturedReq.Mandatory)
+		assert.NotEmpty(t, capturedUploadBody)
 	})
 
 	t.Run("deployment name resolution", func(t *testing.T) {
@@ -111,13 +91,9 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if resolvedDeploymentID != "dep-bbb" {
-			t.Errorf("resolved deployment ID: got %q, want %q", resolvedDeploymentID, "dep-bbb")
-		}
+		assert.Equal(t, "dep-bbb", resolvedDeploymentID)
 	})
 
 	t.Run("deployment UUID passthrough", func(t *testing.T) {
@@ -141,13 +117,9 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if listCalled {
-			t.Error("ListDeployments should not be called when UUID is provided")
-		}
+		assert.False(t, listCalled, "ListDeployments should not be called when UUID is provided")
 	})
 
 	t.Run("deployment name not found", func(t *testing.T) {
@@ -171,12 +143,8 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "NonExistent") {
-			t.Errorf("error should mention deployment name: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "NonExistent")
 	})
 
 	t.Run("upload URL failure", func(t *testing.T) {
@@ -198,12 +166,8 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "upload URL") {
-			t.Errorf("error should mention upload URL: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "upload URL")
 	})
 
 	t.Run("upload failure", func(t *testing.T) {
@@ -225,12 +189,8 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "uploading package") {
-			t.Errorf("error should mention uploading: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "uploading package")
 	})
 
 	t.Run("poll returns failed", func(t *testing.T) {
@@ -256,12 +216,8 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "invalid bundle format") {
-			t.Errorf("error should contain status reason: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid bundle format")
 	})
 
 	t.Run("poll timeout", func(t *testing.T) {
@@ -283,12 +239,8 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond}, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "timed out") {
-			t.Errorf("error should mention timeout: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "timed out")
 	})
 
 	t.Run("does not export bitrise summary", func(t *testing.T) {
@@ -309,15 +261,12 @@ func TestPush(t *testing.T) {
 		}
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// Push no longer exports to Bitrise deploy dir; the CLI layer handles that
 		summaryPath := filepath.Join(deployDir, "codepush-push-summary.json")
-		if _, err := os.Stat(summaryPath); err == nil {
-			t.Error("push should not export summary; that responsibility moved to CLI layer")
-		}
+		_, err = os.Stat(summaryPath)
+		assert.Error(t, err, "push should not export summary; that responsibility moved to CLI layer")
 	})
 }
 
@@ -374,12 +323,8 @@ func TestValidatePushOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validatePushOptions(&tt.opts)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q should contain %q", err.Error(), tt.wantErr)
-			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -388,12 +333,8 @@ func TestResolveDeployment(t *testing.T) {
 	t.Run("UUID passthrough", func(t *testing.T) {
 		client := &mockClient{}
 		id, err := ResolveDeployment(context.Background(), client, "app-123", "00000000-0000-0000-0000-000000000001", testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if id != "00000000-0000-0000-0000-000000000001" {
-			t.Errorf("id: got %q", id)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "00000000-0000-0000-0000-000000000001", id)
 	})
 
 	t.Run("name resolution", func(t *testing.T) {
@@ -407,12 +348,8 @@ func TestResolveDeployment(t *testing.T) {
 		}
 
 		id, err := ResolveDeployment(context.Background(), client, "app-123", "Production", testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if id != "dep-bbb" {
-			t.Errorf("id: got %q, want %q", id, "dep-bbb")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "dep-bbb", id)
 	})
 
 	t.Run("name not found", func(t *testing.T) {
@@ -423,12 +360,8 @@ func TestResolveDeployment(t *testing.T) {
 		}
 
 		_, err := ResolveDeployment(context.Background(), client, "app-123", "Production", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "Production") {
-			t.Errorf("error should mention deployment name: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Production")
 	})
 
 	t.Run("list deployments error", func(t *testing.T) {
@@ -439,9 +372,7 @@ func TestResolveDeployment(t *testing.T) {
 		}
 
 		_, err := ResolveDeployment(context.Background(), client, "app-123", "Production", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -460,15 +391,9 @@ func TestPollStatus(t *testing.T) {
 
 		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
 		status, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if status.Status != StatusProcessedValid {
-			t.Errorf("status: got %q", status.Status)
-		}
-		if callCount != 3 {
-			t.Errorf("call count: got %d, want 3", callCount)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, StatusProcessedValid, status.Status)
+		assert.Equal(t, 3, callCount)
 	})
 
 	t.Run("returns error on failed", func(t *testing.T) {
@@ -480,12 +405,8 @@ func TestPollStatus(t *testing.T) {
 
 		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
 		_, err := pollStatus(context.Background(), client, ref, fastPollConfig)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "bad format") {
-			t.Errorf("error should contain reason: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bad format")
 	})
 
 	t.Run("times out", func(t *testing.T) {
@@ -497,12 +418,8 @@ func TestPollStatus(t *testing.T) {
 
 		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
 		_, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "timed out") {
-			t.Errorf("error should mention timeout: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "timed out")
 	})
 }
 
@@ -510,11 +427,7 @@ func createTestBundleDir(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
 	bundleDir := filepath.Join(dir, "bundle")
-	if err := os.Mkdir(bundleDir, 0o755); err != nil {
-		t.Fatalf("creating bundle dir: %v", err)
-	}
-	if err := os.WriteFile(filepath.Join(bundleDir, "main.jsbundle"), []byte("bundle"), 0o644); err != nil {
-		t.Fatalf("writing bundle file: %v", err)
-	}
+	require.NoError(t, os.Mkdir(bundleDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(bundleDir, "main.jsbundle"), []byte("bundle"), 0o644))
 	return bundleDir
 }

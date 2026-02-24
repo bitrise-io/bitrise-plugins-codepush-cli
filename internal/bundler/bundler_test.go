@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
@@ -61,17 +64,11 @@ func TestNewBundler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			b, err := NewBundler(tt.projectType, executor, output.NewTest(io.Discard))
 			if tt.wantErr {
-				if err == nil {
-					t.Fatal("expected error, got nil")
-				}
+				require.Error(t, err)
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if b == nil {
-				t.Fatal("expected bundler, got nil")
-			}
+			require.NoError(t, err)
+			require.NotNil(t, b)
 		})
 	}
 }
@@ -87,9 +84,7 @@ func TestDefaultBundleName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := DefaultBundleName(tt.platform); got != tt.want {
-			t.Errorf("DefaultBundleName(%q) = %q, want %q", tt.platform, got, tt.want)
-		}
+		assert.Equal(t, tt.want, DefaultBundleName(tt.platform))
 	}
 }
 
@@ -120,29 +115,18 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		}
 
 		result, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.Platform != PlatformIOS {
-			t.Errorf("platform: got %v, want %v", result.Platform, PlatformIOS)
-		}
-		if result.ProjectType != ProjectTypeReactNative {
-			t.Errorf("project type: got %v, want %v", result.ProjectType, ProjectTypeReactNative)
-		}
+		assert.Equal(t, PlatformIOS, result.Platform)
+		assert.Equal(t, ProjectTypeReactNative, result.ProjectType)
 
 		// Verify the command was called correctly
-		if len(executor.commands) != 1 {
-			t.Fatalf("expected 1 command, got %d", len(executor.commands))
-		}
+		require.Len(t, executor.commands, 1)
 
 		cmd := executor.commands[0]
-		if cmd.name != "npx" {
-			t.Errorf("command: got %q, want %q", cmd.name, "npx")
-		}
-		if cmd.args[0] != "react-native" || cmd.args[1] != "bundle" {
-			t.Errorf("first args: got %v, want [react-native bundle ...]", cmd.args[:2])
-		}
+		assert.Equal(t, "npx", cmd.name)
+		assert.Equal(t, "react-native", cmd.args[0])
+		assert.Equal(t, "bundle", cmd.args[1])
 
 		// Check that key flags are present
 		assertContainsArgs(t, cmd.args, "--entry-file", "index.js")
@@ -175,13 +159,9 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		}
 
 		result, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if filepath.Base(result.BundlePath) != "custom.bundle" {
-			t.Errorf("bundle name: got %q, want %q", filepath.Base(result.BundlePath), "custom.bundle")
-		}
+		assert.Equal(t, "custom.bundle", filepath.Base(result.BundlePath))
 
 		cmd := executor.commands[0]
 		assertContainsArgs(t, cmd.args, "--platform", "android")
@@ -189,9 +169,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 
 		// sourcemap flag should not be present
 		for _, arg := range cmd.args {
-			if arg == "--sourcemap-output" {
-				t.Error("--sourcemap-output should not be present when Sourcemap is false")
-			}
+			assert.NotEqual(t, "--sourcemap-output", arg, "--sourcemap-output should not be present when Sourcemap is false")
 		}
 	})
 
@@ -217,9 +195,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		}
 
 		_, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		cmd := executor.commands[0]
 		assertContainsArgs(t, cmd.args, "--dev", "true")
@@ -247,16 +223,13 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		}
 
 		_, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		cmd := executor.commands[0]
 		args := cmd.args
 		// Last two args should be the extra options
-		if args[len(args)-2] != "--reset-cache" || args[len(args)-1] != "--verbose" {
-			t.Errorf("extra options not appended correctly: %v", args)
-		}
+		assert.Equal(t, "--reset-cache", args[len(args)-2])
+		assert.Equal(t, "--verbose", args[len(args)-1])
 	})
 
 	t.Run("bundler execution error", func(t *testing.T) {
@@ -276,9 +249,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		}
 
 		_, err := bundler.Bundle(config, opts)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -307,21 +278,14 @@ func TestExpoBundlerBundle(t *testing.T) {
 		}
 
 		result, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.ProjectType != ProjectTypeExpo {
-			t.Errorf("project type: got %v, want %v", result.ProjectType, ProjectTypeExpo)
-		}
+		assert.Equal(t, ProjectTypeExpo, result.ProjectType)
 
 		cmd := executor.commands[0]
-		if cmd.name != "npx" {
-			t.Errorf("command: got %q, want %q", cmd.name, "npx")
-		}
-		if cmd.args[0] != "expo" || cmd.args[1] != "export" {
-			t.Errorf("first args: got %v, want [expo export ...]", cmd.args[:2])
-		}
+		assert.Equal(t, "npx", cmd.name)
+		assert.Equal(t, "expo", cmd.args[0])
+		assert.Equal(t, "export", cmd.args[1])
 
 		assertContainsArgs(t, cmd.args, "--platform", "ios")
 	})
@@ -347,21 +311,10 @@ func TestExpoBundlerBundle(t *testing.T) {
 		}
 
 		_, err := bundler.Bundle(config, opts)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		cmd := executor.commands[0]
-		foundDev := false
-		for _, arg := range cmd.args {
-			if arg == "--dev" {
-				foundDev = true
-				break
-			}
-		}
-		if !foundDev {
-			t.Error("--dev flag not found in args")
-		}
+		assert.Contains(t, cmd.args, "--dev")
 	})
 }
 

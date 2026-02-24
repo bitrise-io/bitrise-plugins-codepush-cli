@@ -2,8 +2,10 @@ package output
 
 import (
 	"io"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSelect_NonInteractive(t *testing.T) {
@@ -32,15 +34,9 @@ func TestSelect_NonInteractive(t *testing.T) {
 			w := NewTest(io.Discard)
 
 			value, err := w.Select(tc.title, tc.options)
-			if err == nil {
-				t.Fatal("expected error in non-interactive mode, got nil")
-			}
-			if value != "" {
-				t.Errorf("expected empty value, got %q", value)
-			}
-			if !strings.Contains(err.Error(), "non-interactive") {
-				t.Errorf("error should mention non-interactive mode, got: %v", err)
-			}
+			require.Error(t, err)
+			assert.Empty(t, value)
+			assert.ErrorContains(t, err, "non-interactive")
 		})
 	}
 }
@@ -49,28 +45,16 @@ func TestInput_NonInteractive(t *testing.T) {
 	w := NewTest(io.Discard)
 
 	value, err := w.Input("Enter value", "placeholder")
-	if err == nil {
-		t.Fatal("expected error in non-interactive mode, got nil")
-	}
-	if value != "" {
-		t.Errorf("expected empty value, got %q", value)
-	}
-	if !strings.Contains(err.Error(), "non-interactive") {
-		t.Errorf("error should mention non-interactive mode, got: %v", err)
-	}
+	require.Error(t, err)
+	assert.Empty(t, value)
+	assert.ErrorContains(t, err, "non-interactive")
 }
 
 func TestSecureInput_NonInteractive(t *testing.T) {
 	w := NewTest(io.Discard)
 
 	value, err := w.SecureInput("Enter token", "")
-	if err == nil {
-		t.Fatal("expected error in non-interactive mode, got nil")
-	}
-	if value != "" {
-		t.Errorf("expected empty value, got %q", value)
-	}
-	if !strings.Contains(err.Error(), "non-interactive") {
-		t.Errorf("error should mention non-interactive mode, got: %v", err)
-	}
+	require.Error(t, err)
+	assert.Empty(t, value)
+	assert.ErrorContains(t, err, "non-interactive")
 }

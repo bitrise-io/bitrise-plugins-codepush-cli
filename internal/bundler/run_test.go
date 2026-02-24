@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
@@ -38,19 +41,11 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.ProjectType != ProjectTypeReactNative {
-			t.Errorf("project type: got %v, want %v", result.ProjectType, ProjectTypeReactNative)
-		}
-		if result.Platform != PlatformIOS {
-			t.Errorf("platform: got %v, want %v", result.Platform, PlatformIOS)
-		}
-		if result.HermesApplied {
-			t.Error("expected Hermes not to be applied")
-		}
+		assert.Equal(t, ProjectTypeReactNative, result.ProjectType)
+		assert.Equal(t, PlatformIOS, result.Platform)
+		assert.False(t, result.HermesApplied)
 	})
 
 	t.Run("expo project", func(t *testing.T) {
@@ -79,13 +74,9 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.ProjectType != ProjectTypeExpo {
-			t.Errorf("project type: got %v, want %v", result.ProjectType, ProjectTypeExpo)
-		}
+		assert.Equal(t, ProjectTypeExpo, result.ProjectType)
 	})
 
 	t.Run("react native with hermes enabled but no hermesc", func(t *testing.T) {
@@ -114,9 +105,7 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err == nil {
-			t.Fatal("expected error for missing hermesc, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("invalid project directory", func(t *testing.T) {
@@ -129,9 +118,7 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err == nil {
-			t.Fatal("expected error for invalid project dir, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("user overrides entry file and metro config", func(t *testing.T) {
@@ -155,19 +142,17 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		opts := &BundleOptions{
-			Platform:   PlatformIOS,
-			ProjectDir: dir,
-			OutputDir:  outputDir,
-			EntryFile:  "custom-entry.js",
+			Platform:    PlatformIOS,
+			ProjectDir:  dir,
+			OutputDir:   outputDir,
+			EntryFile:   "custom-entry.js",
 			MetroConfig: filepath.Join(dir, "custom.config.js"),
-			Sourcemap:  false,
-			HermesMode: HermesModeOff,
+			Sourcemap:   false,
+			HermesMode:  HermesModeOff,
 		}
 
 		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// Verify the overridden entry file was used
 		foundEntry := false
@@ -180,12 +165,8 @@ func TestRunWithExecutor(t *testing.T) {
 				foundConfig = true
 			}
 		}
-		if !foundEntry {
-			t.Error("custom entry file not passed to bundler")
-		}
-		if !foundConfig {
-			t.Error("custom metro config not passed to bundler")
-		}
+		assert.True(t, foundEntry, "custom entry file not passed to bundler")
+		assert.True(t, foundConfig, "custom metro config not passed to bundler")
 	})
 
 	t.Run("defaults output dir when empty", func(t *testing.T) {
@@ -213,13 +194,9 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		result, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.OutputDir == "" {
-			t.Error("expected output dir to be set")
-		}
+		assert.NotEmpty(t, result.OutputDir)
 	})
 
 	t.Run("defaults hermes mode when empty", func(t *testing.T) {
@@ -248,18 +225,14 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("does not export bitrise summary", func(t *testing.T) {
 		dir := t.TempDir()
 		outputDir := filepath.Join(dir, "output")
 		deployDir := filepath.Join(dir, "deploy")
-		if err := os.MkdirAll(deployDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(deployDir, 0o755))
 
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 		writeFile(t, filepath.Join(dir, "index.js"), "")
@@ -286,15 +259,11 @@ func TestRunWithExecutor(t *testing.T) {
 		}
 
 		_, err := RunWithExecutor(opts, executor, output.NewTest(io.Discard))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// RunWithExecutor no longer exports to Bitrise deploy dir; the CLI layer handles that
 		summaryPath := filepath.Join(deployDir, "codepush-bundle-summary.json")
-		if _, err := os.Stat(summaryPath); err == nil {
-			t.Error("RunWithExecutor should not export summary; that responsibility moved to CLI layer")
-		}
+		_, err = os.Stat(summaryPath)
+		assert.Error(t, err, "RunWithExecutor should not export summary; that responsibility moved to CLI layer")
 	})
 }
-

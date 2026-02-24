@@ -103,6 +103,8 @@ bitrise :codepush rollback
 - Test files: `*_test.go` colocated with source
 - Use `go test ./...` for all tests
 - Use `go test -cover ./...` for coverage
+- **Assertions**: Use `github.com/stretchr/testify/assert` (non-fatal, like `t.Errorf`) and `github.com/stretchr/testify/require` (fatal, like `t.Fatalf`). Use `require` when a subsequent line would panic or produce meaningless results if the check failed (e.g., checking `err` before using the result). Use `assert` for all other checks.
+- Common assertion patterns: `assert.Equal`, `assert.Contains`, `assert.ErrorContains`, `assert.True`/`False`, `assert.Nil`/`NotNil`, `assert.Empty`/`NotEmpty`, `assert.Len`, `require.NoError`/`require.Error`, `require.Len`, `require.NotNil`
 - Table-driven tests preferred with named subtests via `t.Run(tc.name, ...)`
 - Subtest names: descriptive phrases (`"returns error when file not found"`), not `"case 1"`
 - Use `t.Helper()` on test helper functions
@@ -165,6 +167,7 @@ import (
     "os"
 
     "github.com/spf13/cobra"
+    "github.com/stretchr/testify/assert"  // test files only
 
     "github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )

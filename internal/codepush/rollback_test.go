@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestRollback(t *testing.T) {
@@ -15,12 +17,8 @@ func TestRollback(t *testing.T) {
 		client := &mockClient{
 			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Package, error) {
 				capturedReq = req
-				if appID != "app-123" {
-					t.Errorf("appID: got %q", appID)
-				}
-				if deploymentID != "00000000-0000-0000-0000-000000000001" {
-					t.Errorf("deploymentID: got %q", deploymentID)
-				}
+				assert.Equal(t, "app-123", appID)
+				assert.Equal(t, "00000000-0000-0000-0000-000000000001", deploymentID)
 				return &Package{
 					ID:         "pkg-rolled-back",
 					Label:      "v5",
@@ -36,19 +34,11 @@ func TestRollback(t *testing.T) {
 		}
 
 		result, err := Rollback(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if result.PackageID != "pkg-rolled-back" {
-			t.Errorf("package_id: got %q", result.PackageID)
-		}
-		if result.Label != "v5" {
-			t.Errorf("label: got %q", result.Label)
-		}
-		if capturedReq.PackageID != "" {
-			t.Errorf("request package_id should be empty: got %q", capturedReq.PackageID)
-		}
+		assert.Equal(t, "pkg-rolled-back", result.PackageID)
+		assert.Equal(t, "v5", result.Label)
+		assert.Empty(t, capturedReq.PackageID)
 	})
 
 	t.Run("rollback with target release label", func(t *testing.T) {
@@ -75,13 +65,9 @@ func TestRollback(t *testing.T) {
 		}
 
 		_, err := Rollback(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if capturedReq.PackageID != "pkg-2" {
-			t.Errorf("request package_id: got %q, want %q", capturedReq.PackageID, "pkg-2")
-		}
+		assert.Equal(t, "pkg-2", capturedReq.PackageID)
 	})
 
 	t.Run("target release label not found", func(t *testing.T) {
@@ -101,12 +87,8 @@ func TestRollback(t *testing.T) {
 		}
 
 		_, err := Rollback(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "v99") {
-			t.Errorf("error should mention label: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "v99")
 	})
 
 	t.Run("deployment name resolution", func(t *testing.T) {
@@ -131,12 +113,8 @@ func TestRollback(t *testing.T) {
 		}
 
 		_, err := Rollback(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if resolvedID != "dep-bbb" {
-			t.Errorf("resolved deployment ID: got %q, want %q", resolvedID, "dep-bbb")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "dep-bbb", resolvedID)
 	})
 
 	t.Run("API error", func(t *testing.T) {
@@ -153,12 +131,8 @@ func TestRollback(t *testing.T) {
 		}
 
 		_, err := Rollback(context.Background(), client, opts, testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "rollback failed") {
-			t.Errorf("error should mention rollback failed: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "rollback failed")
 	})
 
 	t.Run("bitrise environment exports summary", func(t *testing.T) {
@@ -179,20 +153,14 @@ func TestRollback(t *testing.T) {
 		}
 
 		_, err := Rollback(context.Background(), client, opts, testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		summaryPath := filepath.Join(deployDir, "codepush-rollback-summary.json")
 		data, err := os.ReadFile(summaryPath)
-		if err != nil {
-			t.Fatalf("reading summary: %v", err)
-		}
+		require.NoError(t, err)
 
 		content := string(data)
-		if !strings.Contains(content, `"label": "v5"`) {
-			t.Errorf("summary should contain label: %s", content)
-		}
+		assert.Contains(t, content, `"label": "v5"`)
 	})
 }
 
@@ -222,12 +190,8 @@ func TestValidateRollbackOptions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateRollbackOptions(&tt.opts)
-			if err == nil {
-				t.Fatal("expected error, got nil")
-			}
-			if !strings.Contains(err.Error(), tt.wantErr) {
-				t.Errorf("error %q should contain %q", err.Error(), tt.wantErr)
-			}
+			require.Error(t, err)
+			assert.ErrorContains(t, err, tt.wantErr)
 		})
 	}
 }
@@ -244,12 +208,8 @@ func TestResolvePackageLabel(t *testing.T) {
 		}
 
 		id, err := resolvePackageLabel(context.Background(), client, "app-123", "dep-456", "v2", testOut)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if id != "pkg-2" {
-			t.Errorf("id: got %q, want %q", id, "pkg-2")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "pkg-2", id)
 	})
 
 	t.Run("label not found", func(t *testing.T) {
@@ -260,12 +220,8 @@ func TestResolvePackageLabel(t *testing.T) {
 		}
 
 		_, err := resolvePackageLabel(context.Background(), client, "app-123", "dep-456", "v99", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "v99") {
-			t.Errorf("error should mention label: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "v99")
 	})
 
 	t.Run("list packages error", func(t *testing.T) {
@@ -276,8 +232,6 @@ func TestResolvePackageLabel(t *testing.T) {
 		}
 
 		_, err := resolvePackageLabel(context.Background(), client, "app-123", "dep-456", "v1", testOut)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
