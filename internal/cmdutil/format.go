@@ -35,6 +35,9 @@ func FormatBytes(b int64) string {
 	for n := b / unit; n >= unit; n /= unit {
 		div *= unit
 		exp++
+		if exp >= len("KMGTPE")-1 {
+			break
+		}
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }

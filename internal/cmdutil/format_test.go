@@ -2,6 +2,7 @@ package cmdutil
 
 import (
 	"encoding/json"
+	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -61,6 +62,8 @@ func TestFormatBytes(t *testing.T) {
 		{name: "kilobytes", b: 1024, want: "1.0 KB"},
 		{name: "megabytes", b: 1048576, want: "1.0 MB"},
 		{name: "gigabytes", b: 1073741824, want: "1.0 GB"},
+		{name: "exabytes caps at EB", b: 1 << 60, want: "1.0 EB"},
+		{name: "max int64 caps at EB", b: math.MaxInt64, want: "8.0 EB"},
 		{name: "zero", b: 0, want: "0 B"},
 	}
 
