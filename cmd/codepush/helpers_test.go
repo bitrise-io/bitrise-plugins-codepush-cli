@@ -2,8 +2,10 @@ package main
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOutputJSON(t *testing.T) {
@@ -12,9 +14,7 @@ func TestOutputJSON(t *testing.T) {
 	}{Name: "test"}
 
 	err := outputJSON(data)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestTruncate(t *testing.T) {
@@ -46,10 +46,7 @@ func TestTruncate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := truncate(tc.s, tc.max)
-			if got != tc.want {
-				t.Errorf("truncate(%q, %d) = %q, want %q", tc.s, tc.max, got, tc.want)
-			}
+			assert.Equal(t, tc.want, truncate(tc.s, tc.max))
 		})
 	}
 }
@@ -69,10 +66,7 @@ func TestFormatBytes(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := formatBytes(tc.b)
-			if got != tc.want {
-				t.Errorf("formatBytes(%d) = %q, want %q", tc.b, got, tc.want)
-			}
+			assert.Equal(t, tc.want, formatBytes(tc.b))
 		})
 	}
 }
@@ -83,10 +77,7 @@ func TestResolveAppID(t *testing.T) {
 		globalAppID = "flag-value"
 		defer func() { globalAppID = old }()
 
-		got := resolveAppID()
-		if got != "flag-value" {
-			t.Errorf("got %q, want %q", got, "flag-value")
-		}
+		assert.Equal(t, "flag-value", resolveAppID())
 	})
 
 	t.Run("falls back to env var", func(t *testing.T) {
@@ -95,10 +86,7 @@ func TestResolveAppID(t *testing.T) {
 		defer func() { globalAppID = old }()
 
 		t.Setenv("CODEPUSH_APP_ID", "env-value")
-		got := resolveAppID()
-		if got != "env-value" {
-			t.Errorf("got %q, want %q", got, "env-value")
-		}
+		assert.Equal(t, "env-value", resolveAppID())
 	})
 }
 
@@ -110,12 +98,8 @@ func TestRequireCredentials(t *testing.T) {
 
 		t.Setenv("CODEPUSH_APP_ID", "")
 		_, _, err := requireCredentials()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "app ID is required") {
-			t.Errorf("error should mention app ID: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "app ID is required")
 	})
 
 	t.Run("returns values when both set", func(t *testing.T) {
@@ -125,37 +109,23 @@ func TestRequireCredentials(t *testing.T) {
 
 		t.Setenv("BITRISE_API_TOKEN", "my-token")
 		appID, token, err := requireCredentials()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if appID != "my-app" {
-			t.Errorf("appID = %q, want %q", appID, "my-app")
-		}
-		if token != "my-token" {
-			t.Errorf("token = %q, want %q", token, "my-token")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "my-app", appID)
+		assert.Equal(t, "my-token", token)
 	})
 }
 
 func TestResolveInputInteractive(t *testing.T) {
 	t.Run("returns value when provided", func(t *testing.T) {
 		got, err := resolveInputInteractive("provided", "Enter name", "placeholder")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != "provided" {
-			t.Errorf("got %q, want %q", got, "provided")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "provided", got)
 	})
 
 	t.Run("returns error in non-interactive mode", func(t *testing.T) {
 		_, err := resolveInputInteractive("", "Enter name", "placeholder")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "Enter name") {
-			t.Errorf("error should contain the title: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "Enter name")
 	})
 }
 
@@ -166,12 +136,8 @@ func TestResolveAppIDInteractive(t *testing.T) {
 		defer func() { globalAppID = old }()
 
 		got, err := resolveAppIDInteractive()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != "550e8400-e29b-41d4-a716-446655440000" {
-			t.Errorf("got %q, want UUID", got)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", got)
 	})
 
 	t.Run("returns error for invalid UUID from flag", func(t *testing.T) {
@@ -180,12 +146,8 @@ func TestResolveAppIDInteractive(t *testing.T) {
 		defer func() { globalAppID = old }()
 
 		_, err := resolveAppIDInteractive()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "invalid app ID") {
-			t.Errorf("error should mention invalid: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "invalid app ID")
 	})
 
 	t.Run("returns error in non-interactive mode when empty", func(t *testing.T) {
@@ -196,34 +158,22 @@ func TestResolveAppIDInteractive(t *testing.T) {
 		t.Setenv("CODEPUSH_APP_ID", "")
 
 		_, err := resolveAppIDInteractive()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "app ID is required") {
-			t.Errorf("error should mention requirement: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "app ID is required")
 	})
 }
 
 func TestResolvePlatformInteractive(t *testing.T) {
 	t.Run("returns value when provided", func(t *testing.T) {
 		got, err := resolvePlatformInteractive("ios")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != "ios" {
-			t.Errorf("got %q, want %q", got, "ios")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "ios", got)
 	})
 
 	t.Run("returns error in non-interactive mode", func(t *testing.T) {
 		_, err := resolvePlatformInteractive("")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "--platform") {
-			t.Errorf("error should mention --platform: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "--platform")
 	})
 }
 
@@ -232,9 +182,7 @@ func TestOutputJSONFormat(t *testing.T) {
 
 	// outputJSON writes to stdout; just verify no error
 	err := outputJSON(data)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 }
 
 func TestOutputJSONMarshalError(t *testing.T) {
@@ -245,13 +193,9 @@ func TestOutputJSONMarshalError(t *testing.T) {
 	}{ID: "123", Name: "test"}
 
 	err := outputJSON(data)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify the output is valid JSON by marshaling it ourselves
 	_, marshalErr := json.MarshalIndent(data, "", "  ")
-	if marshalErr != nil {
-		t.Fatalf("data should be marshalable: %v", marshalErr)
-	}
+	require.NoError(t, marshalErr)
 }

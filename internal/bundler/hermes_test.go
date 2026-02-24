@@ -6,6 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
@@ -30,39 +33,21 @@ func TestHermesCompilerCompile(t *testing.T) {
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, "")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// Verify the command was called correctly
-		if len(executor.commands) != 1 {
-			t.Fatalf("expected 1 command, got %d", len(executor.commands))
-		}
+		require.Len(t, executor.commands, 1)
 
 		cmd := executor.commands[0]
-		if cmd.name != hermescPath {
-			t.Errorf("command: got %q, want %q", cmd.name, hermescPath)
-		}
+		assert.Equal(t, hermescPath, cmd.name)
 
 		// Check args include -emit-binary
-		foundEmitBinary := false
-		for _, arg := range cmd.args {
-			if arg == "-emit-binary" {
-				foundEmitBinary = true
-			}
-		}
-		if !foundEmitBinary {
-			t.Error("-emit-binary flag not found in args")
-		}
+		assert.Contains(t, cmd.args, "-emit-binary")
 
 		// Verify the .hbc file was renamed to the original bundle path
 		data, err := os.ReadFile(bundlePath)
-		if err != nil {
-			t.Fatalf("reading bundle: %v", err)
-		}
-		if string(data) != "bytecode" {
-			t.Errorf("bundle content: got %q, want %q", string(data), "bytecode")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "bytecode", string(data))
 	})
 
 	t.Run("with sourcemap", func(t *testing.T) {
@@ -86,20 +71,10 @@ func TestHermesCompilerCompile(t *testing.T) {
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		cmd := executor.commands[0]
-		foundSourceMap := false
-		for _, arg := range cmd.args {
-			if arg == "-output-source-map" {
-				foundSourceMap = true
-			}
-		}
-		if !foundSourceMap {
-			t.Error("-output-source-map flag not found when sourcemap path provided")
-		}
+		assert.Contains(t, cmd.args, "-output-source-map")
 	})
 
 	t.Run("hermesc binary not found", func(t *testing.T) {
@@ -111,9 +86,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile("/nonexistent/hermesc", bundlePath, "")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("bundle file not found", func(t *testing.T) {
@@ -125,9 +98,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile(hermescPath, "/nonexistent/bundle.js", "")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("hermesc execution fails", func(t *testing.T) {
@@ -142,9 +113,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
 		err := compiler.Compile(hermescPath, bundlePath, "")
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("with sourcemap and hermes map triggers composition", func(t *testing.T) {
@@ -172,24 +141,17 @@ func TestHermesCompilerCompile(t *testing.T) {
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// The hermes map should have been renamed to the metro map path
 		// since compose-source-maps.js won't be found
 		data, err := os.ReadFile(sourcemapPath)
-		if err != nil {
-			t.Fatalf("reading sourcemap: %v", err)
-		}
-		if string(data) != `{"hermes":true}` {
-			t.Errorf("sourcemap content: got %q, want hermes map content", string(data))
-		}
+		require.NoError(t, err)
+		assert.Equal(t, `{"hermes":true}`, string(data))
 
 		// The hermes map file should be gone
-		if _, err := os.Stat(hermesMapPath); err == nil {
-			t.Error("hermes map file should have been renamed away")
-		}
+		_, err = os.Stat(hermesMapPath)
+		assert.Error(t, err, "hermes map file should have been renamed away")
 	})
 }
 
@@ -210,12 +172,8 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Metro map should now contain hermes map content
 		data, err := os.ReadFile(metroMapPath)
-		if err != nil {
-			t.Fatalf("reading map: %v", err)
-		}
-		if string(data) != `{"hermes":true}` {
-			t.Errorf("map content: got %q, want hermes map", string(data))
-		}
+		require.NoError(t, err)
+		assert.Equal(t, `{"hermes":true}`, string(data))
 	})
 
 	t.Run("compose script exists but execution fails", func(t *testing.T) {
@@ -226,9 +184,7 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Create the compose script path so it's found
 		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
-		if err := os.MkdirAll(scriptDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(scriptDir, 0o755))
 		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
 
 		writeFile(t, bundlePath, "bytecode")
@@ -241,12 +197,8 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Should fall back to hermes map on failure
 		data, err := os.ReadFile(metroMapPath)
-		if err != nil {
-			t.Fatalf("reading map: %v", err)
-		}
-		if string(data) != `{"hermes":true}` {
-			t.Errorf("map content: got %q, want hermes map fallback", string(data))
-		}
+		require.NoError(t, err)
+		assert.Equal(t, `{"hermes":true}`, string(data))
 	})
 
 	t.Run("compose script succeeds", func(t *testing.T) {
@@ -257,9 +209,7 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Create the compose script path
 		scriptDir := filepath.Join(dir, "node_modules", "react-native", "scripts")
-		if err := os.MkdirAll(scriptDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(scriptDir, 0o755))
 		writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
 
 		writeFile(t, bundlePath, "bytecode")
@@ -281,16 +231,11 @@ func TestComposeSourceMaps(t *testing.T) {
 
 		// Metro map should have composed content
 		data, err := os.ReadFile(metroMapPath)
-		if err != nil {
-			t.Fatalf("reading map: %v", err)
-		}
-		if string(data) != `{"composed":true}` {
-			t.Errorf("map content: got %q, want composed map", string(data))
-		}
+		require.NoError(t, err)
+		assert.Equal(t, `{"composed":true}`, string(data))
 
 		// Hermes map should be cleaned up
-		if _, err := os.Stat(hermesMapPath); err == nil {
-			t.Error("hermes map should have been removed after composition")
-		}
+		_, err = os.Stat(hermesMapPath)
+		assert.Error(t, err, "hermes map should have been removed after composition")
 	})
 }

@@ -4,6 +4,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func setupTestDir(t *testing.T) string {
@@ -19,12 +22,8 @@ func TestLoad(t *testing.T) {
 		setupTestDir(t)
 
 		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if cfg != nil {
-			t.Errorf("expected nil config, got %+v", cfg)
-		}
+		require.NoError(t, err)
+		assert.Nil(t, cfg)
 	})
 
 	t.Run("returns config with valid JSON", func(t *testing.T) {
@@ -32,15 +31,9 @@ func TestLoad(t *testing.T) {
 		os.WriteFile(filepath.Join(dir, FileName), []byte(`{"app_id":"abc-123"}`), 0o644)
 
 		cfg, err := Load()
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if cfg == nil {
-			t.Fatal("expected config, got nil")
-		}
-		if cfg.AppID != "abc-123" {
-			t.Errorf("app_id: got %q, want %q", cfg.AppID, "abc-123")
-		}
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, "abc-123", cfg.AppID)
 	})
 
 	t.Run("returns error for malformed JSON", func(t *testing.T) {
@@ -48,9 +41,7 @@ func TestLoad(t *testing.T) {
 		os.WriteFile(filepath.Join(dir, FileName), []byte(`{not json}`), 0o644)
 
 		_, err := Load()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 
 	t.Run("returns error when directory resolution fails", func(t *testing.T) {
@@ -58,9 +49,7 @@ func TestLoad(t *testing.T) {
 		t.Cleanup(func() { configDirFunc = defaultConfigDir })
 
 		_, err := Load()
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -69,33 +58,21 @@ func TestSave(t *testing.T) {
 		dir := setupTestDir(t)
 
 		want := &ProjectConfig{AppID: "round-trip-id"}
-		if err := Save(dir, want); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
+		require.NoError(t, Save(dir, want))
 
 		got, err := Load()
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if got.AppID != want.AppID {
-			t.Errorf("app_id: got %q, want %q", got.AppID, want.AppID)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, want.AppID, got.AppID)
 	})
 
 	t.Run("file has 0644 permissions", func(t *testing.T) {
 		dir := setupTestDir(t)
 
-		if err := Save(dir, &ProjectConfig{AppID: "test"}); err != nil {
-			t.Fatalf("Save: %v", err)
-		}
+		require.NoError(t, Save(dir, &ProjectConfig{AppID: "test"}))
 
 		info, err := os.Stat(filepath.Join(dir, FileName))
-		if err != nil {
-			t.Fatalf("Stat: %v", err)
-		}
-		if perm := info.Mode().Perm(); perm != 0o644 {
-			t.Errorf("permissions: got %o, want 644", perm)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, os.FileMode(0o644), info.Mode().Perm())
 	})
 
 	t.Run("overwrites existing config", func(t *testing.T) {
@@ -105,12 +82,8 @@ func TestSave(t *testing.T) {
 		Save(dir, &ProjectConfig{AppID: "second"})
 
 		got, err := Load()
-		if err != nil {
-			t.Fatalf("Load: %v", err)
-		}
-		if got.AppID != "second" {
-			t.Errorf("app_id: got %q, want %q", got.AppID, "second")
-		}
+		require.NoError(t, err)
+		assert.Equal(t, "second", got.AppID)
 	})
 }
 
@@ -118,12 +91,8 @@ func TestFilePath(t *testing.T) {
 	dir := setupTestDir(t)
 
 	got, err := FilePath()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
 	want := filepath.Join(dir, FileName)
-	if got != want {
-		t.Errorf("got %q, want %q", got, want)
-	}
+	assert.Equal(t, want, got)
 }

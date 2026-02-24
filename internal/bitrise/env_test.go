@@ -5,13 +5,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsBitriseEnvironment(t *testing.T) {
 	tests := []struct {
-		name        string
-		envVars     map[string]string
-		want        bool
+		name    string
+		envVars map[string]string
+		want    bool
 	}{
 		{
 			name:    "not bitrise environment",
@@ -49,9 +52,7 @@ func TestIsBitriseEnvironment(t *testing.T) {
 			}
 
 			got := IsBitriseEnvironment()
-			if got != tt.want {
-				t.Errorf("IsBitriseEnvironment() = %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -63,15 +64,9 @@ func TestGetBuildMetadata(t *testing.T) {
 
 	meta := GetBuildMetadata()
 
-	if meta.DeployDir != "/tmp/deploy" {
-		t.Errorf("DeployDir = %q, want %q", meta.DeployDir, "/tmp/deploy")
-	}
-	if meta.BuildNumber != "42" {
-		t.Errorf("BuildNumber = %q, want %q", meta.BuildNumber, "42")
-	}
-	if meta.CommitHash != "abc123" {
-		t.Errorf("CommitHash = %q, want %q", meta.CommitHash, "abc123")
-	}
+	assert.Equal(t, "/tmp/deploy", meta.DeployDir)
+	assert.Equal(t, "42", meta.BuildNumber)
+	assert.Equal(t, "abc123", meta.CommitHash)
 }
 
 func TestWriteToDeployDir(t *testing.T) {
@@ -80,22 +75,14 @@ func TestWriteToDeployDir(t *testing.T) {
 		t.Setenv("BITRISE_DEPLOY_DIR", dir)
 
 		path, err := WriteToDeployDir("test.json", []byte(`{"key": "value"}`))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		expected := filepath.Join(dir, "test.json")
-		if path != expected {
-			t.Errorf("path = %q, want %q", path, expected)
-		}
+		assert.Equal(t, expected, path)
 
 		data, err := os.ReadFile(path)
-		if err != nil {
-			t.Fatalf("reading file: %v", err)
-		}
-		if string(data) != `{"key": "value"}` {
-			t.Errorf("content = %q, want %q", string(data), `{"key": "value"}`)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, `{"key": "value"}`, string(data))
 	})
 
 	t.Run("creates deploy directory if missing", func(t *testing.T) {
@@ -103,22 +90,17 @@ func TestWriteToDeployDir(t *testing.T) {
 		t.Setenv("BITRISE_DEPLOY_DIR", dir)
 
 		path, err := WriteToDeployDir("test.txt", []byte("hello"))
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if _, err := os.Stat(path); err != nil {
-			t.Errorf("file not created: %v", err)
-		}
+		_, err = os.Stat(path)
+		assert.NoError(t, err)
 	})
 
 	t.Run("error when deploy dir not set", func(t *testing.T) {
 		t.Setenv("BITRISE_DEPLOY_DIR", "")
 
 		_, err := WriteToDeployDir("test.txt", []byte("hello"))
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -128,9 +110,7 @@ func TestExportEnvVar(t *testing.T) {
 		t.Setenv("PATH", t.TempDir())
 
 		err := ExportEnvVar("TEST_KEY", "test_value")
-		if err != nil {
-			t.Fatalf("expected nil error when envman not found, got: %v", err)
-		}
+		require.NoError(t, err)
 	})
 
 	t.Run("calls envman when available", func(t *testing.T) {
@@ -140,8 +120,6 @@ func TestExportEnvVar(t *testing.T) {
 		}
 
 		err = ExportEnvVar("TEST_KEY", "test_value")
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 	})
 }

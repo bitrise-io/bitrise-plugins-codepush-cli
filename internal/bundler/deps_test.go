@@ -5,8 +5,10 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
@@ -54,18 +56,12 @@ func TestDetectPackageManager(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			if tt.lockFile != "" {
-				if err := os.WriteFile(filepath.Join(dir, tt.lockFile), []byte{}, 0644); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, os.WriteFile(filepath.Join(dir, tt.lockFile), []byte{}, 0644))
 			}
 
 			name, cmd := detectPackageManager(dir)
-			if name != tt.wantName {
-				t.Errorf("name: got %q, want %q", name, tt.wantName)
-			}
-			if cmd != tt.wantCmd {
-				t.Errorf("cmd: got %q, want %q", cmd, tt.wantCmd)
-			}
+			assert.Equal(t, tt.wantName, name)
+			assert.Equal(t, tt.wantCmd, cmd)
 		})
 	}
 }
@@ -75,47 +71,31 @@ func TestDetectPackageManager_PriorityOrder(t *testing.T) {
 
 	// Create both yarn.lock and pnpm-lock.yaml; yarn should win (checked first)
 	for _, f := range []string{"yarn.lock", "pnpm-lock.yaml"} {
-		if err := os.WriteFile(filepath.Join(dir, f), []byte{}, 0644); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte{}, 0644))
 	}
 
 	name, _ := detectPackageManager(dir)
-	if name != "yarn" {
-		t.Errorf("expected yarn to take priority, got %q", name)
-	}
+	assert.Equal(t, "yarn", name)
 }
 
 func TestInstallDependencies(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create yarn.lock so it detects yarn
-	if err := os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte{}, 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte{}, 0644))
 
 	executor := &mockExecutor{}
 	out := output.NewTest(io.Discard)
 
 	err := installDependencies(dir, executor, out)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if len(executor.commands) != 1 {
-		t.Fatalf("expected 1 command, got %d", len(executor.commands))
-	}
+	require.Len(t, executor.commands, 1)
 
 	cmd := executor.commands[0]
-	if cmd.name != "yarn" {
-		t.Errorf("command name: got %q, want %q", cmd.name, "yarn")
-	}
-	if len(cmd.args) != 1 || cmd.args[0] != "install" {
-		t.Errorf("command args: got %v, want [install]", cmd.args)
-	}
-	if cmd.dir != dir {
-		t.Errorf("command dir: got %q, want %q", cmd.dir, dir)
-	}
+	assert.Equal(t, "yarn", cmd.name)
+	assert.Equal(t, []string{"install"}, cmd.args)
+	assert.Equal(t, dir, cmd.dir)
 }
 
 func TestInstallDependencies_DefaultsToNpm(t *testing.T) {
@@ -124,13 +104,9 @@ func TestInstallDependencies_DefaultsToNpm(t *testing.T) {
 	out := output.NewTest(io.Discard)
 
 	err := installDependencies(dir, executor, out)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	require.NoError(t, err)
 
-	if executor.commands[0].name != "npm" {
-		t.Errorf("expected npm, got %q", executor.commands[0].name)
-	}
+	assert.Equal(t, "npm", executor.commands[0].name)
 }
 
 func TestInstallDependencies_Error(t *testing.T) {
@@ -139,13 +115,7 @@ func TestInstallDependencies_Error(t *testing.T) {
 	out := output.NewTest(io.Discard)
 
 	err := installDependencies(dir, executor, out)
-	if err == nil {
-		t.Fatal("expected error, got nil")
-	}
-	if !strings.Contains(err.Error(), "installing dependencies with npm failed") {
-		t.Errorf("error should mention install failure: %v", err)
-	}
-	if !strings.Contains(err.Error(), "command failed") {
-		t.Errorf("error should wrap original: %v", err)
-	}
+	require.Error(t, err)
+	assert.ErrorContains(t, err, "installing dependencies with npm failed")
+	assert.ErrorContains(t, err, "command failed")
 }

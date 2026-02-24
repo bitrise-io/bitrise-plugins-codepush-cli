@@ -4,8 +4,10 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // testOSTriplet returns the hermesc directory name for the current OS/arch,
@@ -74,17 +76,11 @@ func TestDetectProjectType(t *testing.T) {
 
 			got, err := detectProjectType(dir)
 			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
+				require.Error(t, err)
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -138,25 +134,17 @@ func TestDetectEntryFile(t *testing.T) {
 
 			for name, content := range tt.files {
 				path := filepath.Join(dir, name)
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o755))
 				writeFile(t, path, content)
 			}
 
 			got, err := detectEntryFile(dir, tt.platform)
 			if tt.wantErr {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
+				require.Error(t, err)
 				return
 			}
-			if err != nil {
-				t.Fatalf("unexpected error: %v", err)
-			}
-			if got != tt.want {
-				t.Errorf("got %q, want %q", got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
 		})
 	}
 }
@@ -204,16 +192,11 @@ func TestDetectHermesAndroid(t *testing.T) {
 
 			if tt.gradle != "" {
 				gradleDir := filepath.Join(dir, "android", "app")
-				if err := os.MkdirAll(gradleDir, 0o755); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, os.MkdirAll(gradleDir, 0o755))
 				writeFile(t, filepath.Join(gradleDir, "build.gradle"), tt.gradle)
 			}
 
-			got := detectHermesAndroid(dir)
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, detectHermesAndroid(dir))
 		})
 	}
 }
@@ -256,16 +239,11 @@ func TestDetectHermesIOS(t *testing.T) {
 
 			if tt.podfile != "" {
 				iosDir := filepath.Join(dir, "ios")
-				if err := os.MkdirAll(iosDir, 0o755); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, os.MkdirAll(iosDir, 0o755))
 				writeFile(t, filepath.Join(iosDir, "Podfile"), tt.podfile)
 			}
 
-			got := detectHermesIOS(dir)
-			if got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
+			assert.Equal(t, tt.want, detectHermesIOS(dir))
 		})
 	}
 }
@@ -307,15 +285,10 @@ func TestDetectMetroConfig(t *testing.T) {
 
 			got := detectMetroConfig(dir)
 			if tt.want == "" {
-				if got != "" {
-					t.Errorf("expected empty, got %q", got)
-				}
+				assert.Empty(t, got)
 				return
 			}
-			expected := filepath.Join(dir, tt.want)
-			if got != expected {
-				t.Errorf("got %q, want %q", got, expected)
-			}
+			assert.Equal(t, filepath.Join(dir, tt.want), got)
 		})
 	}
 }
@@ -330,28 +303,16 @@ func TestDetectProject(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "metro.config.js"), "")
 
 		gradleDir := filepath.Join(dir, "android", "app")
-		if err := os.MkdirAll(gradleDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
 		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `react { hermesEnabled = true }`)
 
 		config, err := DetectProject(dir, PlatformAndroid, HermesModeAuto)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if config.ProjectType != ProjectTypeReactNative {
-			t.Errorf("project type: got %v, want %v", config.ProjectType, ProjectTypeReactNative)
-		}
-		if config.EntryFile != "index.js" {
-			t.Errorf("entry file: got %q, want %q", config.EntryFile, "index.js")
-		}
-		if !config.HermesEnabled {
-			t.Error("expected Hermes to be enabled")
-		}
-		if config.MetroConfig == "" {
-			t.Error("expected metro config to be detected")
-		}
+		assert.Equal(t, ProjectTypeReactNative, config.ProjectType)
+		assert.Equal(t, "index.js", config.EntryFile)
+		assert.True(t, config.HermesEnabled)
+		assert.NotEmpty(t, config.MetroConfig)
 	})
 
 	t.Run("hermes mode override to off", func(t *testing.T) {
@@ -361,19 +322,13 @@ func TestDetectProject(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "index.js"), "")
 
 		gradleDir := filepath.Join(dir, "android", "app")
-		if err := os.MkdirAll(gradleDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
 		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `react { hermesEnabled = true }`)
 
 		config, err := DetectProject(dir, PlatformAndroid, HermesModeOff)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if config.HermesEnabled {
-			t.Error("expected Hermes to be disabled with HermesModeOff")
-		}
+		assert.False(t, config.HermesEnabled)
 	})
 
 	t.Run("hermes mode override to on", func(t *testing.T) {
@@ -383,20 +338,14 @@ func TestDetectProject(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "index.js"), "")
 
 		config, err := DetectProject(dir, PlatformIOS, HermesModeOn)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
-		if !config.HermesEnabled {
-			t.Error("expected Hermes to be enabled with HermesModeOn")
-		}
+		assert.True(t, config.HermesEnabled)
 	})
 
 	t.Run("nonexistent directory", func(t *testing.T) {
 		_, err := DetectProject("/nonexistent/path", PlatformIOS, HermesModeAuto)
-		if err == nil {
-			t.Fatal("expected error for nonexistent directory")
-		}
+		require.Error(t, err)
 	})
 }
 
@@ -411,9 +360,7 @@ func TestProjectTypeString(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := tt.pt.String(); got != tt.want {
-			t.Errorf("ProjectType(%d).String() = %q, want %q", tt.pt, got, tt.want)
-		}
+		assert.Equal(t, tt.want, tt.pt.String())
 	}
 }
 
@@ -429,18 +376,15 @@ func TestParseRNMajorMinor(t *testing.T) {
 		{"~0.71.3", 71},
 		{">=0.70.0", 70},
 		{"0.68.0", 68},
-		{"1.0.0", 100},   // Future major version
-		{"invalid", 0},    // Unparseable
-		{"", 0},           // Empty
-		{"0", 0},          // Missing minor
-		{"0.abc.0", 0},    // Non-numeric minor
+		{"1.0.0", 100},
+		{"invalid", 0},
+		{"", 0},
+		{"0", 0},
+		{"0.abc.0", 0},
 	}
 
 	for _, tt := range tests {
-		got := parseRNMajorMinor(tt.version)
-		if got != tt.want {
-			t.Errorf("parseRNMajorMinor(%q) = %d, want %d", tt.version, got, tt.want)
-		}
+		assert.Equal(t, tt.want, parseRNMajorMinor(tt.version), "parseRNMajorMinor(%q)", tt.version)
 	}
 }
 
@@ -448,56 +392,42 @@ func TestIsHermesDefaultVersion(t *testing.T) {
 	t.Run("RN 0.72 defaults to hermes", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
-		if !isHermesDefaultVersion(dir) {
-			t.Error("expected true for RN 0.72")
-		}
+		assert.True(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("RN 0.70 defaults to hermes", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.70.0"}}`)
-		if !isHermesDefaultVersion(dir) {
-			t.Error("expected true for RN 0.70")
-		}
+		assert.True(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("RN 0.69 does not default to hermes", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.69.0"}}`)
-		if isHermesDefaultVersion(dir) {
-			t.Error("expected false for RN 0.69")
-		}
+		assert.False(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("semver range prefix", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "^0.73.0"}}`)
-		if !isHermesDefaultVersion(dir) {
-			t.Error("expected true for ^0.73.0")
-		}
+		assert.True(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("no package.json", func(t *testing.T) {
 		dir := t.TempDir()
-		if isHermesDefaultVersion(dir) {
-			t.Error("expected false when no package.json")
-		}
+		assert.False(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("no react-native dependency", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"expo": "~49.0.0"}}`)
-		if isHermesDefaultVersion(dir) {
-			t.Error("expected false when no react-native dependency")
-		}
+		assert.False(t, isHermesDefaultVersion(dir))
 	})
 
 	t.Run("react-native in devDependencies", func(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"devDependencies": {"react-native": "0.72.0"}}`)
-		if !isHermesDefaultVersion(dir) {
-			t.Error("expected true for RN 0.72 in devDependencies")
-		}
+		assert.True(t, isHermesDefaultVersion(dir))
 	})
 }
 
@@ -507,12 +437,8 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 
 		enabled, err := detectHermes(dir, PlatformAndroid)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !enabled {
-			t.Error("expected Hermes enabled for RN 0.72 with no gradle config")
-		}
+		require.NoError(t, err)
+		assert.True(t, enabled)
 	})
 
 	t.Run("no config file and RN < 0.70 disables hermes", func(t *testing.T) {
@@ -520,12 +446,8 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.68.0"}}`)
 
 		enabled, err := detectHermes(dir, PlatformAndroid)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if enabled {
-			t.Error("expected Hermes disabled for RN 0.68 with no gradle config")
-		}
+		require.NoError(t, err)
+		assert.False(t, enabled)
 	})
 
 	t.Run("explicit disable overrides version fallback", func(t *testing.T) {
@@ -533,18 +455,12 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 
 		gradleDir := filepath.Join(dir, "android", "app")
-		if err := os.MkdirAll(gradleDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
 		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `react { hermesEnabled = false }`)
 
 		enabled, err := detectHermes(dir, PlatformAndroid)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if enabled {
-			t.Error("expected Hermes disabled when explicitly set to false")
-		}
+		require.NoError(t, err)
+		assert.False(t, enabled)
 	})
 }
 
@@ -559,12 +475,8 @@ func TestFindHermesc(t *testing.T) {
 		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
 
 		path, err := findHermesc(dir)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if !filepath.IsAbs(path) {
-			t.Errorf("expected absolute path, got %q", path)
-		}
+		require.NoError(t, err)
+		assert.True(t, filepath.IsAbs(path))
 	})
 
 	t.Run("finds hermesc in react-native sdks", func(t *testing.T) {
@@ -575,12 +487,8 @@ func TestFindHermesc(t *testing.T) {
 		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
 
 		path, err := findHermesc(dir)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if path == "" {
-			t.Error("expected non-empty path")
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
 	})
 
 	t.Run("prefers hermes-engine over react-native", func(t *testing.T) {
@@ -595,26 +503,18 @@ func TestFindHermesc(t *testing.T) {
 		writeFile(t, filepath.Join(loc2, "hermesc"), "secondary")
 
 		path, err := findHermesc(dir)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
+		require.NoError(t, err)
 
 		// Should prefer hermes-engine location
-		if !strings.Contains(path, "hermes-engine") {
-			t.Errorf("expected hermes-engine path, got %q", path)
-		}
+		assert.Contains(t, path, "hermes-engine")
 	})
 
 	t.Run("returns error when not found", func(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := findHermesc(dir)
-		if err == nil {
-			t.Fatal("expected error, got nil")
-		}
-		if !strings.Contains(err.Error(), "hermesc binary not found") {
-			t.Errorf("error should mention hermesc: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "hermesc binary not found")
 	})
 }
 
@@ -626,12 +526,8 @@ func TestFindExpoBundleOutput(t *testing.T) {
 		writeFile(t, filepath.Join(bundleDir, "ios-abc123.js"), "bundle content")
 
 		path, err := findExpoBundleOutput(dir, PlatformIOS)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if path == "" {
-			t.Error("expected non-empty path")
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
 	})
 
 	t.Run("finds bundle in _expo/static/js directory", func(t *testing.T) {
@@ -641,12 +537,8 @@ func TestFindExpoBundleOutput(t *testing.T) {
 		writeFile(t, filepath.Join(jsDir, "entry-abc123.js"), "bundle content")
 
 		path, err := findExpoBundleOutput(dir, PlatformIOS)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if path == "" {
-			t.Error("expected non-empty path")
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
 	})
 
 	t.Run("single js file fallback succeeds", func(t *testing.T) {
@@ -654,12 +546,8 @@ func TestFindExpoBundleOutput(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "bundle.js"), "bundle content")
 
 		path, err := findExpoBundleOutput(dir, PlatformIOS)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if path == "" {
-			t.Error("expected non-empty path")
-		}
+		require.NoError(t, err)
+		assert.NotEmpty(t, path)
 	})
 
 	t.Run("multiple js files in fallback returns error", func(t *testing.T) {
@@ -668,27 +556,19 @@ func TestFindExpoBundleOutput(t *testing.T) {
 		writeFile(t, filepath.Join(dir, "two.js"), "content")
 
 		_, err := findExpoBundleOutput(dir, PlatformIOS)
-		if err == nil {
-			t.Fatal("expected error for ambiguous output, got nil")
-		}
-		if !strings.Contains(err.Error(), "could not determine which is the bundle") {
-			t.Errorf("error should mention ambiguity: %v", err)
-		}
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "could not determine which is the bundle")
 	})
 
 	t.Run("empty directory returns error", func(t *testing.T) {
 		dir := t.TempDir()
 
 		_, err := findExpoBundleOutput(dir, PlatformIOS)
-		if err == nil {
-			t.Fatal("expected error for empty output, got nil")
-		}
+		require.Error(t, err)
 	})
 }
 
 func writeFile(t *testing.T, path string, content string) {
 	t.Helper()
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatalf("writing %s: %v", path, err)
-	}
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o644))
 }
