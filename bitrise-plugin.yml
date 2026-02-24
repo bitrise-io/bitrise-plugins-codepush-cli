@@ -10,9 +10,9 @@ description: |
   - Works as standalone CLI or Bitrise plugin
 
 executable:
-  osx: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.1/codepush-Darwin-x86_64
-  osx-arm64: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.1/codepush-Darwin-arm64
-  linux: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.1/codepush-Linux-x86_64
+  osx: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.2/codepush-Darwin-x86_64
+  osx-arm64: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.2/codepush-Darwin-arm64
+  linux: https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases/download/0.1.2/codepush-Linux-x86_64
 
 trigger: ""
 
