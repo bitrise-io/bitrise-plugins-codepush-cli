@@ -10,7 +10,7 @@ import (
 )
 
 // Promote executes the promote workflow: validate, resolve both deployments,
-// optionally resolve label to package ID, call API, export summary.
+// optionally resolve label to update ID, call API, export summary.
 func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *output.Writer) (*PromoteResult, error) {
 	if err := validatePromoteOptions(opts); err != nil {
 		return nil, err
@@ -36,11 +36,11 @@ func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *outp
 	}
 
 	if opts.Label != "" {
-		packageID, err := resolvePackageLabel(ctx, client, opts.AppID, sourceDeploymentID, opts.Label, out)
+		updateID, err := resolveUpdateLabel(ctx, client, opts.AppID, sourceDeploymentID, opts.Label, out)
 		if err != nil {
 			return nil, err
 		}
-		req.PackageID = packageID
+		req.UpdateID = updateID
 	}
 
 	out.Step("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
@@ -50,7 +50,7 @@ func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *outp
 	}
 
 	result := &PromoteResult{
-		PackageID:        pkg.ID,
+		UpdateID:         pkg.ID,
 		AppID:            opts.AppID,
 		SourceDeployment: sourceDeploymentID,
 		DestDeployment:   destDeploymentID,

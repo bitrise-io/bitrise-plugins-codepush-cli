@@ -29,7 +29,7 @@ var pushCmd = &cobra.Command{
 	Short: "Push an OTA update",
 	Long: `Push an over-the-air update to your mobile application.
 
-Packages the specified bundle and deploys it to the CodePush server
+Uploads the specified bundle and deploys it to the CodePush server
 for distribution to connected devices.
 
 Use --bundle to automatically generate the JavaScript bundle before pushing.`,
@@ -103,7 +103,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 
 		out.Success("Push successful")
 		out.Result([]output.KeyValue{
-			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Update ID", Value: result.UpdateID},
 			{Key: "App version", Value: result.AppVersion},
 			{Key: "Status", Value: result.Status},
 		})
@@ -111,7 +111,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		if bitrise.IsBitriseEnvironment() {
 			cmdutil.ExportDeploySummary("codepush-push-summary.json", result, out)
 			cmdutil.ExportEnvVars(map[string]string{
-				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_UPDATE_ID":   result.UpdateID,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
 			}, out)
 		}

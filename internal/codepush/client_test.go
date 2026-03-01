@@ -334,7 +334,7 @@ func TestHTTPClientUploadFile(t *testing.T) {
 	})
 }
 
-func TestHTTPClientGetPackageStatus(t *testing.T) {
+func TestHTTPClientGetUpdateStatus(t *testing.T) {
 	t.Run("returns status", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			expectedPath := "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789/status"
@@ -346,10 +346,10 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		status, err := client.GetPackageStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
-		assert.Equal(t, "pkg-789", status.PackageID)
+		assert.Equal(t, "pkg-789", status.UpdateID)
 		assert.Equal(t, "done", status.Status)
 	})
 
@@ -361,7 +361,7 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		status, err := client.GetPackageStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
 		assert.Equal(t, "failed", status.Status)
@@ -376,14 +376,14 @@ func TestHTTPClientGetPackageStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetPackageStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		_, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "500")
 	})
 }
 
-func TestHTTPClientListPackages(t *testing.T) {
-	t.Run("returns packages", func(t *testing.T) {
+func TestHTTPClientListUpdates(t *testing.T) {
+	t.Run("returns updates", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages", r.URL.Path)
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
@@ -394,12 +394,12 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		packages, err := client.ListPackages(context.Background(), "app-123", "dep-456")
+		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 
-		require.Len(t, packages, 2)
-		assert.Equal(t, "pkg-1", packages[0].ID)
-		assert.Equal(t, "v1", packages[0].Label)
+		require.Len(t, updates, 2)
+		assert.Equal(t, "pkg-1", updates[0].ID)
+		assert.Equal(t, "v1", updates[0].Label)
 	})
 
 	t.Run("handles empty list", func(t *testing.T) {
@@ -410,9 +410,9 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		packages, err := client.ListPackages(context.Background(), "app-123", "dep-456")
+		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
-		assert.Empty(t, packages)
+		assert.Empty(t, updates)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {
@@ -423,14 +423,14 @@ func TestHTTPClientListPackages(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.ListPackages(context.Background(), "app-123", "dep-456")
+		_, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
 }
 
-func TestHTTPClientGetPackage(t *testing.T) {
-	t.Run("returns package", func(t *testing.T) {
+func TestHTTPClientGetUpdate(t *testing.T) {
+	t.Run("returns update", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
 			assert.Equal(t, http.MethodGet, r.Method)
@@ -442,7 +442,7 @@ func TestHTTPClientGetPackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.GetPackage(context.Background(), "app-123", "dep-456", "pkg-789")
+		pkg, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-789", pkg.ID)
@@ -459,13 +459,13 @@ func TestHTTPClientGetPackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.GetPackage(context.Background(), "app-123", "dep-456", "pkg-789")
+		_, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
 }
 
-func TestHTTPClientPatchPackage(t *testing.T) {
+func TestHTTPClientPatchUpdate(t *testing.T) {
 	t.Run("sends correct PATCH request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
@@ -485,7 +485,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 		rollout := 50
 		mandatory := true
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.PatchPackage(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		pkg, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout:   &rollout,
 			Mandatory: &mandatory,
 		})
@@ -510,7 +510,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 
 		rollout := 50
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.PatchPackage(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		require.NoError(t, err)
@@ -525,7 +525,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 
 		rollout := 50
 		client := NewHTTPClient(server.URL, "test-token")
-		_, err := client.PatchPackage(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		require.Error(t, err)
@@ -533,8 +533,8 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 	})
 }
 
-func TestHTTPClientDeletePackage(t *testing.T) {
-	t.Run("deletes package", func(t *testing.T) {
+func TestHTTPClientDeleteUpdate(t *testing.T) {
+	t.Run("deletes update", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
 			assert.Equal(t, http.MethodDelete, r.Method)
@@ -544,7 +544,7 @@ func TestHTTPClientDeletePackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeletePackage(context.Background(), "app-123", "dep-456", "pkg-789")
+		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 	})
 
@@ -556,7 +556,7 @@ func TestHTTPClientDeletePackage(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		err := client.DeletePackage(context.Background(), "app-123", "dep-456", "pkg-789")
+		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -572,7 +572,7 @@ func TestHTTPClientRollback(t *testing.T) {
 
 			var body RollbackRequest
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			assert.Equal(t, "pkg-target", body.PackageID)
+			assert.Equal(t, "pkg-target", body.UpdateID)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"id":"pkg-new","label":"v4","app_version":"1.0.0"}`))
@@ -580,7 +580,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token")
-		pkg, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{PackageID: "pkg-target"})
+		pkg, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{UpdateID: "pkg-target"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-new", pkg.ID)

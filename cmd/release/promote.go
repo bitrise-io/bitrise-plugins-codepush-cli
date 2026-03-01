@@ -78,7 +78,7 @@ Example: promote from Staging to Production after testing.`,
 
 		out.Success("Promote successful")
 		out.Result([]output.KeyValue{
-			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Update ID", Value: result.UpdateID},
 			{Key: "Label", Value: result.Label},
 			{Key: "App version", Value: result.AppVersion},
 			{Key: "Destination", Value: result.DestDeployment},
@@ -86,7 +86,7 @@ Example: promote from Staging to Production after testing.`,
 
 		if bitrise.IsBitriseEnvironment() {
 			cmdutil.ExportEnvVars(map[string]string{
-				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_UPDATE_ID":   result.UpdateID,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
 			}, out)
 		}

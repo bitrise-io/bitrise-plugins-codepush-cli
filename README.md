@@ -122,7 +122,7 @@ Use `--force` to overwrite an existing `.codepush.json`.
 
 | Flag | Description |
 |------|-------------|
-| `--app-id` | Connected app UUID (env: `CODEPUSH_APP_ID`) |
+| `--app-id` | Release management app UUID (env: `CODEPUSH_APP_ID`) |
 | `--json` | Output results as JSON to stdout |
 
 ### Release Management
@@ -145,15 +145,15 @@ Use `--force` to overwrite an existing `.codepush.json`.
 | `deployment rename <deployment>` | Rename a deployment (`--name`) |
 | `deployment remove <deployment>` | Delete a deployment (`--yes` to confirm) |
 | `deployment history <deployment>` | Show release history (`--limit`, default 10) |
-| `deployment clear <deployment>` | Delete all packages from a deployment (`--yes` to confirm) |
+| `deployment clear <deployment>` | Delete all updates from a deployment (`--yes` to confirm) |
 
-### Package Management
+### Update Management
 
 | Command | Description |
 |---------|-------------|
-| `package info <deployment>` | Show package details (`--label` for specific version) |
-| `package status <deployment>` | Show package processing status |
-| `package remove <deployment>` | Delete a package (`--label` required, `--yes` to confirm) |
+| `update info <deployment>` | Show update details (`--label` for specific version) |
+| `update status <deployment>` | Show update processing status |
+| `update remove <deployment>` | Delete an update (`--label` required, `--yes` to confirm) |
 
 ### Setup
 
@@ -310,20 +310,20 @@ codepush deployment clear Staging --app-id <APP_UUID> --yes
 
 Destructive operations (`remove`, `clear`) require `--yes` to skip the interactive confirmation prompt. In CI environments, always pass `--yes`.
 
-## Package Management
+## Update Management
 
 ```bash
-# View details of the latest package
-codepush package info Staging --app-id <APP_UUID>
+# View details of the latest update
+codepush update info Staging --app-id <APP_UUID>
 
-# View a specific package by label
-codepush package info Staging --label v5 --app-id <APP_UUID>
+# View a specific update by label
+codepush update info Staging --label v5 --app-id <APP_UUID>
 
 # Check processing status (useful after push)
-codepush package status Staging --app-id <APP_UUID>
+codepush update status Staging --app-id <APP_UUID>
 
-# Delete a specific package (destructive)
-codepush package remove Staging --label v3 --app-id <APP_UUID> --yes
+# Delete a specific update (destructive)
+codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
 
 ## Workflow Examples
@@ -343,7 +343,7 @@ codepush push ./codepush-bundle \
   --app-version 1.2.0 --rollout 10 --description "Fix login crash"
 
 # 4. Check processing status
-codepush package status Staging --app-id $APP_ID
+codepush update status Staging --app-id $APP_ID
 
 # 5. Increase rollout after verifying on test devices
 codepush patch --deployment Staging --rollout 100 --app-id $APP_ID
@@ -381,7 +381,7 @@ codepush push ./codepush-bundle --app-id $APP_ID \
 codepush deployment list --app-id $APP_ID --json
 
 # Parse with jq
-codepush package info Staging --app-id $APP_ID --json | jq '.app_version'
+codepush update info Staging --app-id $APP_ID --json | jq '.app_version'
 ```
 
 ## Environment Variables
@@ -389,7 +389,7 @@ codepush package info Staging --app-id $APP_ID --json | jq '.app_version'
 | Variable | Description |
 |----------|-------------|
 | `BITRISE_API_TOKEN` | API token for authentication |
-| `CODEPUSH_APP_ID` | Default connected app UUID (used when `--app-id` is not set) |
+| `CODEPUSH_APP_ID` | Default release management app UUID (used when `--app-id` is not set) |
 | `CODEPUSH_DEPLOYMENT` | Default deployment name or UUID (used when `--deployment` is not set) |
 | `NO_COLOR` | Disable colored terminal output |
 
@@ -407,7 +407,7 @@ After a successful push, rollback, promote, or patch, the CLI exports these via 
 
 | Variable | Description |
 |----------|-------------|
-| `CODEPUSH_PACKAGE_ID` | ID of the created or modified package |
+| `CODEPUSH_UPDATE_ID` | ID of the created or modified update |
 | `CODEPUSH_APP_VERSION` | App version of the release |
 | `CODEPUSH_LABEL` | Release label (patch command only) |
 

@@ -27,7 +27,7 @@ func NewHTTPClient(baseURL, token string) *HTTPClient {
 	}
 }
 
-// ListDeployments returns all deployments for the connected app.
+// ListDeployments returns all deployments for the release management app.
 func (c *HTTPClient) ListDeployments(ctx context.Context, appID string) ([]Deployment, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments", appID)
 
@@ -111,10 +111,10 @@ func (c *HTTPClient) DeleteDeployment(ctx context.Context, appID, deploymentID s
 	return nil
 }
 
-// GetUploadURL requests a signed upload URL for a new package.
-func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
+// GetUploadURL requests a signed upload URL for a new update.
+func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/upload-url",
-		appID, deploymentID, packageID)
+		appID, deploymentID, updateID)
 
 	params := url.Values{}
 	params.Set("app_version", req.AppVersion)
@@ -174,26 +174,26 @@ func (c *HTTPClient) UploadFile(ctx context.Context, ufr UploadFileRequest) erro
 	return nil
 }
 
-// GetPackageStatus polls the status of a package.
-func (c *HTTPClient) GetPackageStatus(ctx context.Context, appID, deploymentID, packageID string) (*PackageStatus, error) {
+// GetUpdateStatus polls the status of an update.
+func (c *HTTPClient) GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/status",
-		appID, deploymentID, packageID)
+		appID, deploymentID, updateID)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
 
-	var result PackageStatus
+	var result UpdateStatus
 	if err := decodeResponse(resp, &result); err != nil {
-		return nil, fmt.Errorf("getting package status: %w", err)
+		return nil, fmt.Errorf("getting update status: %w", err)
 	}
 
 	return &result, nil
 }
 
-// ListPackages returns all packages for a deployment.
-func (c *HTTPClient) ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error) {
+// ListUpdates returns all updates for a deployment.
+func (c *HTTPClient) ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages", appID, deploymentID)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
@@ -201,54 +201,54 @@ func (c *HTTPClient) ListPackages(ctx context.Context, appID, deploymentID strin
 		return nil, err
 	}
 
-	var result PackageListResponse
+	var result UpdateListResponse
 	if err := decodeResponse(resp, &result); err != nil {
-		return nil, fmt.Errorf("listing packages: %w", err)
+		return nil, fmt.Errorf("listing updates: %w", err)
 	}
 
 	return result.Items, nil
 }
 
-// GetPackage returns a single package by ID.
-func (c *HTTPClient) GetPackage(ctx context.Context, appID, deploymentID, packageID string) (*Package, error) {
+// GetUpdate returns a single update by ID.
+func (c *HTTPClient) GetUpdate(ctx context.Context, appID, deploymentID, updateID string) (*Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, packageID)
+		appID, deploymentID, updateID)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
 
-	var result Package
+	var result Update
 	if err := decodeResponse(resp, &result); err != nil {
-		return nil, fmt.Errorf("getting package: %w", err)
+		return nil, fmt.Errorf("getting update: %w", err)
 	}
 
 	return &result, nil
 }
 
-// PatchPackage updates metadata on an existing package.
-func (c *HTTPClient) PatchPackage(ctx context.Context, appID, deploymentID, packageID string, req PatchRequest) (*Package, error) {
+// PatchUpdate updates metadata on an existing update.
+func (c *HTTPClient) PatchUpdate(ctx context.Context, appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, packageID)
+		appID, deploymentID, updateID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPatch, path, req)
 	if err != nil {
 		return nil, err
 	}
 
-	var result Package
+	var result Update
 	if err := decodeResponse(resp, &result); err != nil {
-		return nil, fmt.Errorf("patching package: %w", err)
+		return nil, fmt.Errorf("patching update: %w", err)
 	}
 
 	return &result, nil
 }
 
-// DeletePackage deletes a package from a deployment.
-func (c *HTTPClient) DeletePackage(ctx context.Context, appID, deploymentID, packageID string) error {
+// DeleteUpdate deletes an update from a deployment.
+func (c *HTTPClient) DeleteUpdate(ctx context.Context, appID, deploymentID, updateID string) error {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, packageID)
+		appID, deploymentID, updateID)
 
 	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
@@ -256,14 +256,14 @@ func (c *HTTPClient) DeletePackage(ctx context.Context, appID, deploymentID, pac
 	}
 
 	if err := decodeResponse(resp, nil); err != nil {
-		return fmt.Errorf("deleting package: %w", err)
+		return fmt.Errorf("deleting update: %w", err)
 	}
 
 	return nil
 }
 
 // Rollback sends a rollback request for a deployment.
-func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Package, error) {
+func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/rollback", appID, deploymentID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
@@ -271,7 +271,7 @@ func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, r
 		return nil, err
 	}
 
-	var result Package
+	var result Update
 	if err := decodeResponse(resp, &result); err != nil {
 		return nil, fmt.Errorf("rolling back deployment: %w", err)
 	}
@@ -280,7 +280,7 @@ func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, r
 }
 
 // Promote sends a promote request for a deployment.
-func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Package, error) {
+func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/promote", appID, deploymentID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
@@ -288,7 +288,7 @@ func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, re
 		return nil, err
 	}
 
-	var result Package
+	var result Update
 	if err := decodeResponse(resp, &result); err != nil {
 		return nil, fmt.Errorf("promoting deployment: %w", err)
 	}

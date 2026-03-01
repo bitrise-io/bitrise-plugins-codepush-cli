@@ -8,9 +8,9 @@ import (
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 
 	_ "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd/deployment"
-	_ "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd/packagecmd"
 	_ "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd/release"
 	_ "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd/setup"
+	_ "github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd/updatecmd"
 )
 
 func main() {

@@ -10,7 +10,7 @@ import (
 )
 
 // Rollback executes the rollback workflow: validate, resolve deployment,
-// optionally resolve target label to package ID, call API, export summary.
+// optionally resolve target label to update ID, call API, export summary.
 func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *output.Writer) (*RollbackResult, error) {
 	if err := validateRollbackOptions(opts); err != nil {
 		return nil, err
@@ -24,11 +24,11 @@ func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *ou
 	req := RollbackRequest{}
 
 	if opts.TargetLabel != "" {
-		packageID, err := resolvePackageLabel(ctx, client, opts.AppID, deploymentID, opts.TargetLabel, out)
+		updateID, err := resolveUpdateLabel(ctx, client, opts.AppID, deploymentID, opts.TargetLabel, out)
 		if err != nil {
 			return nil, err
 		}
-		req.PackageID = packageID
+		req.UpdateID = updateID
 	}
 
 	out.Step("Rolling back deployment")
@@ -38,7 +38,7 @@ func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *ou
 	}
 
 	result := &RollbackResult{
-		PackageID:    pkg.ID,
+		UpdateID:     pkg.ID,
 		AppID:        opts.AppID,
 		DeploymentID: deploymentID,
 		Label:        pkg.Label,
@@ -62,23 +62,23 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 	return nil
 }
 
-// packageLister is the subset of Client needed by resolvePackageLabel.
-type packageLister interface {
-	ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error)
+// updateLister is the subset of Client needed by resolveUpdateLabel.
+type updateLister interface {
+	ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error)
 }
 
-// resolvePackageLabel finds a package by its label (e.g. "v3") within a deployment.
-func resolvePackageLabel(ctx context.Context, client packageLister, appID, deploymentID, label string, out *output.Writer) (string, error) {
+// resolveUpdateLabel finds an update by its label (e.g. "v3") within a deployment.
+func resolveUpdateLabel(ctx context.Context, client updateLister, appID, deploymentID, label string, out *output.Writer) (string, error) {
 	out.Step("Resolving release label %q", label)
-	packages, err := client.ListPackages(ctx, appID, deploymentID)
+	updates, err := client.ListUpdates(ctx, appID, deploymentID)
 	if err != nil {
-		return "", fmt.Errorf("listing packages: %w", err)
+		return "", fmt.Errorf("listing updates: %w", err)
 	}
 
-	for _, p := range packages {
-		if p.Label == label {
-			out.Info("Resolved to %s", p.ID)
-			return p.ID, nil
+	for _, u := range updates {
+		if u.Label == label {
+			out.Info("Resolved to %s", u.ID)
+			return u.ID, nil
 		}
 	}
 

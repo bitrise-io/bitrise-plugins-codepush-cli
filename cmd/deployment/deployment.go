@@ -127,19 +127,19 @@ var infoCmd = &cobra.Command{
 			return fmt.Errorf("getting deployment: %w", err)
 		}
 
-		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
+		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
 		if err != nil {
-			return fmt.Errorf("listing packages: %w", err)
+			return fmt.Errorf("listing updates: %w", err)
 		}
 
 		if cmd.JSONOutput {
 			info := struct {
 				codepush.Deployment
 
-				LatestPackage *codepush.Package `json:"latest_package,omitempty"`
+				LatestUpdate *codepush.Update `json:"latest_package,omitempty"`
 			}{Deployment: *dep}
-			if len(packages) > 0 {
-				info.LatestPackage = &packages[len(packages)-1]
+			if len(updates) > 0 {
+				info.LatestUpdate = &updates[len(updates)-1]
 			}
 			return cmdutil.OutputJSON(info)
 		}
@@ -156,8 +156,8 @@ var infoCmd = &cobra.Command{
 		}
 		out.Result(pairs)
 
-		if len(packages) > 0 {
-			latest := packages[len(packages)-1]
+		if len(updates) > 0 {
+			latest := updates[len(updates)-1]
 			out.Step("Latest release")
 			out.Result([]output.KeyValue{
 				{Key: "Label", Value: latest.Label},
@@ -291,31 +291,31 @@ var historyCmd = &cobra.Command{
 			return err
 		}
 
-		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
+		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
 		if err != nil {
-			return fmt.Errorf("listing packages: %w", err)
+			return fmt.Errorf("listing updates: %w", err)
 		}
 
-		if historyMax > 0 && len(packages) > historyMax {
-			packages = packages[len(packages)-historyMax:]
+		if historyMax > 0 && len(updates) > historyMax {
+			updates = updates[len(updates)-historyMax:]
 		}
 
 		if cmd.JSONOutput {
-			return cmdutil.OutputJSON(packages)
+			return cmdutil.OutputJSON(updates)
 		}
 
-		if len(packages) == 0 {
+		if len(updates) == 0 {
 			out.Info("No releases found.")
 			return nil
 		}
 
 		headers := []string{"LABEL", "APP VERSION", "MANDATORY", "ROLLOUT", "DISABLED", "DESCRIPTION", "CREATED"}
-		rows := make([][]string, len(packages))
-		for i, p := range packages {
+		rows := make([][]string, len(updates))
+		for i, u := range updates {
 			rows[i] = []string{
-				p.Label, p.AppVersion, strconv.FormatBool(p.Mandatory),
-				fmt.Sprintf("%.0f%%", p.Rollout), strconv.FormatBool(p.Disabled),
-				cmdutil.Truncate(p.Description, 30), p.CreatedAt,
+				u.Label, u.AppVersion, strconv.FormatBool(u.Mandatory),
+				fmt.Sprintf("%.0f%%", u.Rollout), strconv.FormatBool(u.Disabled),
+				cmdutil.Truncate(u.Description, 30), u.CreatedAt,
 			}
 		}
 		out.Table(headers, rows)
@@ -326,8 +326,8 @@ var historyCmd = &cobra.Command{
 
 var clearCmd = &cobra.Command{
 	Use:   "clear [deployment]",
-	Short: "Delete all packages from a deployment",
-	Long: `Delete all packages (releases) from a deployment.
+	Short: "Delete all updates from a deployment",
+	Long: `Delete all updates (releases) from a deployment.
 
 This is a destructive operation that removes all release history.
 Requires --yes to confirm.`,
@@ -364,20 +364,20 @@ Requires --yes to confirm.`,
 			return err
 		}
 
-		packages, err := client.ListPackages(c.Context(), appID, deploymentID)
+		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
 		if err != nil {
-			return fmt.Errorf("listing packages: %w", err)
+			return fmt.Errorf("listing updates: %w", err)
 		}
 
-		if len(packages) == 0 {
-			out.Info("No packages to delete.")
+		if len(updates) == 0 {
+			out.Info("No updates to delete.")
 			return nil
 		}
 
 		deleted := 0
-		for _, pkg := range packages {
-			if err := client.DeletePackage(c.Context(), appID, deploymentID, pkg.ID); err != nil {
-				return fmt.Errorf("deleting package %s: %w", pkg.Label, err)
+		for _, u := range updates {
+			if err := client.DeleteUpdate(c.Context(), appID, deploymentID, u.ID); err != nil {
+				return fmt.Errorf("deleting update %s: %w", u.Label, err)
 			}
 			deleted++
 		}
@@ -389,7 +389,7 @@ Requires --yes to confirm.`,
 			}{Deployment: deploymentID, Deleted: deleted})
 		}
 
-		out.Success("Deleted %d package(s) from %q", deleted, displayName)
+		out.Success("Deleted %d update(s) from %q", deleted, displayName)
 		return nil
 	},
 }

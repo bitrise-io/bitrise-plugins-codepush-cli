@@ -32,7 +32,7 @@ bitrise-plugins-codepush-cli/
 │   │   └── version.go       # version command (ldflags vars stay in package main)
 │   ├── release/             # Release Management group (push, rollback, bundle, promote, patch)
 │   ├── deployment/          # Deployment Management group (parent + subcommands)
-│   ├── packagecmd/          # Package Management group (parent + subcommands)
+│   ├── updatecmd/           # Update Management group (parent + subcommands)
 │   └── setup/               # Setup group (auth, init, integrate)
 ├── internal/
 │   ├── bitrise/             # Bitrise CI integration (env detection, deploy export)
@@ -203,7 +203,7 @@ All human-readable CLI output uses `internal/output.Writer` (Charmbracelet lipgl
 | `out.Error(fmt, args)` | Fatal errors | Red bold `ERROR` | `ERROR message` |
 | `out.Warning(fmt, args)` | Non-fatal warnings | Yellow bold `WARNING` | `WARNING message` |
 | `out.Info(fmt, args)` | Supplementary details (indented under steps) | Dim, indented | `   message` |
-| `out.Result([]KeyValue)` | Key-value results (push result, package info) | Bold keys, aligned | Aligned plain |
+| `out.Result([]KeyValue)` | Key-value results (push result, update info) | Bold keys, aligned | Aligned plain |
 | `out.Table(headers, rows)` | Lists and history tables | Styled headers | Plain aligned |
 | `out.Println(fmt, args)` | Plain text, titles | No styling | Plain |
 | `out.Spinner(title, fn)` | Long operations (>500ms): upload, processing | Animated spinner | `-> title...` |
@@ -222,7 +222,7 @@ func Push(client Client, opts *PushOptions, out *output.Writer) (*PushResult, er
 
 **Spinner for long operations**:
 ```go
-err := out.Spinner("Uploading package", func() error {
+err := out.Spinner("Uploading update", func() error {
     return client.Upload(...)
 })
 ```
@@ -241,7 +241,7 @@ if err := out.ConfirmDestructive(
 ```go
 out.Success("Push successful")
 out.Result([]output.KeyValue{
-    {Key: "Package ID", Value: result.PackageID},
+    {Key: "Update ID", Value: result.UpdateID},
     {Key: "App version", Value: result.AppVersion},
 })
 ```
@@ -337,7 +337,7 @@ go build -o codepush ./cmd/codepush
 
 Commands are organized into self-registering packages grouped by help-output category. Each package registers its commands via `init()` using side-effect imports.
 
-1. Create the command in the appropriate group package (`cmd/release/`, `cmd/deployment/`, `cmd/packagecmd/`, or `cmd/setup/`)
+1. Create the command in the appropriate group package (`cmd/release/`, `cmd/deployment/`, `cmd/updatecmd/`, or `cmd/setup/`)
 2. Define the `cobra.Command` with `GroupID` set to the matching `cmd.Group*` constant
 3. Register flags and call `cmd.RootCmd.AddCommand()` in the file's `init()` function
 4. Use `cmd.Out` for output, `cmd.AppID`/`cmd.JSONOutput` for global flags, and `cmdutil.*` for shared helpers
@@ -399,9 +399,9 @@ If adding a new command group, define the group ID constant in `cmd/root.go`, cr
 
 The README follows a specific section order. Keep it up to date when making changes:
 
-**Section order**: Title/Badges, What is CodePush, Installation, Quick Start, Authentication, Commands (reference tables), Bundling, Pushing Updates, Promoting and Patching, Rollback, Deployment Management, Package Management, Workflow Examples, JSON Output, Environment Variables, Bitrise CI Integration, Contributing/License
+**Section order**: Title/Badges, What is CodePush, Installation, Quick Start, Authentication, Commands (reference tables), Bundling, Pushing Updates, Promoting and Patching, Rollback, Deployment Management, Update Management, Workflow Examples, JSON Output, Environment Variables, Bitrise CI Integration, Contributing/License
 
-**When adding a new command**: Add it to the Commands reference table in the correct group (Release Management, Deployment Management, Package Management, Authentication). If it is a core workflow command, add a dedicated section with examples.
+**When adding a new command**: Add it to the Commands reference table in the correct group (Release Management, Deployment Management, Update Management, Authentication). If it is a core workflow command, add a dedicated section with examples.
 
 **When adding a new flag**: Update the relevant flag table in the command's section (e.g., Bundle Flags, Push Flags).
 

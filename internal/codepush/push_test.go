@@ -20,7 +20,7 @@ func TestPush(t *testing.T) {
 		var capturedUploadBody []byte
 
 		client := &mockClient{
-			getUploadURLFunc: func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				capturedReq = req
 				assert.Equal(t, "app-123", appID)
 				return &UploadURLResponse{
@@ -35,8 +35,8 @@ func TestPush(t *testing.T) {
 				capturedUploadBody, _ = io.ReadAll(req.Body)
 				return nil
 			},
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusProcessedValid}, nil
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
 			},
 		}
 
@@ -56,7 +56,7 @@ func TestPush(t *testing.T) {
 
 		assert.Equal(t, "1.0.0", result.AppVersion)
 		assert.Equal(t, StatusProcessedValid, result.Status)
-		assert.NotEmpty(t, result.PackageID)
+		assert.NotEmpty(t, result.UpdateID)
 		assert.NotZero(t, result.FileSizeBytes)
 
 		assert.Equal(t, "1.0.0", capturedReq.AppVersion)
@@ -75,7 +75,7 @@ func TestPush(t *testing.T) {
 					{ID: "dep-bbb", Name: "Production"},
 				}, nil
 			},
-			getUploadURLFunc: func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				resolvedDeploymentID = deploymentID
 				return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
 			},
@@ -151,7 +151,7 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getUploadURLFunc: func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				return nil, errors.New("API returned HTTP 500: internal error")
 			},
 		}
@@ -190,16 +190,16 @@ func TestPush(t *testing.T) {
 
 		_, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
 		require.Error(t, err)
-		assert.ErrorContains(t, err, "uploading package")
+		assert.ErrorContains(t, err, "uploading update")
 	})
 
 	t.Run("poll returns failed", func(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{
-					PackageID:    packageID,
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{
+					UpdateID:     updateID,
 					Status:       StatusProcessedError,
 					StatusReason: "invalid bundle format",
 				}, nil
@@ -224,8 +224,8 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
 			},
 		}
 
@@ -380,16 +380,16 @@ func TestPollStatus(t *testing.T) {
 	t.Run("returns on done", func(t *testing.T) {
 		callCount := 0
 		client := &mockClient{
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
 				callCount++
 				if callCount < 3 {
-					return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
+					return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
 				}
-				return &PackageStatus{PackageID: packageID, Status: StatusProcessedValid}, nil
+				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
 			},
 		}
 
-		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
 		status, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
 		require.NoError(t, err)
 		assert.Equal(t, StatusProcessedValid, status.Status)
@@ -398,12 +398,12 @@ func TestPollStatus(t *testing.T) {
 
 	t.Run("returns error on failed", func(t *testing.T) {
 		client := &mockClient{
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusProcessedError, StatusReason: "bad format"}, nil
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedError, StatusReason: "bad format"}, nil
 			},
 		}
 
-		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
 		_, err := pollStatus(context.Background(), client, ref, fastPollConfig)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "bad format")
@@ -411,12 +411,12 @@ func TestPollStatus(t *testing.T) {
 
 	t.Run("times out", func(t *testing.T) {
 		client := &mockClient{
-			getPackageStatusFunc: func(appID, deploymentID, packageID string) (*PackageStatus, error) {
-				return &PackageStatus{PackageID: packageID, Status: StatusUploaded}, nil
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
 			},
 		}
 
-		ref := PackageRef{AppID: "app", DeploymentID: "dep", PackageID: "pkg"}
+		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
 		_, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "timed out")

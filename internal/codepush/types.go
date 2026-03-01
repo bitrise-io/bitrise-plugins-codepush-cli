@@ -87,16 +87,16 @@ type UploadFileRequest struct {
 	ContentLength int64
 }
 
-// PackageRef identifies a specific package within a deployment.
-type PackageRef struct {
+// UpdateRef identifies a specific update within a deployment.
+type UpdateRef struct {
 	AppID        string
 	DeploymentID string
-	PackageID    string
+	UpdateID     string
 }
 
-// PackageStatus is returned by the GET status endpoint.
-type PackageStatus struct {
-	PackageID    string `json:"package_id"`
+// UpdateStatus is returned by the GET status endpoint.
+type UpdateStatus struct {
+	UpdateID     string `json:"package_id"`
 	Status       string `json:"status"`
 	StatusReason string `json:"status_reason"`
 }
@@ -126,7 +126,7 @@ type DeploymentListResponse struct {
 
 // PushResult is the output of a successful push.
 type PushResult struct {
-	PackageID     string `json:"package_id"`
+	UpdateID      string `json:"package_id"`
 	AppID         string `json:"app_id"`
 	DeploymentID  string `json:"deployment_id"`
 	AppVersion    string `json:"app_version"`
@@ -134,7 +134,7 @@ type PushResult struct {
 	FileSizeBytes int64  `json:"file_size_bytes"`
 }
 
-// PollConfig controls the polling behavior when waiting for package processing.
+// PollConfig controls the polling behavior when waiting for update processing.
 type PollConfig struct {
 	MaxAttempts int
 	Interval    time.Duration
@@ -146,7 +146,7 @@ var DefaultPollConfig = PollConfig{
 	Interval:    2 * time.Second,
 }
 
-// Status constants for package processing.
+// Status constants for update processing.
 const (
 	StatusCreated        = "created"
 	StatusUploaded       = "uploaded"
@@ -154,34 +154,34 @@ const (
 	StatusProcessedError = "processed_invalid"
 )
 
-// PackageCreator identifies the user who created a package.
-type PackageCreator struct {
+// UpdateCreator identifies the user who created an update.
+type UpdateCreator struct {
 	ID        string `json:"id"`
 	Email     string `json:"email"`
 	Username  string `json:"username"`
 	AvatarURL string `json:"avatar_url"`
 }
 
-// Package represents a CodePush release in a deployment.
-type Package struct {
-	ID            string          `json:"id"`
-	Label         string          `json:"label"`
-	AppVersion    string          `json:"app_version"`
-	Description   string          `json:"description"`
-	Mandatory     bool            `json:"mandatory"`
-	Disabled      bool            `json:"disabled"`
-	Rollout       float64         `json:"rollout"`
-	DeploymentID  string          `json:"deployment_id"`
-	FileSizeBytes int64           `json:"file_size_bytes"`
-	CreatedAt     string          `json:"created_at,omitempty"`
-	Hash          string          `json:"hash,omitempty"`
-	FileName      string          `json:"file_name,omitempty"`
-	CreatedBy     *PackageCreator `json:"created_by,omitempty"`
+// Update represents a CodePush release in a deployment.
+type Update struct {
+	ID            string         `json:"id"`
+	Label         string         `json:"label"`
+	AppVersion    string         `json:"app_version"`
+	Description   string         `json:"description"`
+	Mandatory     bool           `json:"mandatory"`
+	Disabled      bool           `json:"disabled"`
+	Rollout       float64        `json:"rollout"`
+	DeploymentID  string         `json:"deployment_id"`
+	FileSizeBytes int64          `json:"file_size_bytes"`
+	CreatedAt     string         `json:"created_at,omitempty"`
+	Hash          string         `json:"hash,omitempty"`
+	FileName      string         `json:"file_name,omitempty"`
+	CreatedBy     *UpdateCreator `json:"created_by,omitempty"`
 }
 
-// PackageListResponse wraps the list packages API response.
-type PackageListResponse struct {
-	Items []Package `json:"items"`
+// UpdateListResponse wraps the list updates API response.
+type UpdateListResponse struct {
+	Items []Update `json:"items"`
 }
 
 // RollbackOptions holds user-provided parameters for a rollback operation.
@@ -194,12 +194,12 @@ type RollbackOptions struct {
 
 // RollbackRequest is the JSON body sent to the rollback API endpoint.
 type RollbackRequest struct {
-	PackageID string `json:"package_id,omitempty"`
+	UpdateID string `json:"package_id,omitempty"`
 }
 
 // RollbackResult is the output of a successful rollback.
 type RollbackResult struct {
-	PackageID    string `json:"package_id"`
+	UpdateID     string `json:"package_id"`
 	AppID        string `json:"app_id"`
 	DeploymentID string `json:"deployment_id"`
 	Label        string `json:"label"`
@@ -223,7 +223,7 @@ type PromoteOptions struct {
 // PromoteRequest is the JSON body sent to the promote API endpoint.
 type PromoteRequest struct {
 	TargetDeploymentID string `json:"target_deployment_id"`
-	PackageID          string `json:"package_id,omitempty"`
+	UpdateID           string `json:"package_id,omitempty"`
 	AppVersion         string `json:"app_version,omitempty"`
 	Description        string `json:"description,omitempty"`
 	Disabled           string `json:"disabled,omitempty"`
@@ -233,7 +233,7 @@ type PromoteRequest struct {
 
 // PromoteResult is the output of a successful promote.
 type PromoteResult struct {
-	PackageID        string `json:"package_id"`
+	UpdateID         string `json:"package_id"`
 	AppID            string `json:"app_id"`
 	SourceDeployment string `json:"source_deployment_id"`
 	DestDeployment   string `json:"dest_deployment_id"`
@@ -255,7 +255,7 @@ type PatchOptions struct {
 	AppVersion   string // optional
 }
 
-// PatchRequest is the JSON body sent to the PATCH package API endpoint.
+// PatchRequest is the JSON body sent to the PATCH update API endpoint.
 // Pointer fields allow distinguishing "not set" from zero values.
 type PatchRequest struct {
 	Rollout     *int    `json:"rollout,omitempty"`
@@ -267,7 +267,7 @@ type PatchRequest struct {
 
 // PatchResult is the output of a successful patch.
 type PatchResult struct {
-	PackageID    string `json:"package_id"`
+	UpdateID     string `json:"package_id"`
 	AppID        string `json:"app_id"`
 	DeploymentID string `json:"deployment_id"`
 	Label        string `json:"label"`
@@ -285,13 +285,13 @@ type Client interface {
 	GetDeployment(ctx context.Context, appID, deploymentID string) (*Deployment, error)
 	RenameDeployment(ctx context.Context, appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
 	DeleteDeployment(ctx context.Context, appID, deploymentID string) error
-	GetUploadURL(ctx context.Context, appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
+	GetUploadURL(ctx context.Context, appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error)
 	UploadFile(ctx context.Context, req UploadFileRequest) error
-	GetPackageStatus(ctx context.Context, appID, deploymentID, packageID string) (*PackageStatus, error)
-	ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error)
-	GetPackage(ctx context.Context, appID, deploymentID, packageID string) (*Package, error)
-	PatchPackage(ctx context.Context, appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
-	DeletePackage(ctx context.Context, appID, deploymentID, packageID string) error
-	Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Package, error)
-	Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Package, error)
+	GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error)
+	ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error)
+	GetUpdate(ctx context.Context, appID, deploymentID, updateID string) (*Update, error)
+	PatchUpdate(ctx context.Context, appID, deploymentID, updateID string, req PatchRequest) (*Update, error)
+	DeleteUpdate(ctx context.Context, appID, deploymentID, updateID string) error
+	Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Update, error)
+	Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error)
 }

@@ -1,4 +1,4 @@
-package packagecmd
+package updatecmd
 
 import (
 	"errors"
@@ -14,23 +14,23 @@ import (
 )
 
 var (
-	packageLabel     string
-	packageRemoveYes bool
+	updateLabel     string
+	updateRemoveYes bool
 )
 
-var packageCmd = &cobra.Command{
-	Use:     "package",
-	Short:   "Inspect packages (releases)",
-	Long:    `View details and processing status of CodePush packages.`,
-	GroupID: cmd.GroupPackage,
+var updateCmd = &cobra.Command{
+	Use:     "update",
+	Short:   "Inspect updates (releases)",
+	Long:    `View details and processing status of CodePush updates.`,
+	GroupID: cmd.GroupUpdate,
 }
 
 var infoCmd = &cobra.Command{
 	Use:   "info [deployment]",
-	Short: "Show package details",
-	Long: `Show details for a specific package in a deployment.
+	Short: "Show update details",
+	Long: `Show details for a specific update in a deployment.
 
-By default shows the latest package. Use --label to specify a version.`,
+By default shows the latest update. Use --label to specify a version.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(c *cobra.Command, args []string) error {
 		out := cmd.Out
@@ -52,21 +52,21 @@ By default shows the latest package. Use --label to specify a version.`,
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
+		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		pkg, err := client.GetPackage(c.Context(), appID, deploymentID, packageID)
+		pkg, err := client.GetUpdate(c.Context(), appID, deploymentID, updateID)
 		if err != nil {
-			return fmt.Errorf("getting package: %w", err)
+			return fmt.Errorf("getting update: %w", err)
 		}
 
 		if cmd.JSONOutput {
 			return cmdutil.OutputJSON(pkg)
 		}
 
-		out.Step("Package: %s", pkg.Label)
+		out.Step("Update: %s", pkg.Label)
 		pairs := []output.KeyValue{
 			{Key: "ID", Value: pkg.ID},
 			{Key: "App version", Value: pkg.AppVersion},
@@ -95,10 +95,10 @@ By default shows the latest package. Use --label to specify a version.`,
 
 var statusCmd = &cobra.Command{
 	Use:   "status [deployment]",
-	Short: "Show package processing status",
-	Long: `Show the processing status of a specific package.
+	Short: "Show update processing status",
+	Long: `Show the processing status of a specific update.
 
-By default shows the latest package. Use --label to specify a version.`,
+By default shows the latest update. Use --label to specify a version.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(c *cobra.Command, args []string) error {
 		out := cmd.Out
@@ -120,14 +120,14 @@ By default shows the latest package. Use --label to specify a version.`,
 			return err
 		}
 
-		packageID, pkgLabel, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
+		updateID, updLabel, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		status, err := client.GetPackageStatus(c.Context(), appID, deploymentID, packageID)
+		status, err := client.GetUpdateStatus(c.Context(), appID, deploymentID, updateID)
 		if err != nil {
-			return fmt.Errorf("getting package status: %w", err)
+			return fmt.Errorf("getting update status: %w", err)
 		}
 
 		if cmd.JSONOutput {
@@ -135,7 +135,7 @@ By default shows the latest package. Use --label to specify a version.`,
 		}
 
 		pairs := []output.KeyValue{
-			{Key: "Package", Value: pkgLabel},
+			{Key: "Update", Value: updLabel},
 			{Key: "Status", Value: status.Status},
 		}
 		if status.StatusReason != "" {
@@ -149,10 +149,10 @@ By default shows the latest package. Use --label to specify a version.`,
 
 var removeCmd = &cobra.Command{
 	Use:   "remove [deployment]",
-	Short: "Delete a package from a deployment",
-	Long: `Delete a specific package from a deployment.
+	Short: "Delete an update from a deployment",
+	Long: `Delete a specific update from a deployment.
 
-Requires --label to identify the package and --yes to confirm deletion.`,
+Requires --label to identify the update and --yes to confirm deletion.`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(c *cobra.Command, args []string) error {
 		out := cmd.Out
@@ -161,13 +161,13 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 		if err != nil {
 			return err
 		}
-		if packageLabel == "" {
-			return errors.New("label is required: set --label to identify the package to delete")
+		if updateLabel == "" {
+			return errors.New("label is required: set --label to identify the update to delete")
 		}
 
 		if err := out.ConfirmDestructive(
-			fmt.Sprintf("This will permanently delete package %q", packageLabel),
-			packageRemoveYes,
+			fmt.Sprintf("This will permanently delete update %q", updateLabel),
+			updateRemoveYes,
 		); err != nil {
 			return err
 		}
@@ -184,35 +184,35 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 			return err
 		}
 
-		packageID, _, err := codepush.ResolvePackageForPatch(c.Context(), client, appID, deploymentID, packageLabel, out)
+		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		if err := client.DeletePackage(c.Context(), appID, deploymentID, packageID); err != nil {
-			return fmt.Errorf("deleting package: %w", err)
+		if err := client.DeleteUpdate(c.Context(), appID, deploymentID, updateID); err != nil {
+			return fmt.Errorf("deleting update: %w", err)
 		}
 
 		if cmd.JSONOutput {
 			return cmdutil.OutputJSON(struct {
 				Deleted string `json:"deleted"`
 				Label   string `json:"label"`
-			}{Deleted: packageID, Label: packageLabel})
+			}{Deleted: updateID, Label: updateLabel})
 		}
 
-		out.Success("Package %q deleted", packageLabel)
+		out.Success("Update %q deleted", updateLabel)
 		return nil
 	},
 }
 
 func init() {
-	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupPackage, Title: "Package Management:"})
+	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupUpdate, Title: "Update Management:"})
 
-	infoCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	statusCmd.Flags().StringVar(&packageLabel, "label", "", "specific release label (defaults to latest)")
-	removeCmd.Flags().StringVar(&packageLabel, "label", "", "release label to delete (required)")
-	removeCmd.Flags().BoolVar(&packageRemoveYes, "yes", false, "skip confirmation prompt")
+	infoCmd.Flags().StringVar(&updateLabel, "label", "", "specific release label (defaults to latest)")
+	statusCmd.Flags().StringVar(&updateLabel, "label", "", "specific release label (defaults to latest)")
+	removeCmd.Flags().StringVar(&updateLabel, "label", "", "release label to delete (required)")
+	removeCmd.Flags().BoolVar(&updateRemoveYes, "yes", false, "skip confirmation prompt")
 
-	packageCmd.AddCommand(infoCmd, statusCmd, removeCmd)
-	cmd.RootCmd.AddCommand(packageCmd)
+	updateCmd.AddCommand(infoCmd, statusCmd, removeCmd)
+	cmd.RootCmd.AddCommand(updateCmd)
 }
