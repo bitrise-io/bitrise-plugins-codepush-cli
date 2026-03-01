@@ -200,6 +200,20 @@ func TestValidateToken(t *testing.T) {
 	})
 }
 
+func TestValidateTokenAppendsAuthPath(t *testing.T) {
+	var receivedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data":{"username":"test"}}`))
+	}))
+	defer server.Close()
+
+	_, err := ValidateToken("token", server.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "/v0.1/me", receivedPath)
+}
+
 func TestTokenGenerationURL(t *testing.T) {
 	assert.NotEmpty(t, TokenGenerationURL)
 	assert.Contains(t, TokenGenerationURL, "bitrise.io")

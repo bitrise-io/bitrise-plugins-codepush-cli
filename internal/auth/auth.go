@@ -16,7 +16,7 @@ import (
 const (
 	configDirName  = "codepush"
 	configFileName = "config.json"
-	validateURL    = "https://api.bitrise.io/v0.1/me"
+	authPath       = "/v0.1/me"
 )
 
 // Config represents the persisted CLI configuration.
@@ -124,10 +124,10 @@ type UserInfo struct {
 	Email    string `json:"email"`
 }
 
-// ValidateToken checks the token against the Bitrise API.
+// ValidateToken checks the token against the Bitrise API at the given server URL.
 // Returns the authenticated user's info, or an error if the token is invalid.
-func ValidateToken(token string) (*UserInfo, error) {
-	return validateTokenWithURL(token, validateURL, &http.Client{})
+func ValidateToken(token, serverURL string) (*UserInfo, error) {
+	return validateTokenWithURL(token, serverURL+authPath, &http.Client{})
 }
 
 func validateTokenWithURL(token, url string, client *http.Client) (*UserInfo, error) {

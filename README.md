@@ -116,6 +116,28 @@ The app ID is resolved in this order:
 
 Use `--force` to overwrite an existing `.codepush.json`.
 
+### Custom Server URL
+
+To target a different environment (e.g. staging), set the server base URL:
+
+```bash
+# Via flag
+codepush push --server-url https://api.staging.bitrise.io
+
+# Via environment variable
+export CODEPUSH_SERVER_URL=https://api.staging.bitrise.io
+
+# Via .codepush.json (saved during init)
+codepush init --server-url https://api.staging.bitrise.io
+```
+
+The server URL is resolved in this order:
+
+1. `--server-url` flag (highest priority)
+2. `CODEPUSH_SERVER_URL` environment variable
+3. `server_url` field in `.codepush.json`
+4. Default: `https://api.bitrise.io`
+
 ## Commands
 
 ### Global Flags
@@ -124,6 +146,7 @@ Use `--force` to overwrite an existing `.codepush.json`.
 |------|-------------|
 | `--app-id` | Release management app UUID (env: `CODEPUSH_APP_ID`) |
 | `--json` | Output results as JSON to stdout |
+| `--server-url` | API server base URL (env: `CODEPUSH_SERVER_URL`) |
 
 ### Release Management
 
@@ -391,6 +414,7 @@ codepush update info Staging --app-id $APP_ID --json | jq '.app_version'
 | `BITRISE_API_TOKEN` | API token for authentication |
 | `CODEPUSH_APP_ID` | Default release management app UUID (used when `--app-id` is not set) |
 | `CODEPUSH_DEPLOYMENT` | Default deployment name or UUID (used when `--deployment` is not set) |
+| `CODEPUSH_SERVER_URL` | API server base URL (used when `--server-url` is not set) |
 | `NO_COLOR` | Disable colored terminal output |
 
 ### Bitrise CI Variables (read automatically)

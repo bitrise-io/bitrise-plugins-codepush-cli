@@ -14,7 +14,8 @@ const FileName = ".codepush.json"
 
 // ProjectConfig represents the project-level configuration file.
 type ProjectConfig struct {
-	AppID string `json:"app_id"`
+	AppID     string `json:"app_id"`
+	ServerURL string `json:"server_url,omitempty"`
 }
 
 // configDirFunc allows tests to override the directory where the config file is read from.

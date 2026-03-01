@@ -37,7 +37,7 @@ var listCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 		deployments, err := client.ListDeployments(c.Context(), appID)
 		if err != nil {
 			return fmt.Errorf("listing deployments: %w", err)
@@ -83,7 +83,7 @@ var addCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
@@ -110,7 +110,7 @@ var infoCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 
 		var argValue string
 		if len(args) > 0 {
@@ -185,7 +185,7 @@ var renameCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 
 		var argValue string
 		if len(args) > 0 {
@@ -228,7 +228,7 @@ var removeCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 
 		var argValue string
 		if len(args) > 0 {
@@ -279,7 +279,7 @@ var historyCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 
 		var argValue string
 		if len(args) > 0 {
@@ -340,7 +340,7 @@ Requires --yes to confirm.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmd.DefaultAPIURL, token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
 
 		var argValue string
 		if len(args) > 0 {

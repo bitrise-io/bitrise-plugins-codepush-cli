@@ -34,6 +34,18 @@ func TestLoad(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, cfg)
 		assert.Equal(t, "abc-123", cfg.AppID)
+		assert.Empty(t, cfg.ServerURL)
+	})
+
+	t.Run("returns config with server URL", func(t *testing.T) {
+		dir := setupTestDir(t)
+		os.WriteFile(filepath.Join(dir, FileName), []byte(`{"app_id":"abc-123","server_url":"https://api.staging.bitrise.io"}`), 0o644)
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, "abc-123", cfg.AppID)
+		assert.Equal(t, "https://api.staging.bitrise.io", cfg.ServerURL)
 	})
 
 	t.Run("returns error for malformed JSON", func(t *testing.T) {
@@ -63,6 +75,28 @@ func TestSave(t *testing.T) {
 		got, err := Load()
 		require.NoError(t, err)
 		assert.Equal(t, want.AppID, got.AppID)
+	})
+
+	t.Run("round-trip with server URL", func(t *testing.T) {
+		dir := setupTestDir(t)
+
+		want := &ProjectConfig{AppID: "my-app", ServerURL: "https://api.staging.bitrise.io"}
+		require.NoError(t, Save(dir, want))
+
+		got, err := Load()
+		require.NoError(t, err)
+		assert.Equal(t, want.AppID, got.AppID)
+		assert.Equal(t, want.ServerURL, got.ServerURL)
+	})
+
+	t.Run("omits server URL when empty", func(t *testing.T) {
+		dir := setupTestDir(t)
+
+		require.NoError(t, Save(dir, &ProjectConfig{AppID: "my-app"}))
+
+		data, err := os.ReadFile(filepath.Join(dir, FileName))
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "server_url")
 	})
 
 	t.Run("file has 0644 permissions", func(t *testing.T) {
