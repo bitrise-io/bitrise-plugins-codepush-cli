@@ -75,7 +75,7 @@ Examples:
 
 		out.Success("Patch successful")
 		out.Result([]output.KeyValue{
-			{Key: "Package ID", Value: result.PackageID},
+			{Key: "Update ID", Value: result.UpdateID},
 			{Key: "Label", Value: result.Label},
 			{Key: "App version", Value: result.AppVersion},
 			{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)},
@@ -86,7 +86,7 @@ Examples:
 		if bitrise.IsBitriseEnvironment() {
 			cmdutil.ExportDeploySummary("codepush-patch-summary.json", result, out)
 			cmdutil.ExportEnvVars(map[string]string{
-				"CODEPUSH_PACKAGE_ID":  result.PackageID,
+				"CODEPUSH_UPDATE_ID":   result.UpdateID,
 				"CODEPUSH_LABEL":       result.Label,
 				"CODEPUSH_APP_VERSION": result.AppVersion,
 			}, out)

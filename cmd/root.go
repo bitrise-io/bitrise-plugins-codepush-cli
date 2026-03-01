@@ -13,7 +13,7 @@ type GroupID = string
 const (
 	GroupRelease    GroupID = "release"
 	GroupDeployment GroupID = "deployment"
-	GroupPackage    GroupID = "package"
+	GroupUpdate     GroupID = "update"
 	GroupSetup      GroupID = "setup"
 )
 
@@ -42,6 +42,6 @@ Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
 }
 
 func init() {
-	RootCmd.PersistentFlags().StringVar(&AppID, "app-id", "", "connected app UUID (env: CODEPUSH_APP_ID)")
+	RootCmd.PersistentFlags().StringVar(&AppID, "app-id", "", "release management app UUID (env: CODEPUSH_APP_ID)")
 	RootCmd.PersistentFlags().BoolVar(&JSONOutput, "json", false, "output results as JSON to stdout")
 }

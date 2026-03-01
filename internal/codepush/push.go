@@ -30,15 +30,15 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 		return nil, err
 	}
 
-	packageID, fileSizeBytes, err := uploadBundle(ctx, client, opts, deploymentID, out)
+	updateID, fileSizeBytes, err := uploadBundle(ctx, client, opts, deploymentID, out)
 	if err != nil {
 		return nil, err
 	}
 
-	var status *PackageStatus
-	err = out.Spinner("Processing package", func() error {
+	var status *UpdateStatus
+	err = out.Spinner("Processing update", func() error {
 		var pollErr error
-		status, pollErr = pollStatus(ctx, client, PackageRef{AppID: opts.AppID, DeploymentID: deploymentID, PackageID: packageID}, pollCfg)
+		status, pollErr = pollStatus(ctx, client, UpdateRef{AppID: opts.AppID, DeploymentID: deploymentID, UpdateID: updateID}, pollCfg)
 		return pollErr
 	})
 	if err != nil {
@@ -46,7 +46,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 	}
 
 	return &PushResult{
-		PackageID:     packageID,
+		UpdateID:      updateID,
 		AppID:         opts.AppID,
 		DeploymentID:  deploymentID,
 		AppVersion:    opts.AppVersion,
@@ -67,12 +67,12 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	if err != nil {
 		return "", 0, fmt.Errorf("reading zip file info: %w", err)
 	}
-	out.Info("Package size: %d bytes", zipInfo.Size())
+	out.Info("Update size: %d bytes", zipInfo.Size())
 
-	packageID := uuid.New().String()
+	updateID := uuid.New().String()
 
 	out.Step("Requesting upload URL")
-	uploadResp, err := client.GetUploadURL(ctx, opts.AppID, deploymentID, packageID, UploadURLRequest{
+	uploadResp, err := client.GetUploadURL(ctx, opts.AppID, deploymentID, updateID, UploadURLRequest{
 		AppVersion:    opts.AppVersion,
 		FileName:      filepath.Base(zipPath),
 		FileSizeBytes: zipInfo.Size(),
@@ -85,7 +85,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 		return "", 0, fmt.Errorf("requesting upload URL: %w", err)
 	}
 
-	err = out.Spinner("Uploading package", func() error {
+	err = out.Spinner("Uploading update", func() error {
 		zipFile, openErr := os.Open(zipPath)
 		if openErr != nil {
 			return fmt.Errorf("opening zip for upload: %w", openErr)
@@ -101,10 +101,10 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 		})
 	})
 	if err != nil {
-		return "", 0, fmt.Errorf("uploading package: %w", err)
+		return "", 0, fmt.Errorf("uploading update: %w", err)
 	}
 
-	return packageID, zipInfo.Size(), nil
+	return updateID, zipInfo.Size(), nil
 }
 
 func validatePushOptions(opts *PushOptions) error {
@@ -166,21 +166,21 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 
 // statusChecker is the subset of Client needed by pollStatus.
 type statusChecker interface {
-	GetPackageStatus(ctx context.Context, appID, deploymentID, packageID string) (*PackageStatus, error)
+	GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error)
 }
 
-func pollStatus(ctx context.Context, client statusChecker, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
+func pollStatus(ctx context.Context, client statusChecker, ref UpdateRef, cfg PollConfig) (*UpdateStatus, error) {
 	for attempt := range cfg.MaxAttempts {
-		status, err := client.GetPackageStatus(ctx, ref.AppID, ref.DeploymentID, ref.PackageID)
+		status, err := client.GetUpdateStatus(ctx, ref.AppID, ref.DeploymentID, ref.UpdateID)
 		if err != nil {
-			return nil, fmt.Errorf("checking package status: %w", err)
+			return nil, fmt.Errorf("checking update status: %w", err)
 		}
 
 		switch status.Status {
 		case StatusProcessedValid:
 			return status, nil
 		case StatusProcessedError:
-			return nil, fmt.Errorf("package processing failed: %s", status.StatusReason)
+			return nil, fmt.Errorf("update processing failed: %s", status.StatusReason)
 		}
 
 		if attempt < cfg.MaxAttempts-1 {
@@ -189,5 +189,5 @@ func pollStatus(ctx context.Context, client statusChecker, ref PackageRef, cfg P
 	}
 
 	totalWait := time.Duration(cfg.MaxAttempts) * cfg.Interval
-	return nil, fmt.Errorf("package processing timed out after %s", totalWait)
+	return nil, fmt.Errorf("update processing timed out after %s", totalWait)
 }

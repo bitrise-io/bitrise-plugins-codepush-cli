@@ -56,13 +56,13 @@ func TestResult(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewTest(&buf)
 	w.Result([]KeyValue{
-		{Key: "Package ID", Value: "abc-123"},
+		{Key: "Update ID", Value: "abc-123"},
 		{Key: "App version", Value: "1.0.0"},
 		{Key: "Status", Value: "done"},
 	})
 
 	got := buf.String()
-	assert.Contains(t, got, "Package ID")
+	assert.Contains(t, got, "Update ID")
 	assert.Contains(t, got, "abc-123")
 	assert.Contains(t, got, "Status")
 	assert.Contains(t, got, "done")

@@ -22,7 +22,7 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		return nil, err
 	}
 
-	packageID, packageLabel, err := ResolvePackageForPatch(ctx, client, opts.AppID, deploymentID, opts.Label, out)
+	updateID, updateLabel, err := ResolveUpdateForPatch(ctx, client, opts.AppID, deploymentID, opts.Label, out)
 	if err != nil {
 		return nil, err
 	}
@@ -32,14 +32,14 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		return nil, err
 	}
 
-	out.Step("Patching release %s", packageLabel)
-	pkg, err := client.PatchPackage(ctx, opts.AppID, deploymentID, packageID, req)
+	out.Step("Patching release %s", updateLabel)
+	pkg, err := client.PatchUpdate(ctx, opts.AppID, deploymentID, updateID, req)
 	if err != nil {
 		return nil, fmt.Errorf("patch failed: %w", err)
 	}
 
 	result := &PatchResult{
-		PackageID:    pkg.ID,
+		UpdateID:     pkg.ID,
 		AppID:        opts.AppID,
 		DeploymentID: deploymentID,
 		Label:        pkg.Label,
@@ -70,11 +70,11 @@ func validatePatchOptions(opts *PatchOptions) error {
 	return nil
 }
 
-// ResolvePackageForPatch resolves a package by label or finds the latest package.
-// Returns the package ID and label.
-func ResolvePackageForPatch(ctx context.Context, client packageLister, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
+// ResolveUpdateForPatch resolves an update by label or finds the latest update.
+// Returns the update ID and label.
+func ResolveUpdateForPatch(ctx context.Context, client updateLister, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
 	if label != "" {
-		id, err := resolvePackageLabel(ctx, client, appID, deploymentID, label, out)
+		id, err := resolveUpdateLabel(ctx, client, appID, deploymentID, label, out)
 		if err != nil {
 			return "", "", err
 		}
@@ -82,16 +82,16 @@ func ResolvePackageForPatch(ctx context.Context, client packageLister, appID, de
 	}
 
 	out.Step("Resolving latest release")
-	packages, err := client.ListPackages(ctx, appID, deploymentID)
+	updates, err := client.ListUpdates(ctx, appID, deploymentID)
 	if err != nil {
-		return "", "", fmt.Errorf("listing packages: %w", err)
+		return "", "", fmt.Errorf("listing updates: %w", err)
 	}
 
-	if len(packages) == 0 {
+	if len(updates) == 0 {
 		return "", "", errors.New("no releases found in deployment: push a release first")
 	}
 
-	latest := packages[len(packages)-1]
+	latest := updates[len(updates)-1]
 	out.Info("Resolved latest release: %s (%s)", latest.Label, latest.ID)
 	return latest.ID, latest.Label, nil
 }

@@ -16,10 +16,10 @@ func TestPromote(t *testing.T) {
 		var capturedReq PromoteRequest
 		var capturedSourceDepID string
 		client := &mockClient{
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
 				capturedReq = req
 				capturedSourceDepID = deploymentID
-				return &Package{
+				return &Update{
 					ID:         "pkg-promoted",
 					Label:      "v1",
 					AppVersion: "2.0.0",
@@ -37,7 +37,7 @@ func TestPromote(t *testing.T) {
 		result, err := Promote(context.Background(), client, opts, testOut)
 		require.NoError(t, err)
 
-		assert.Equal(t, "pkg-promoted", result.PackageID)
+		assert.Equal(t, "pkg-promoted", result.UpdateID)
 		assert.Equal(t, "00000000-0000-0000-0000-000000000001", capturedSourceDepID)
 		assert.Equal(t, "00000000-0000-0000-0000-000000000002", capturedReq.TargetDeploymentID)
 	})
@@ -45,9 +45,9 @@ func TestPromote(t *testing.T) {
 	t.Run("promote with overrides", func(t *testing.T) {
 		var capturedReq PromoteRequest
 		client := &mockClient{
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
 				capturedReq = req
-				return &Package{ID: "pkg-new", Label: "v1", AppVersion: "3.0.0"}, nil
+				return &Update{ID: "pkg-new", Label: "v1", AppVersion: "3.0.0"}, nil
 			},
 		}
 
@@ -75,15 +75,15 @@ func TestPromote(t *testing.T) {
 	t.Run("promote with label resolution", func(t *testing.T) {
 		var capturedReq PromoteRequest
 		client := &mockClient{
-			listPackagesFunc: func(appID, deploymentID string) ([]Package, error) {
-				return []Package{
+			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
 				}, nil
 			},
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
 				capturedReq = req
-				return &Package{ID: "pkg-new", Label: "v1"}, nil
+				return &Update{ID: "pkg-new", Label: "v1"}, nil
 			},
 		}
 
@@ -98,7 +98,7 @@ func TestPromote(t *testing.T) {
 		_, err := Promote(context.Background(), client, opts, testOut)
 		require.NoError(t, err)
 
-		assert.Equal(t, "pkg-2", capturedReq.PackageID)
+		assert.Equal(t, "pkg-2", capturedReq.UpdateID)
 	})
 
 	t.Run("deployment name resolution for both source and dest", func(t *testing.T) {
@@ -111,10 +111,10 @@ func TestPromote(t *testing.T) {
 					{ID: "dep-bbb", Name: "Production"},
 				}, nil
 			},
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
 				capturedSourceDepID = deploymentID
 				capturedDestDepID = req.TargetDeploymentID
-				return &Package{ID: "pkg-new", Label: "v1"}, nil
+				return &Update{ID: "pkg-new", Label: "v1"}, nil
 			},
 		}
 
@@ -147,7 +147,7 @@ func TestPromote(t *testing.T) {
 
 	t.Run("API error", func(t *testing.T) {
 		client := &mockClient{
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
 				return nil, errors.New("API returned HTTP 409: conflict")
 			},
 		}
@@ -170,8 +170,8 @@ func TestPromote(t *testing.T) {
 		t.Setenv("BITRISE_BUILD_NUMBER", "42")
 
 		client := &mockClient{
-			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
-				return &Package{ID: "pkg-promo", Label: "v1", AppVersion: "2.0.0"}, nil
+			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Update, error) {
+				return &Update{ID: "pkg-promo", Label: "v1", AppVersion: "2.0.0"}, nil
 			},
 		}
 
