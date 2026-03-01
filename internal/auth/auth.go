@@ -159,7 +159,7 @@ func validateTokenWithURL(token, url string, client *http.Client) (*UserInfo, er
 		Data UserInfo `json:"data"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, nil //nolint:nilnil // user info is best-effort
+		return nil, fmt.Errorf("decoding validation response: %w", err)
 	}
 
 	return &result.Data, nil
