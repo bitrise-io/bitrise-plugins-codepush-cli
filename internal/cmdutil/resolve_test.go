@@ -10,6 +10,44 @@ import (
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
+func TestAPIURL(t *testing.T) {
+	assert.Equal(t, "https://api.bitrise.io/release-management/v1", APIURL("https://api.bitrise.io"))
+	assert.Equal(t, "https://api.staging.bitrise.io/release-management/v1", APIURL("https://api.staging.bitrise.io"))
+}
+
+func TestResolveServerURL(t *testing.T) {
+	out := output.NewTest(io.Discard)
+
+	t.Run("flag value takes priority", func(t *testing.T) {
+		t.Setenv("CODEPUSH_SERVER_URL", "https://from-env")
+		got := ResolveServerURL("https://from-flag", out)
+		assert.Equal(t, "https://from-flag", got)
+	})
+
+	t.Run("falls back to env var", func(t *testing.T) {
+		t.Setenv("CODEPUSH_SERVER_URL", "https://from-env")
+		got := ResolveServerURL("", out)
+		assert.Equal(t, "https://from-env", got)
+	})
+
+	t.Run("returns default when nothing set", func(t *testing.T) {
+		t.Setenv("CODEPUSH_SERVER_URL", "")
+		got := ResolveServerURL("", out)
+		assert.Equal(t, DefaultServerURL, got)
+	})
+
+	t.Run("strips trailing slash from flag", func(t *testing.T) {
+		got := ResolveServerURL("https://api.staging.bitrise.io/", out)
+		assert.Equal(t, "https://api.staging.bitrise.io", got)
+	})
+
+	t.Run("strips trailing slash from env var", func(t *testing.T) {
+		t.Setenv("CODEPUSH_SERVER_URL", "https://api.staging.bitrise.io/")
+		got := ResolveServerURL("", out)
+		assert.Equal(t, "https://api.staging.bitrise.io", got)
+	})
+}
+
 func TestResolveFlag(t *testing.T) {
 	tests := []struct {
 		name      string

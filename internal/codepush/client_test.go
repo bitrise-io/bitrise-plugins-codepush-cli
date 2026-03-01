@@ -107,7 +107,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 			assert.Equal(t, http.MethodGet, r.Method)
 
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123"}`))
+			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123","latest_package":{"id":"pkg-1","label":"v3","app_version":"1.0.0"}}`))
 		}))
 		defer server.Close()
 
@@ -118,6 +118,25 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		assert.Equal(t, "dep-456", dep.ID)
 		assert.Equal(t, "Staging", dep.Name)
 		assert.Equal(t, "abc123", dep.Key)
+		require.NotNil(t, dep.LatestUpdate)
+		assert.Equal(t, "pkg-1", dep.LatestUpdate.ID)
+		assert.Equal(t, "v3", dep.LatestUpdate.Label)
+		assert.Equal(t, "1.0.0", dep.LatestUpdate.AppVersion)
+	})
+
+	t.Run("returns deployment without latest package", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token")
+		dep, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
+		require.NoError(t, err)
+
+		assert.Equal(t, "dep-456", dep.ID)
+		assert.Nil(t, dep.LatestUpdate)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {

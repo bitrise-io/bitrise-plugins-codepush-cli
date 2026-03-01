@@ -17,9 +17,6 @@ const (
 	GroupSetup      GroupID = "setup"
 )
 
-// DefaultAPIURL is the base URL for the CodePush API.
-const DefaultAPIURL = "https://api.bitrise.io/release-management/v1"
-
 // Out is the shared CLI output writer. Set by main() before Execute().
 var Out *output.Writer
 
@@ -27,6 +24,7 @@ var Out *output.Writer
 var (
 	AppID      string
 	JSONOutput bool
+	ServerURL  string
 )
 
 // RootCmd is the top-level cobra command.
@@ -44,4 +42,5 @@ Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
 func init() {
 	RootCmd.PersistentFlags().StringVar(&AppID, "app-id", "", "release management app UUID (env: CODEPUSH_APP_ID)")
 	RootCmd.PersistentFlags().BoolVar(&JSONOutput, "json", false, "output results as JSON to stdout")
+	RootCmd.PersistentFlags().StringVar(&ServerURL, "server-url", "", "API server base URL (env: CODEPUSH_SERVER_URL)")
 }

@@ -8,6 +8,7 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/auth"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 )
 
 var authLoginToken string
@@ -51,10 +52,12 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 			return errors.New("token is required: provide --token flag or enter interactively")
 		}
 
+		serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
+
 		var userInfo *auth.UserInfo
 		err := out.Spinner("Validating token", func() error {
 			var valErr error
-			userInfo, valErr = auth.ValidateToken(token)
+			userInfo, valErr = auth.ValidateToken(token, serverURL)
 			return valErr
 		})
 		if err != nil {

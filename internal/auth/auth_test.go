@@ -164,16 +164,16 @@ func TestValidateToken(t *testing.T) {
 		assert.Equal(t, "test@example.com", userInfo.Email)
 	})
 
-	t.Run("valid token with unparseable body returns nil user info", func(t *testing.T) {
+	t.Run("valid token with unparseable body returns error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`not json`))
 		}))
 		defer server.Close()
 
-		userInfo, err := validateTokenWithURL("valid-token", server.URL, &http.Client{})
-		require.NoError(t, err)
-		assert.Nil(t, userInfo)
+		_, err := validateTokenWithURL("valid-token", server.URL, &http.Client{})
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "decoding validation response")
 	})
 
 	t.Run("invalid token returns error", func(t *testing.T) {
@@ -198,6 +198,20 @@ func TestValidateToken(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "500")
 	})
+}
+
+func TestValidateTokenAppendsAuthPath(t *testing.T) {
+	var receivedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedPath = r.URL.Path
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"data":{"username":"test"}}`))
+	}))
+	defer server.Close()
+
+	_, err := ValidateToken("token", server.URL)
+	require.NoError(t, err)
+	assert.Equal(t, "/v0.1/me", receivedPath)
 }
 
 func TestTokenGenerationURL(t *testing.T) {

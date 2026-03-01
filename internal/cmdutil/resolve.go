@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/google/uuid"
 
@@ -13,6 +14,41 @@ import (
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
+
+// DefaultServerURL is the default Bitrise API server base URL.
+const DefaultServerURL = "https://api.bitrise.io"
+
+const codePushAPIPath = "/release-management/v1"
+
+// APIURL returns the full CodePush API base URL for the given server.
+func APIURL(serverURL string) string {
+	return serverURL + codePushAPIPath
+}
+
+// ResolveServerURL returns the server base URL using the priority:
+// 1. flagValue (--server-url)
+// 2. CODEPUSH_SERVER_URL environment variable
+// 3. server_url in .codepush.json
+// 4. DefaultServerURL
+func ResolveServerURL(flagValue string, out *output.Writer) string {
+	if flagValue != "" {
+		return strings.TrimRight(flagValue, "/")
+	}
+	if envValue := os.Getenv("CODEPUSH_SERVER_URL"); envValue != "" {
+		return strings.TrimRight(envValue, "/")
+	}
+	cfg, err := config.Load()
+	if err != nil {
+		if out != nil {
+			out.Warning("could not load %s: %v", config.FileName, err)
+		}
+		return DefaultServerURL
+	}
+	if cfg != nil && cfg.ServerURL != "" {
+		return strings.TrimRight(cfg.ServerURL, "/")
+	}
+	return DefaultServerURL
+}
 
 // ResolveFlag returns flagValue if non-empty, otherwise falls back to the environment variable.
 func ResolveFlag(flagValue, envKey string) string {

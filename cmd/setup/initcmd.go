@@ -9,6 +9,7 @@ import (
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 var initForce bool
@@ -29,13 +30,11 @@ The file is safe to commit to version control.`,
 			return err
 		}
 
-		return writeProjectConfig(appID)
+		return writeProjectConfig(appID, out)
 	},
 }
 
-func writeProjectConfig(appID string) error {
-	out := cmd.Out
-
+func writeProjectConfig(appID string, out *output.Writer) error {
 	dir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("determining working directory: %w", err)
@@ -52,7 +51,12 @@ func writeProjectConfig(appID string) error {
 		}
 	}
 
+	serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
+
 	cfg := &config.ProjectConfig{AppID: appID}
+	if serverURL != cmdutil.DefaultServerURL {
+		cfg.ServerURL = serverURL
+	}
 	if err := config.Save(dir, cfg); err != nil {
 		return err
 	}
@@ -63,6 +67,9 @@ func writeProjectConfig(appID string) error {
 
 	out.Success("Created %s", config.FileName)
 	out.Info("App ID: %s", appID)
+	if cfg.ServerURL != "" {
+		out.Info("Server: %s", cfg.ServerURL)
+	}
 	out.Info("Path: %s", cfgPath)
 	return nil
 }
