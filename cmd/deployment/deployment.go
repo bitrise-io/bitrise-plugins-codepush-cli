@@ -127,21 +127,8 @@ var infoCmd = &cobra.Command{
 			return fmt.Errorf("getting deployment: %w", err)
 		}
 
-		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
-		if err != nil {
-			return fmt.Errorf("listing updates: %w", err)
-		}
-
 		if cmd.JSONOutput {
-			info := struct {
-				codepush.Deployment
-
-				LatestUpdate *codepush.Update `json:"latest_package,omitempty"`
-			}{Deployment: *dep}
-			if len(updates) > 0 {
-				info.LatestUpdate = &updates[len(updates)-1]
-			}
-			return cmdutil.OutputJSON(info)
+			return cmdutil.OutputJSON(dep)
 		}
 
 		out.Step("Deployment: %s", dep.Name)
@@ -156,14 +143,13 @@ var infoCmd = &cobra.Command{
 		}
 		out.Result(pairs)
 
-		if len(updates) > 0 {
-			latest := updates[len(updates)-1]
+		if dep.LatestUpdate != nil {
 			out.Step("Latest release")
 			out.Result([]output.KeyValue{
-				{Key: "Label", Value: latest.Label},
-				{Key: "App version", Value: latest.AppVersion},
-				{Key: "Mandatory", Value: strconv.FormatBool(latest.Mandatory)},
-				{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", latest.Rollout)},
+				{Key: "Label", Value: dep.LatestUpdate.Label},
+				{Key: "App version", Value: dep.LatestUpdate.AppVersion},
+				{Key: "Mandatory", Value: strconv.FormatBool(dep.LatestUpdate.Mandatory)},
+				{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", dep.LatestUpdate.Rollout)},
 			})
 		} else {
 			out.Info("No releases.")

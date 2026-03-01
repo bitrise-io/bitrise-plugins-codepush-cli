@@ -103,10 +103,11 @@ type UpdateStatus struct {
 
 // Deployment represents a CodePush deployment.
 type Deployment struct {
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	CreatedAt string `json:"created_at,omitempty"`
-	Key       string `json:"key,omitempty"`
+	ID           string  `json:"id"`
+	Name         string  `json:"name"`
+	CreatedAt    string  `json:"created_at,omitempty"`
+	Key          string  `json:"key,omitempty"`
+	LatestUpdate *Update `json:"latest_package,omitempty"`
 }
 
 // CreateDeploymentRequest is the JSON body for creating a deployment.
