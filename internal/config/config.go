@@ -35,7 +35,7 @@ func Load() (*ProjectConfig, error) {
 	data, err := os.ReadFile(filepath.Join(dir, FileName))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
+			return nil, nil //nolint:nilnil // no config file is a valid state
 		}
 		return nil, fmt.Errorf("reading %s: %w", FileName, err)
 	}

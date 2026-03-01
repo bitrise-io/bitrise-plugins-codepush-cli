@@ -1,7 +1,7 @@
 package setup
 
 import (
-	"fmt"
+	"errors"
 
 	"github.com/spf13/cobra"
 
@@ -17,7 +17,7 @@ Detects the project type (React Native, Flutter, native iOS/Android)
 and configures the SDK accordingly.`,
 	GroupID: cmd.GroupSetup,
 	RunE: func(c *cobra.Command, args []string) error {
-		return fmt.Errorf("integrate command is not yet implemented")
+		return errors.New("integrate command is not yet implemented")
 	},
 }
 

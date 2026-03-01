@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -54,7 +55,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		}
 
 		if len(args) == 0 {
-			return fmt.Errorf("bundle path is required: provide as argument or use --bundle to generate one")
+			return errors.New("bundle path is required: provide as argument or use --bundle to generate one")
 		}
 
 		bundlePath, err := filepath.Abs(args[0])

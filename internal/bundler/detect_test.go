@@ -436,8 +436,7 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
 
-		enabled, err := detectHermes(dir, PlatformAndroid)
-		require.NoError(t, err)
+		enabled := detectHermes(dir, PlatformAndroid)
 		assert.True(t, enabled)
 	})
 
@@ -445,8 +444,7 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		dir := t.TempDir()
 		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.68.0"}}`)
 
-		enabled, err := detectHermes(dir, PlatformAndroid)
-		require.NoError(t, err)
+		enabled := detectHermes(dir, PlatformAndroid)
 		assert.False(t, enabled)
 	})
 
@@ -458,8 +456,7 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
 		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `react { hermesEnabled = false }`)
 
-		enabled, err := detectHermes(dir, PlatformAndroid)
-		require.NoError(t, err)
+		enabled := detectHermes(dir, PlatformAndroid)
 		assert.False(t, enabled)
 	})
 }

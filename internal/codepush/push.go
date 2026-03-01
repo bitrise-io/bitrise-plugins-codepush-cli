@@ -2,6 +2,7 @@ package codepush
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -60,7 +61,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	if err != nil {
 		return "", 0, fmt.Errorf("packaging bundle: %w", err)
 	}
-	defer os.Remove(zipPath)
+	defer func() { _ = os.Remove(zipPath) }()
 
 	zipInfo, err := os.Stat(zipPath)
 	if err != nil {
@@ -89,7 +90,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 		if openErr != nil {
 			return fmt.Errorf("opening zip for upload: %w", openErr)
 		}
-		defer zipFile.Close()
+		defer func() { _ = zipFile.Close() }()
 
 		return client.UploadFile(ctx, UploadFileRequest{
 			URL:           uploadResp.URL,
@@ -111,13 +112,13 @@ func validatePushOptions(opts *PushOptions) error {
 		return err
 	}
 	if opts.DeploymentID == "" {
-		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
+		return errors.New("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
 	}
 	if opts.AppVersion == "" {
-		return fmt.Errorf("app version is required: set --app-version")
+		return errors.New("app version is required: set --app-version")
 	}
 	if opts.BundlePath == "" {
-		return fmt.Errorf("bundle path is required: provide as argument or use --bundle")
+		return errors.New("bundle path is required: provide as argument or use --bundle")
 	}
 	if opts.Rollout < 1 || opts.Rollout > 100 {
 		return fmt.Errorf("rollout must be between 1 and 100, got %d", opts.Rollout)
@@ -169,7 +170,7 @@ type statusChecker interface {
 }
 
 func pollStatus(ctx context.Context, client statusChecker, ref PackageRef, cfg PollConfig) (*PackageStatus, error) {
-	for attempt := 0; attempt < cfg.MaxAttempts; attempt++ {
+	for attempt := range cfg.MaxAttempts {
 		status, err := client.GetPackageStatus(ctx, ref.AppID, ref.DeploymentID, ref.PackageID)
 		if err != nil {
 			return nil, fmt.Errorf("checking package status: %w", err)

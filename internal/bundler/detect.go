@@ -3,6 +3,7 @@ package bundler
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -95,7 +96,7 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode) 
 		return nil, err
 	}
 
-	hermesEnabled := false
+	var hermesEnabled bool
 	hermescPath := ""
 
 	switch hermesMode {
@@ -104,7 +105,7 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode) 
 	case HermesModeOff:
 		hermesEnabled = false
 	default:
-		hermesEnabled, _ = detectHermes(absDir, platform)
+		hermesEnabled = detectHermes(absDir, platform)
 	}
 
 	if hermesEnabled {
@@ -152,7 +153,7 @@ func detectProjectType(projectDir string) (ProjectType, error) {
 		return ProjectTypeReactNative, nil
 	}
 
-	return ProjectTypeUnknown, fmt.Errorf("could not detect project type: package.json does not list react-native or expo as a dependency")
+	return ProjectTypeUnknown, errors.New("could not detect project type: package.json does not list react-native or expo as a dependency")
 }
 
 // detectEntryFile searches for the JS entry file.
@@ -188,15 +189,15 @@ func detectEntryFile(projectDir string, platform Platform) (string, error) {
 type hermesDetection int
 
 const (
-	hermesNotFound  hermesDetection = iota // no explicit config found
-	hermesEnabled                          // explicitly enabled
-	hermesDisabled                         // explicitly disabled
+	hermesNotFound hermesDetection = iota // no explicit config found
+	hermesEnabled                         // explicitly enabled
+	hermesDisabled                        // explicitly disabled
 )
 
 // detectHermes checks the project for Hermes configuration.
 // If no explicit config is found, defaults to true for React Native >= 0.70
 // (Hermes became the default engine in that version).
-func detectHermes(projectDir string, platform Platform) (bool, error) {
+func detectHermes(projectDir string, platform Platform) bool {
 	var detection hermesDetection
 
 	switch platform {
@@ -205,17 +206,17 @@ func detectHermes(projectDir string, platform Platform) (bool, error) {
 	case PlatformIOS:
 		detection = detectHermesIOS(projectDir)
 	default:
-		return false, nil
+		return false
 	}
 
 	switch detection {
 	case hermesEnabled:
-		return true, nil
+		return true
 	case hermesDisabled:
-		return false, nil
+		return false
 	default:
 		// No explicit config found: check if RN >= 0.70 where Hermes is the default
-		return isHermesDefaultVersion(projectDir), nil
+		return isHermesDefaultVersion(projectDir)
 	}
 }
 
@@ -381,7 +382,7 @@ func findHermesc(projectDir string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("hermesc binary not found in node_modules")
+	return "", errors.New("hermesc binary not found in node_modules")
 }
 
 // detectMetroConfig searches for metro.config.js or metro.config.ts.

@@ -2,7 +2,7 @@ package codepush
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -120,7 +120,7 @@ func TestRollback(t *testing.T) {
 	t.Run("API error", func(t *testing.T) {
 		client := &mockClient{
 			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Package, error) {
-				return nil, fmt.Errorf("API returned HTTP 404: deployment not found")
+				return nil, errors.New("API returned HTTP 404: deployment not found")
 			},
 		}
 
@@ -227,7 +227,7 @@ func TestResolvePackageLabel(t *testing.T) {
 	t.Run("list packages error", func(t *testing.T) {
 		client := &mockClient{
 			listPackagesFunc: func(appID, deploymentID string) ([]Package, error) {
-				return nil, fmt.Errorf("network error")
+				return nil, errors.New("network error")
 			},
 		}
 

@@ -2,6 +2,8 @@
 format_version: '15'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: other
+tools:
+  golangci-lint: 2.10.1
 trigger_map:
 - push_branch: main
   pipeline: pipeline_ci
@@ -88,17 +90,9 @@ workflows:
 
             echo "PASS: version $CODE_VERSION is consistent"
     - script@1:
-        title: go vet
-        inputs:
-        - content: go vet ./...
-    - script@1:
         title: golangci-lint
         inputs:
-        - content: |
-            #!/bin/bash
-            set -euo pipefail
-            curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b "$(go env GOPATH)/bin" v1.64.8
-            "$(go env GOPATH)/bin/golangci-lint" run
+        - content: golangci-lint run
   release:
     steps:
     - git-clone@8:

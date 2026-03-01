@@ -68,61 +68,61 @@ func (w *Writer) IsInteractive() bool {
 
 // Step prints a progress step. Color mode: "-> message" with cyan arrow.
 // Plain mode: "-> message".
-func (w *Writer) Step(format string, args ...interface{}) {
+func (w *Writer) Step(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		arrow := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render("->")
-		fmt.Fprintf(w.w, "%s %s\n", arrow, msg)
+		_, _ = fmt.Fprintf(w.w, "%s %s\n", arrow, msg)
 	} else {
-		fmt.Fprintf(w.w, "-> %s\n", msg)
+		_, _ = fmt.Fprintf(w.w, "-> %s\n", msg)
 	}
 }
 
 // Success prints a success message. Color mode: green bold checkmark.
 // Plain mode: "OK message".
-func (w *Writer) Success(format string, args ...interface{}) {
+func (w *Writer) Success(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
-		fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
 	} else {
-		fmt.Fprintf(w.w, "OK %s\n", msg)
+		_, _ = fmt.Fprintf(w.w, "OK %s\n", msg)
 	}
 }
 
 // Error prints an error message. Color mode: red prefix.
 // Plain mode: "ERROR message".
-func (w *Writer) Error(format string, args ...interface{}) {
+func (w *Writer) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1")).Render("ERROR")
-		fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
 	} else {
-		fmt.Fprintf(w.w, "ERROR %s\n", msg)
+		_, _ = fmt.Fprintf(w.w, "ERROR %s\n", msg)
 	}
 }
 
 // Warning prints a warning message. Color mode: yellow prefix.
 // Plain mode: "WARNING message".
-func (w *Writer) Warning(format string, args ...interface{}) {
+func (w *Writer) Warning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render("WARNING")
-		fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
 	} else {
-		fmt.Fprintf(w.w, "WARNING %s\n", msg)
+		_, _ = fmt.Fprintf(w.w, "WARNING %s\n", msg)
 	}
 }
 
 // Info prints supplementary information indented under a step.
 // Color mode: dim text. Plain mode: indented text.
-func (w *Writer) Info(format string, args ...interface{}) {
+func (w *Writer) Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		dim := lipgloss.NewStyle().Faint(true)
-		fmt.Fprintf(w.w, "   %s\n", dim.Render(msg))
+		_, _ = fmt.Fprintf(w.w, "   %s\n", dim.Render(msg))
 	} else {
-		fmt.Fprintf(w.w, "   %s\n", msg)
+		_, _ = fmt.Fprintf(w.w, "   %s\n", msg)
 	}
 }
 
@@ -139,14 +139,14 @@ func (w *Writer) Result(pairs []KeyValue) {
 		}
 	}
 
-	fmt.Fprintln(w.w)
+	_, _ = fmt.Fprintln(w.w)
 	for _, p := range pairs {
 		padding := strings.Repeat(" ", maxKeyLen-len(p.Key))
 		if w.color {
 			key := lipgloss.NewStyle().Bold(true).Render(p.Key)
-			fmt.Fprintf(w.w, "  %s%s  %s\n", key, padding, p.Value)
+			_, _ = fmt.Fprintf(w.w, "  %s%s  %s\n", key, padding, p.Value)
 		} else {
-			fmt.Fprintf(w.w, "  %s%s  %s\n", p.Key, padding, p.Value)
+			_, _ = fmt.Fprintf(w.w, "  %s%s  %s\n", p.Key, padding, p.Value)
 		}
 	}
 }
@@ -175,10 +175,10 @@ func (w *Writer) Table(headers []string, rows [][]string) {
 		return cellStyle
 	})
 
-	fmt.Fprintln(w.w, t.Render())
+	_, _ = fmt.Fprintln(w.w, t.Render())
 }
 
 // Println prints a plain line with no prefix or styling.
-func (w *Writer) Println(format string, args ...interface{}) {
-	fmt.Fprintf(w.w, format+"\n", args...)
+func (w *Writer) Println(format string, args ...any) {
+	_, _ = fmt.Fprintf(w.w, format+"\n", args...)
 }

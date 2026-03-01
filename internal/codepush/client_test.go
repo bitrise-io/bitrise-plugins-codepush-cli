@@ -70,7 +70,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var body CreateDeploymentRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "QA", body.Name)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -141,7 +141,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 			assert.Equal(t, http.MethodPatch, r.Method)
 
 			var body RenameDeploymentRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "Pre-Production", body.Name)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -448,7 +448,7 @@ func TestHTTPClientGetPackage(t *testing.T) {
 		assert.Equal(t, "pkg-789", pkg.ID)
 		assert.Equal(t, "v3", pkg.Label)
 		assert.True(t, pkg.Mandatory)
-		assert.Equal(t, float64(50), pkg.Rollout)
+		assert.InEpsilon(t, float64(50), pkg.Rollout, 0.0001)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {
@@ -472,9 +472,9 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 			assert.Equal(t, http.MethodPatch, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
-			var body map[string]interface{}
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			assert.Equal(t, float64(50), body["rollout"])
+			var body map[string]any
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.InEpsilon(t, float64(50), body["rollout"], 0.0001)
 			assert.Equal(t, true, body["mandatory"])
 
 			w.Header().Set("Content-Type", "application/json")
@@ -492,7 +492,7 @@ func TestHTTPClientPatchPackage(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-789", pkg.ID)
-		assert.Equal(t, float64(50), pkg.Rollout)
+		assert.InEpsilon(t, float64(50), pkg.Rollout, 0.0001)
 	})
 
 	t.Run("omits nil fields", func(t *testing.T) {
@@ -571,7 +571,7 @@ func TestHTTPClientRollback(t *testing.T) {
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
 
 			var body RollbackRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "pkg-target", body.PackageID)
 
 			w.Header().Set("Content-Type", "application/json")
@@ -624,7 +624,7 @@ func TestHTTPClientPromote(t *testing.T) {
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var body PromoteRequest
-			require.NoError(t, json.NewDecoder(r.Body).Decode(&body))
+			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "dep-dst", body.TargetDeploymentID)
 			assert.Equal(t, "3.0.0", body.AppVersion)
 			assert.Equal(t, "true", body.Mandatory)

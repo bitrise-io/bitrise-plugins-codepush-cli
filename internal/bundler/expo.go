@@ -98,7 +98,7 @@ func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 	var jsFiles []string
 	_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil
+			return nil //nolint:nilerr // skip unreadable entries during fallback scan
 		}
 		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") && !strings.HasSuffix(info.Name(), ".js.map") {
 			jsFiles = append(jsFiles, path)
