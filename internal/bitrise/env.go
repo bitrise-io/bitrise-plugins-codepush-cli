@@ -2,6 +2,7 @@
 package bitrise
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -34,7 +35,7 @@ func GetBuildMetadata() BuildMetadata {
 func WriteToDeployDir(filename string, data []byte) (string, error) {
 	deployDir := os.Getenv("BITRISE_DEPLOY_DIR")
 	if deployDir == "" {
-		return "", fmt.Errorf("BITRISE_DEPLOY_DIR is not set")
+		return "", errors.New("BITRISE_DEPLOY_DIR is not set")
 	}
 
 	if err := os.MkdirAll(deployDir, 0o755); err != nil {
@@ -55,7 +56,7 @@ func WriteToDeployDir(filename string, data []byte) (string, error) {
 func ExportEnvVar(key, value string) error {
 	envmanPath, err := exec.LookPath("envman")
 	if err != nil {
-		return nil // envman not available, skip silently
+		return nil //nolint:nilerr // envman not available, skip silently
 	}
 
 	cmd := exec.Command(envmanPath, "add", "--key", key, "--value", value)

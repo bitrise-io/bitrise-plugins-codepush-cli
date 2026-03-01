@@ -8,7 +8,7 @@ import (
 )
 
 // ExportDeploySummary writes a JSON summary to the Bitrise deploy directory.
-func ExportDeploySummary(filename string, v interface{}, out *output.Writer) {
+func ExportDeploySummary(filename string, v any, out *output.Writer) {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		out.Warning("failed to marshal %s: %v", filename, err)

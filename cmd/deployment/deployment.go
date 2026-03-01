@@ -2,6 +2,7 @@ package deployment
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -134,6 +135,7 @@ var infoCmd = &cobra.Command{
 		if cmd.JSONOutput {
 			info := struct {
 				codepush.Deployment
+
 				LatestPackage *codepush.Package `json:"latest_package,omitempty"`
 			}{Deployment: *dep}
 			if len(packages) > 0 {
@@ -160,7 +162,7 @@ var infoCmd = &cobra.Command{
 			out.Result([]output.KeyValue{
 				{Key: "Label", Value: latest.Label},
 				{Key: "App version", Value: latest.AppVersion},
-				{Key: "Mandatory", Value: fmt.Sprintf("%v", latest.Mandatory)},
+				{Key: "Mandatory", Value: strconv.FormatBool(latest.Mandatory)},
 				{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", latest.Rollout)},
 			})
 		} else {
@@ -311,8 +313,8 @@ var historyCmd = &cobra.Command{
 		rows := make([][]string, len(packages))
 		for i, p := range packages {
 			rows[i] = []string{
-				p.Label, p.AppVersion, fmt.Sprintf("%v", p.Mandatory),
-				fmt.Sprintf("%.0f%%", p.Rollout), fmt.Sprintf("%v", p.Disabled),
+				p.Label, p.AppVersion, strconv.FormatBool(p.Mandatory),
+				fmt.Sprintf("%.0f%%", p.Rollout), strconv.FormatBool(p.Disabled),
 				cmdutil.Truncate(p.Description, 30), p.CreatedAt,
 			}
 		}

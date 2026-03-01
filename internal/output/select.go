@@ -1,6 +1,7 @@
 package output
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -16,7 +17,7 @@ type SelectOption struct {
 // non-interactive mode (CI or piped output).
 func (w *Writer) Select(title string, options []SelectOption) (string, error) {
 	if !w.interactive {
-		return "", fmt.Errorf("cannot prompt for selection in non-interactive mode")
+		return "", errors.New("cannot prompt for selection in non-interactive mode")
 	}
 
 	huhOpts := make([]huh.Option[string], len(options))
@@ -41,7 +42,7 @@ func (w *Writer) Select(title string, options []SelectOption) (string, error) {
 // non-interactive mode (CI or piped output).
 func (w *Writer) Input(title, placeholder string) (string, error) {
 	if !w.interactive {
-		return "", fmt.Errorf("cannot prompt for input in non-interactive mode")
+		return "", errors.New("cannot prompt for input in non-interactive mode")
 	}
 
 	var value string
@@ -62,7 +63,7 @@ func (w *Writer) Input(title, placeholder string) (string, error) {
 // non-interactive mode (CI or piped output).
 func (w *Writer) SecureInput(title, placeholder string) (string, error) {
 	if !w.interactive {
-		return "", fmt.Errorf("cannot prompt for input in non-interactive mode")
+		return "", errors.New("cannot prompt for input in non-interactive mode")
 	}
 
 	var value string

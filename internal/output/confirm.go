@@ -1,6 +1,7 @@
 package output
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/charmbracelet/huh"
@@ -33,7 +34,7 @@ func (w *Writer) ConfirmDestructive(msg string, yesFlag bool) error {
 	}
 
 	if !confirmed {
-		return fmt.Errorf("cancelled by user")
+		return errors.New("cancelled by user")
 	}
 
 	return nil

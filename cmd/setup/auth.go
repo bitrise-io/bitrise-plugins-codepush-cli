@@ -1,6 +1,7 @@
 package setup
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -34,7 +35,7 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 		token := authLoginToken
 		if token == "" {
 			if !out.IsInteractive() {
-				return fmt.Errorf("token is required: set --token or BITRISE_API_TOKEN")
+				return errors.New("token is required: set --token or BITRISE_API_TOKEN")
 			}
 			out.Println("")
 			out.Info("Generate a token at: %s", auth.TokenGenerationURL)
@@ -47,7 +48,7 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 		}
 
 		if token == "" {
-			return fmt.Errorf("token is required: provide --token flag or enter interactively")
+			return errors.New("token is required: provide --token flag or enter interactively")
 		}
 
 		var userInfo *auth.UserInfo

@@ -1,7 +1,9 @@
 package packagecmd
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -68,8 +70,8 @@ By default shows the latest package. Use --label to specify a version.`,
 		pairs := []output.KeyValue{
 			{Key: "ID", Value: pkg.ID},
 			{Key: "App version", Value: pkg.AppVersion},
-			{Key: "Mandatory", Value: fmt.Sprintf("%v", pkg.Mandatory)},
-			{Key: "Disabled", Value: fmt.Sprintf("%v", pkg.Disabled)},
+			{Key: "Mandatory", Value: strconv.FormatBool(pkg.Mandatory)},
+			{Key: "Disabled", Value: strconv.FormatBool(pkg.Disabled)},
 			{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", pkg.Rollout)},
 		}
 		if pkg.Description != "" {
@@ -160,7 +162,7 @@ Requires --label to identify the package and --yes to confirm deletion.`,
 			return err
 		}
 		if packageLabel == "" {
-			return fmt.Errorf("label is required: set --label to identify the package to delete")
+			return errors.New("label is required: set --label to identify the package to delete")
 		}
 
 		if err := out.ConfirmDestructive(

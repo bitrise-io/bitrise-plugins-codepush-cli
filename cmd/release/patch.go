@@ -2,6 +2,7 @@ package release
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -78,8 +79,8 @@ Examples:
 			{Key: "Label", Value: result.Label},
 			{Key: "App version", Value: result.AppVersion},
 			{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)},
-			{Key: "Mandatory", Value: fmt.Sprintf("%v", result.Mandatory)},
-			{Key: "Disabled", Value: fmt.Sprintf("%v", result.Disabled)},
+			{Key: "Mandatory", Value: strconv.FormatBool(result.Mandatory)},
+			{Key: "Disabled", Value: strconv.FormatBool(result.Disabled)},
 		})
 
 		if bitrise.IsBitriseEnvironment() {

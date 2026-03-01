@@ -82,7 +82,7 @@ func TestWriteToDeployDir(t *testing.T) {
 
 		data, err := os.ReadFile(path)
 		require.NoError(t, err)
-		assert.Equal(t, `{"key": "value"}`, string(data))
+		assert.JSONEq(t, `{"key": "value"}`, string(data))
 	})
 
 	t.Run("creates deploy directory if missing", func(t *testing.T) {

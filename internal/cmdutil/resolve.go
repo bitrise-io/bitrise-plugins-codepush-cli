@@ -2,6 +2,7 @@ package cmdutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -67,10 +68,10 @@ func RequireCredentials(globalAppID string, out *output.Writer) (appID, token st
 	token = ResolveToken(out)
 
 	if appID == "" {
-		return "", "", fmt.Errorf("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
+		return "", "", errors.New("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
 	}
 	if token == "" {
-		return "", "", fmt.Errorf("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
+		return "", "", errors.New("API token is required: set BITRISE_API_TOKEN or run 'codepush auth login'")
 	}
 	return appID, token, nil
 }
@@ -92,7 +93,7 @@ func ResolveInputInteractive(value, title, placeholder string, out *output.Write
 	}
 
 	if result == "" {
-		return "", fmt.Errorf("value is required")
+		return "", errors.New("value is required")
 	}
 
 	return result, nil
@@ -114,7 +115,7 @@ func ResolveAppIDInteractive(globalAppID string, out *output.Writer) (string, er
 	}
 
 	if !out.IsInteractive() {
-		return "", fmt.Errorf("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
+		return "", errors.New("app ID is required: set --app-id, CODEPUSH_APP_ID, or run 'codepush init'")
 	}
 
 	appID, err := out.Input("Enter your app ID (UUID)", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx")
@@ -123,7 +124,7 @@ func ResolveAppIDInteractive(globalAppID string, out *output.Writer) (string, er
 	}
 
 	if appID == "" {
-		return "", fmt.Errorf("app ID is required")
+		return "", errors.New("app ID is required")
 	}
 
 	if _, err := uuid.Parse(appID); err != nil {
@@ -149,7 +150,7 @@ func ResolveDeploymentInteractive(ctx context.Context, client codepush.Client, a
 		if envKey != "" {
 			return "", fmt.Errorf("deployment is required: set --deployment or %s", envKey)
 		}
-		return "", fmt.Errorf("deployment is required: provide a deployment name or UUID")
+		return "", errors.New("deployment is required: provide a deployment name or UUID")
 	}
 
 	deployments, err := client.ListDeployments(ctx, appID)
@@ -158,7 +159,7 @@ func ResolveDeploymentInteractive(ctx context.Context, client codepush.Client, a
 	}
 
 	if len(deployments) == 0 {
-		return "", fmt.Errorf("no deployments found: create one with 'codepush deployment add'")
+		return "", errors.New("no deployments found: create one with 'codepush deployment add'")
 	}
 
 	options := make([]output.SelectOption, len(deployments))
@@ -178,7 +179,7 @@ func ResolvePlatformInteractive(flagValue string, out *output.Writer) (string, e
 	}
 
 	if !out.IsInteractive() {
-		return "", fmt.Errorf("--platform is required: set --platform to ios or android")
+		return "", errors.New("--platform is required: set --platform to ios or android")
 	}
 
 	return out.Select("Select platform", []output.SelectOption{

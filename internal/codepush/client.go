@@ -31,7 +31,7 @@ func NewHTTPClient(baseURL, token string) *HTTPClient {
 func (c *HTTPClient) ListDeployments(ctx context.Context, appID string) ([]Deployment, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments", appID)
 
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func (c *HTTPClient) CreateDeployment(ctx context.Context, appID string, req Cre
 func (c *HTTPClient) GetDeployment(ctx context.Context, appID, deploymentID string) (*Deployment, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
 
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +99,7 @@ func (c *HTTPClient) RenameDeployment(ctx context.Context, appID, deploymentID s
 func (c *HTTPClient) DeleteDeployment(ctx context.Context, appID, deploymentID string) error {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
 
-	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
 		return err
 	}
@@ -135,7 +135,7 @@ func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, pack
 
 	fullPath := path + "?" + params.Encode()
 
-	resp, err := c.doRequest(ctx, http.MethodGet, fullPath, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, fullPath)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (c *HTTPClient) UploadFile(ctx context.Context, ufr UploadFileRequest) erro
 	if err != nil {
 		return fmt.Errorf("uploading file: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		respBody, _ := io.ReadAll(resp.Body)
@@ -179,7 +179,7 @@ func (c *HTTPClient) GetPackageStatus(ctx context.Context, appID, deploymentID, 
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/status",
 		appID, deploymentID, packageID)
 
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
@@ -196,7 +196,7 @@ func (c *HTTPClient) GetPackageStatus(ctx context.Context, appID, deploymentID, 
 func (c *HTTPClient) ListPackages(ctx context.Context, appID, deploymentID string) ([]Package, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages", appID, deploymentID)
 
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +214,7 @@ func (c *HTTPClient) GetPackage(ctx context.Context, appID, deploymentID, packag
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
 		appID, deploymentID, packageID)
 
-	resp, err := c.doRequest(ctx, http.MethodGet, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +250,7 @@ func (c *HTTPClient) DeletePackage(ctx context.Context, appID, deploymentID, pac
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
 		appID, deploymentID, packageID)
 
-	resp, err := c.doRequest(ctx, http.MethodDelete, path, nil)
+	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
 		return err
 	}
@@ -296,7 +296,7 @@ func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, re
 	return &result, nil
 }
 
-func (c *HTTPClient) doJSONRequest(ctx context.Context, method, path string, body interface{}) (*http.Response, error) {
+func (c *HTTPClient) doJSONRequest(ctx context.Context, method, path string, body any) (*http.Response, error) {
 	var bodyReader io.Reader
 	if body != nil {
 		data, err := json.Marshal(body)
@@ -326,10 +326,10 @@ func (c *HTTPClient) doJSONRequest(ctx context.Context, method, path string, bod
 	return resp, nil
 }
 
-func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body io.Reader) (*http.Response, error) {
+func (c *HTTPClient) doRequest(ctx context.Context, method, path string) (*http.Response, error) {
 	reqURL := c.BaseURL + path
 
-	req, err := http.NewRequestWithContext(ctx, method, reqURL, body)
+	req, err := http.NewRequestWithContext(ctx, method, reqURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
@@ -345,8 +345,8 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string, body io
 	return resp, nil
 }
 
-func decodeResponse(resp *http.Response, v interface{}) error {
-	defer resp.Body.Close()
+func decodeResponse(resp *http.Response, v any) error {
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)

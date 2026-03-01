@@ -8,12 +8,12 @@ import (
 )
 
 // OutputJSON marshals v as indented JSON to stdout. Used when --json is set.
-func OutputJSON(v interface{}) error {
+func OutputJSON(v any) error {
 	data, err := json.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling JSON output: %w", err)
 	}
-	fmt.Fprintln(os.Stdout, string(data))
+	_, _ = fmt.Fprintln(os.Stdout, string(data))
 	return nil
 }
 

@@ -41,7 +41,7 @@ func addFileToZip(w *zip.Writer, baseDir string) filepath.WalkFunc {
 		if err != nil {
 			return fmt.Errorf("opening file %s: %w", path, err)
 		}
-		defer file.Close()
+		defer func() { _ = file.Close() }()
 
 		_, err = io.Copy(writer, file)
 		return err
@@ -70,13 +70,12 @@ func Directory(srcDir string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("creating zip file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	w := zip.NewWriter(f)
-	defer w.Close()
+	defer func() { _ = w.Close() }()
 
 	err = filepath.Walk(absDir, addFileToZip(w, absDir))
-
 	if err != nil {
 		return "", fmt.Errorf("adding files to zip: %w", err)
 	}

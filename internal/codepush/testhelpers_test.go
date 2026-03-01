@@ -9,20 +9,20 @@ import (
 )
 
 type mockClient struct {
-	listDeploymentsFunc    func(appID string) ([]Deployment, error)
-	createDeploymentFunc   func(appID string, req CreateDeploymentRequest) (*Deployment, error)
-	getDeploymentFunc      func(appID, deploymentID string) (*Deployment, error)
-	renameDeploymentFunc   func(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
-	deleteDeploymentFunc   func(appID, deploymentID string) error
-	getUploadURLFunc       func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
-	uploadFileFunc         func(req UploadFileRequest) error
-	getPackageStatusFunc   func(appID, deploymentID, packageID string) (*PackageStatus, error)
-	listPackagesFunc       func(appID, deploymentID string) ([]Package, error)
-	getPackageFunc         func(appID, deploymentID, packageID string) (*Package, error)
-	patchPackageFunc       func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
-	deletePackageFunc      func(appID, deploymentID, packageID string) error
-	rollbackFunc           func(appID, deploymentID string, req RollbackRequest) (*Package, error)
-	promoteFunc            func(appID, deploymentID string, req PromoteRequest) (*Package, error)
+	listDeploymentsFunc  func(appID string) ([]Deployment, error)
+	createDeploymentFunc func(appID string, req CreateDeploymentRequest) (*Deployment, error)
+	getDeploymentFunc    func(appID, deploymentID string) (*Deployment, error)
+	renameDeploymentFunc func(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	deleteDeploymentFunc func(appID, deploymentID string) error
+	getUploadURLFunc     func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error)
+	uploadFileFunc       func(req UploadFileRequest) error
+	getPackageStatusFunc func(appID, deploymentID, packageID string) (*PackageStatus, error)
+	listPackagesFunc     func(appID, deploymentID string) ([]Package, error)
+	getPackageFunc       func(appID, deploymentID, packageID string) (*Package, error)
+	patchPackageFunc     func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error)
+	deletePackageFunc    func(appID, deploymentID, packageID string) error
+	rollbackFunc         func(appID, deploymentID string, req RollbackRequest) (*Package, error)
+	promoteFunc          func(appID, deploymentID string, req PromoteRequest) (*Package, error)
 }
 
 func (m *mockClient) ListDeployments(_ context.Context, appID string) ([]Deployment, error) {

@@ -1,27 +1,72 @@
 linters:
-  enable:
-    - cyclop
-    - funlen
-    - gocognit
-    - nestif
+  default: all
+  disable:
+    - bodyclose
+    - depguard
+    - dupl
+    - err113
+    - exhaustruct
+    - gochecknoglobals
+    - gochecknoinits
+    - goconst
+    - godot
+    - godox
+    - goprintffuncname
+    - gosec
+    - interfacebloat
+    - ireturn
+    - lll
+    - mnd
+    - nlreturn
+    - noctx
+    - noinlineerr
+    - nonamedreturns
+    - paralleltest
+    - prealloc
+    - predeclared
     - revive
-
-linters-settings:
-  cyclop:
-    max-complexity: 15
-  funlen:
-    lines: 80
-    statements: 50
-  gocognit:
-    min-complexity: 20
-  nestif:
-    min-complexity: 5
-  revive:
+    - tagalign
+    - tagliatelle
+    - testpackage
+    - thelper
+    - varnamelen
+    - wrapcheck
+    - wsl
+    - wsl_v5
+  settings:
+    cyclop:
+      max-complexity: 15
+    funlen:
+      lines: 80
+      statements: 50
+    gocognit:
+      min-complexity: 20
+    nestif:
+      min-complexity: 5
+    exhaustive:
+      default-signifies-exhaustive: true
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+        - shadow
+  exclusions:
     rules:
-      - name: file-length-limit
-        arguments: [{max: 500}]
+      - path: '(.+)_test\.go'
+        linters:
+          - funlen
+          - gocognit
+          - cyclop
+          - errcheck
+          - maintidx
 
-issues:
-  exclude-rules:
-    - path: _test\.go
-      linters: [funlen, gocognit, cyclop, errcheck, revive]
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/bitrise-io
+
+version: "2"

@@ -2,7 +2,7 @@ package codepush
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -152,7 +152,7 @@ func TestPush(t *testing.T) {
 
 		client := &mockClient{
 			getUploadURLFunc: func(appID, deploymentID, packageID string, req UploadURLRequest) (*UploadURLResponse, error) {
-				return nil, fmt.Errorf("API returned HTTP 500: internal error")
+				return nil, errors.New("API returned HTTP 500: internal error")
 			},
 		}
 
@@ -175,7 +175,7 @@ func TestPush(t *testing.T) {
 
 		client := &mockClient{
 			uploadFileFunc: func(req UploadFileRequest) error {
-				return fmt.Errorf("upload failed with HTTP 403: URL expired")
+				return errors.New("upload failed with HTTP 403: URL expired")
 			},
 		}
 
@@ -367,7 +367,7 @@ func TestResolveDeployment(t *testing.T) {
 	t.Run("list deployments error", func(t *testing.T) {
 		client := &mockClient{
 			listDeploymentsFunc: func(appID string) ([]Deployment, error) {
-				return nil, fmt.Errorf("network error")
+				return nil, errors.New("network error")
 			},
 		}
 

@@ -2,6 +2,7 @@ package codepush
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -56,7 +57,7 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 		return err
 	}
 	if opts.DeploymentID == "" {
-		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
+		return errors.New("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
 	}
 	return nil
 }

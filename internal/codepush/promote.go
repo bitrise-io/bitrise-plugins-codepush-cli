@@ -2,6 +2,7 @@ package codepush
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
@@ -70,13 +71,13 @@ func validatePromoteOptions(opts *PromoteOptions) error {
 		return err
 	}
 	if opts.SourceDeploymentID == "" {
-		return fmt.Errorf("source deployment is required: set --source-deployment")
+		return errors.New("source deployment is required: set --source-deployment")
 	}
 	if opts.DestDeploymentID == "" {
-		return fmt.Errorf("destination deployment is required: set --destination-deployment")
+		return errors.New("destination deployment is required: set --destination-deployment")
 	}
 	if opts.SourceDeploymentID == opts.DestDeploymentID {
-		return fmt.Errorf("source and destination deployments must be different")
+		return errors.New("source and destination deployments must be different")
 	}
 	return nil
 }

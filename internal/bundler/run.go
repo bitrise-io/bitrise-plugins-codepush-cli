@@ -1,10 +1,12 @@
 package bundler
 
 import (
+	"errors"
 	"fmt"
-	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 	"os"
 	"path/filepath"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // Run executes the full bundle pipeline:
@@ -96,7 +98,7 @@ func compileWithHermes(config *ProjectConfig, result *BundleResult, executor Com
 		return nil
 	}
 	if config.HermescPath == "" {
-		return fmt.Errorf("hermes is enabled but hermesc was not found in node_modules: run 'npm install' or use --hermes=off")
+		return errors.New("hermes is enabled but hermesc was not found in node_modules: run 'npm install' or use --hermes=off")
 	}
 
 	compiler := NewHermesCompiler(executor, out)

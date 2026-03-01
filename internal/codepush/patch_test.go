@@ -2,7 +2,7 @@ package codepush
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -50,7 +50,7 @@ func TestPatch(t *testing.T) {
 		assert.Equal(t, "pkg-2", capturedPackageID)
 		assert.Equal(t, "v2", result.Label)
 		assert.Equal(t, 50, *capturedReq.Rollout)
-		assert.Equal(t, true, *capturedReq.Mandatory)
+		assert.True(t, *capturedReq.Mandatory)
 	})
 
 	t.Run("successful patch defaults to latest", func(t *testing.T) {
@@ -123,8 +123,8 @@ func TestPatch(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, 75, *capturedReq.Rollout)
-		assert.Equal(t, true, *capturedReq.Mandatory)
-		assert.Equal(t, false, *capturedReq.Disabled)
+		assert.True(t, *capturedReq.Mandatory)
+		assert.False(t, *capturedReq.Disabled)
 		assert.Equal(t, "hotfix", *capturedReq.Description)
 		assert.Equal(t, "3.0.0", *capturedReq.AppVersion)
 		assert.Equal(t, "hotfix", result.Description)
@@ -206,7 +206,7 @@ func TestPatch(t *testing.T) {
 				return []Package{{ID: "pkg-1", Label: "v1"}}, nil
 			},
 			patchPackageFunc: func(appID, deploymentID, packageID string, req PatchRequest) (*Package, error) {
-				return nil, fmt.Errorf("API returned HTTP 500: internal error")
+				return nil, errors.New("API returned HTTP 500: internal error")
 			},
 		}
 
@@ -317,9 +317,9 @@ func TestBuildPatchRequest(t *testing.T) {
 		require.NotNil(t, req.Rollout)
 		assert.Equal(t, 75, *req.Rollout)
 		require.NotNil(t, req.Mandatory)
-		assert.Equal(t, true, *req.Mandatory)
+		assert.True(t, *req.Mandatory)
 		require.NotNil(t, req.Disabled)
-		assert.Equal(t, false, *req.Disabled)
+		assert.False(t, *req.Disabled)
 		require.NotNil(t, req.Description)
 		assert.Equal(t, "updated", *req.Description)
 		require.NotNil(t, req.AppVersion)
@@ -430,7 +430,7 @@ func TestResolvePackageForPatch(t *testing.T) {
 	t.Run("list packages error", func(t *testing.T) {
 		client := &mockClient{
 			listPackagesFunc: func(appID, deploymentID string) ([]Package, error) {
-				return nil, fmt.Errorf("network error")
+				return nil, errors.New("network error")
 			},
 		}
 

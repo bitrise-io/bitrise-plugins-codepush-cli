@@ -1,7 +1,7 @@
 package bundler
 
 import (
-	"fmt"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -56,7 +56,7 @@ func TestDetectPackageManager(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
 			if tt.lockFile != "" {
-				require.NoError(t, os.WriteFile(filepath.Join(dir, tt.lockFile), []byte{}, 0644))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, tt.lockFile), []byte{}, 0o644))
 			}
 
 			name, cmd := detectPackageManager(dir)
@@ -71,7 +71,7 @@ func TestDetectPackageManager_PriorityOrder(t *testing.T) {
 
 	// Create both yarn.lock and pnpm-lock.yaml; yarn should win (checked first)
 	for _, f := range []string{"yarn.lock", "pnpm-lock.yaml"} {
-		require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte{}, 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, f), []byte{}, 0o644))
 	}
 
 	name, _ := detectPackageManager(dir)
@@ -82,7 +82,7 @@ func TestInstallDependencies(t *testing.T) {
 	dir := t.TempDir()
 
 	// Create yarn.lock so it detects yarn
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte{}, 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "yarn.lock"), []byte{}, 0o644))
 
 	executor := &mockExecutor{}
 	out := output.NewTest(io.Discard)
@@ -111,11 +111,11 @@ func TestInstallDependencies_DefaultsToNpm(t *testing.T) {
 
 func TestInstallDependencies_Error(t *testing.T) {
 	dir := t.TempDir()
-	executor := &mockExecutor{err: fmt.Errorf("command failed")}
+	executor := &mockExecutor{err: errors.New("command failed")}
 	out := output.NewTest(io.Discard)
 
 	err := installDependencies(dir, executor, out)
 	require.Error(t, err)
-	assert.ErrorContains(t, err, "installing dependencies with npm failed")
+	require.ErrorContains(t, err, "installing dependencies with npm failed")
 	assert.ErrorContains(t, err, "command failed")
 }

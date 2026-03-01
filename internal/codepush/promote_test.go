@@ -2,7 +2,7 @@ package codepush
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -148,7 +148,7 @@ func TestPromote(t *testing.T) {
 	t.Run("API error", func(t *testing.T) {
 		client := &mockClient{
 			promoteFunc: func(appID, deploymentID string, req PromoteRequest) (*Package, error) {
-				return nil, fmt.Errorf("API returned HTTP 409: conflict")
+				return nil, errors.New("API returned HTTP 409: conflict")
 			},
 		}
 

@@ -2,6 +2,7 @@ package codepush
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -61,10 +62,10 @@ func validatePatchOptions(opts *PatchOptions) error {
 		return err
 	}
 	if opts.DeploymentID == "" {
-		return fmt.Errorf("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
+		return errors.New("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
 	}
 	if opts.Rollout == "" && opts.Mandatory == "" && opts.Disabled == "" && opts.Description == "" && opts.AppVersion == "" {
-		return fmt.Errorf("at least one change is required: set --rollout, --mandatory, --disabled, --description, or --app-version")
+		return errors.New("at least one change is required: set --rollout, --mandatory, --disabled, --description, or --app-version")
 	}
 	return nil
 }
@@ -87,7 +88,7 @@ func ResolvePackageForPatch(ctx context.Context, client packageLister, appID, de
 	}
 
 	if len(packages) == 0 {
-		return "", "", fmt.Errorf("no releases found in deployment: push a release first")
+		return "", "", errors.New("no releases found in deployment: push a release first")
 	}
 
 	latest := packages[len(packages)-1]

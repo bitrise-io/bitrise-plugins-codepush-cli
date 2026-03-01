@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -132,7 +132,7 @@ func TestConfigFilePath(t *testing.T) {
 }
 
 func TestConfigDirError(t *testing.T) {
-	configDirFunc = func() (string, error) { return "", fmt.Errorf("no home dir") }
+	configDirFunc = func() (string, error) { return "", errors.New("no home dir") }
 	t.Cleanup(func() { configDirFunc = defaultConfigDir })
 
 	_, err := LoadToken()
