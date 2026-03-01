@@ -3,6 +3,7 @@ format_version: '15'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: other
 tools:
+  golang: 1.26.0
   golangci-lint: 2.10.1
 trigger_map:
 - push_branch: main
@@ -22,7 +23,6 @@ workflows:
   ci:
     steps:
     - git-clone@8: {}
-    - go-list@1: {}
     - script@1:
         title: Build
         inputs:
@@ -99,7 +99,6 @@ workflows:
         inputs:
         - clone_depth: "0"
         - fetch_tags: "yes"
-    - go-list@1: {}
     - script@1:
         title: Validate tag matches code version
         inputs:

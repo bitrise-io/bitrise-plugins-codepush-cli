@@ -17,7 +17,7 @@ CodePush CLI is a **Bitrise CLI plugin** and standalone CLI tool for managing ov
 ## Architecture
 
 ### Language & Framework
-- **Language**: Go 1.24+
+- **Language**: Go 1.26+
 - **CLI Framework**: Cobra (`github.com/spf13/cobra`)
 - **Build System**: Go modules + GoReleaser
 
