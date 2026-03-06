@@ -14,15 +14,15 @@ import (
 )
 
 var (
-	promoteSourceDeployment  string
-	promoteDestDeployment    string
-	promoteLabel             string
-	promoteAppVersion        string
-	promoteDescription       string
-	promoteMandatory         string
-	promoteDisabled          string
-	promoteRollout           string
-	promoteNoDuplicateError  bool
+	promoteSourceDeployment string
+	promoteDestDeployment   string
+	promoteLabel            string
+	promoteAppVersion       string
+	promoteDescription      string
+	promoteMandatory        string
+	promoteDisabled         string
+	promoteRollout          string
+	promoteNoDuplicateError bool
 )
 
 var promoteCmd = &cobra.Command{

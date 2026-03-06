@@ -302,7 +302,7 @@ func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, re
 		return nil, err
 	}
 
-	if resp.StatusCode == 400 {
+	if resp.StatusCode == http.StatusBadRequest {
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		if strings.Contains(string(body), "ERR_BAD_REQUEST") && strings.Contains(string(body), "identical to the contents") {
