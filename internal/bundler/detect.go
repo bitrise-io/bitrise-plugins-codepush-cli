@@ -290,6 +290,9 @@ func parseRNMajorMinor(version string) int {
 func detectHermesAndroid(projectDir string, gradleFile string) hermesDetection {
 	var gradlePaths []string
 	if gradleFile != "" {
+		if !filepath.IsAbs(gradleFile) {
+			gradleFile = filepath.Join(projectDir, gradleFile)
+		}
 		gradlePaths = []string{gradleFile}
 	} else {
 		gradlePaths = []string{
@@ -341,6 +344,8 @@ func detectHermesIOS(projectDir string, podFile string) hermesDetection {
 	podfilePath := podFile
 	if podfilePath == "" {
 		podfilePath = filepath.Join(projectDir, "ios", "Podfile")
+	} else if !filepath.IsAbs(podfilePath) {
+		podfilePath = filepath.Join(projectDir, podfilePath)
 	}
 	data, err := os.ReadFile(podfilePath)
 	if err != nil {
