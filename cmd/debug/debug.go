@@ -3,7 +3,9 @@ package debug
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"time"
 
@@ -43,7 +45,7 @@ func init() {
 
 func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 	if _, err := exec.LookPath("adb"); err != nil {
-		return fmt.Errorf("adb not found on PATH: install Android SDK platform-tools and ensure adb is available")
+		return errors.New("adb not found on PATH: install Android SDK platform-tools and ensure adb is available")
 	}
 
 	out.Info("Streaming CodePush logs from Android device (Ctrl-C to stop)...")
@@ -66,7 +68,7 @@ func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			ts := time.Now().Format("15:04:05.000")
-			fmt.Printf("[%s] %s\n", ts, scanner.Text())
+			_, _ = fmt.Fprintf(os.Stdout, "[%s] %s\n", ts, scanner.Text())
 		}
 		done <- c.Wait()
 	}()
@@ -81,7 +83,7 @@ func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 
 func runDebugIOS(ctx context.Context, out *output.Writer) error {
 	if _, err := exec.LookPath("xcrun"); err != nil {
-		return fmt.Errorf("xcrun not found on PATH: install Xcode command-line tools")
+		return errors.New("xcrun not found on PATH: install Xcode command-line tools")
 	}
 
 	out.Info("Streaming CodePush logs from iOS simulator (Ctrl-C to stop)...")
@@ -103,7 +105,7 @@ func runDebugIOS(ctx context.Context, out *output.Writer) error {
 		scanner := bufio.NewScanner(stdout)
 		for scanner.Scan() {
 			// Unified log stream lines already include native timestamps; pass them through as-is.
-			fmt.Println(scanner.Text())
+			_, _ = fmt.Fprintln(os.Stdout, scanner.Text())
 		}
 		done <- c.Wait()
 	}()
