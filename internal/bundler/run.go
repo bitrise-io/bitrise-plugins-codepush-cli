@@ -59,7 +59,7 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor, out *output.
 		return nil, err
 	}
 
-	if err := compileWithHermes(config, result, executor, out); err != nil {
+	if err := compileWithHermes(config, result, opts.ExtraHermesFlags, executor, out); err != nil {
 		return nil, err
 	}
 
@@ -93,7 +93,7 @@ func resolveRunOptions(opts *BundleOptions) (HermesMode, error) {
 	return hermesMode, nil
 }
 
-func compileWithHermes(config *ProjectConfig, result *BundleResult, executor CommandExecutor, out *output.Writer) error {
+func compileWithHermes(config *ProjectConfig, result *BundleResult, extraFlags []string, executor CommandExecutor, out *output.Writer) error {
 	if !config.HermesEnabled || config.ProjectType != ProjectTypeReactNative {
 		return nil
 	}
@@ -102,7 +102,7 @@ func compileWithHermes(config *ProjectConfig, result *BundleResult, executor Com
 	}
 
 	compiler := NewHermesCompiler(executor, out)
-	if err := compiler.Compile(config.HermescPath, result.BundlePath, result.SourcemapPath); err != nil {
+	if err := compiler.Compile(config.HermescPath, result.BundlePath, result.SourcemapPath, extraFlags); err != nil {
 		return err
 	}
 	result.HermesApplied = true

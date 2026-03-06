@@ -214,7 +214,8 @@ codepush bundle --platform android
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
-| `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
+| `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
+| `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
 | `--project-dir` | CWD | Project root directory |
 | `--config` | auto-detect | Metro config file path |
 
