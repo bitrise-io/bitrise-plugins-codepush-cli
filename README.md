@@ -167,7 +167,7 @@ The server URL is resolved in this order:
 | `deployment info <deployment>` | Show deployment details and latest release |
 | `deployment rename <deployment>` | Rename a deployment (`--name`) |
 | `deployment remove <deployment>` | Delete a deployment (`--yes` to confirm) |
-| `deployment history <deployment>` | Show release history (`--limit`, default 10) |
+| `deployment history <deployment>` | Show release history (`--limit`, default 10; `--display-author / -a` to include author column) |
 | `deployment clear <deployment>` | Delete all updates from a deployment (`--yes` to confirm) |
 
 ### Update Management
@@ -320,6 +320,7 @@ codepush deployment info Staging --app-id <APP_UUID>
 # View release history (default: last 10)
 codepush deployment history Staging --app-id <APP_UUID>
 codepush deployment history Staging --limit 25 --app-id <APP_UUID>
+codepush deployment history Staging --display-author --app-id <APP_UUID>
 
 # Rename a deployment
 codepush deployment rename OldName --name NewName --app-id <APP_UUID>
