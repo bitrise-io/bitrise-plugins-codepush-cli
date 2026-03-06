@@ -75,6 +75,7 @@ func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 
 	select {
 	case <-ctx.Done():
+		<-done // wait for goroutine to finish before returning
 		return nil
 	case err := <-done:
 		return err
@@ -112,6 +113,7 @@ func runDebugIOS(ctx context.Context, out *output.Writer) error {
 
 	select {
 	case <-ctx.Done():
+		<-done // wait for goroutine to finish before returning
 		return nil
 	case err := <-done:
 		return err
