@@ -70,7 +70,13 @@ func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 			ts := time.Now().Format("15:04:05.000")
 			_, _ = fmt.Fprintf(os.Stdout, "[%s] %s\n", ts, scanner.Text())
 		}
-		done <- c.Wait()
+		scanErr := scanner.Err()
+		waitErr := c.Wait()
+		if scanErr != nil {
+			done <- scanErr
+		} else {
+			done <- waitErr
+		}
 	}()
 
 	select {
@@ -108,7 +114,13 @@ func runDebugIOS(ctx context.Context, out *output.Writer) error {
 			// Unified log stream lines already include native timestamps; pass them through as-is.
 			_, _ = fmt.Fprintln(os.Stdout, scanner.Text())
 		}
-		done <- c.Wait()
+		scanErr := scanner.Err()
+		waitErr := c.Wait()
+		if scanErr != nil {
+			done <- scanErr
+		} else {
+			done <- waitErr
+		}
 	}()
 
 	select {
