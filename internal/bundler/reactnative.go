@@ -42,16 +42,9 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 
 	bundlePath := filepath.Join(outputDir, bundleName)
 
-	var sourcemapPath string
-	if opts.Sourcemap {
-		if opts.SourcemapOutput != "" {
-			sourcemapPath = opts.SourcemapOutput
-			if err := ensureDir(filepath.Dir(sourcemapPath)); err != nil {
-				return nil, fmt.Errorf("creating sourcemap output directory: %w", err)
-			}
-		} else {
-			sourcemapPath = bundlePath + ".map"
-		}
+	sourcemapPath, err := resolveSourcemapPath(opts, bundlePath)
+	if err != nil {
+		return nil, err
 	}
 
 	paths := bundlePaths{
@@ -125,4 +118,23 @@ func (b *ReactNativeBundler) buildArgs(config *ProjectConfig, opts *BundleOption
 	args = append(args, opts.ExtraBundlerOpts...)
 
 	return args
+}
+
+// resolveSourcemapPath returns the absolute sourcemap path based on bundle options.
+// Returns an empty string when sourcemaps are disabled.
+func resolveSourcemapPath(opts *BundleOptions, bundlePath string) (string, error) {
+	if !opts.Sourcemap {
+		return "", nil
+	}
+	if opts.SourcemapOutput == "" {
+		return bundlePath + ".map", nil
+	}
+	absPath, err := filepath.Abs(opts.SourcemapOutput)
+	if err != nil {
+		return "", fmt.Errorf("resolving sourcemap output path: %w", err)
+	}
+	if err := ensureDir(filepath.Dir(absPath)); err != nil {
+		return "", fmt.Errorf("creating sourcemap output directory: %w", err)
+	}
+	return absPath, nil
 }
