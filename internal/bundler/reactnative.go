@@ -46,6 +46,9 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 	if opts.Sourcemap {
 		if opts.SourcemapOutput != "" {
 			sourcemapPath = opts.SourcemapOutput
+			if err := ensureDir(filepath.Dir(sourcemapPath)); err != nil {
+				return nil, fmt.Errorf("creating sourcemap output directory: %w", err)
+			}
 		} else {
 			sourcemapPath = bundlePath + ".map"
 		}
