@@ -34,11 +34,11 @@ type BundleOptions struct {
 	EntryFile        string
 	OutputDir        string
 	BundleName       string
-	Dev               bool
-	Sourcemap         bool
-	HermesMode        HermesMode
-	ExtraBundlerOpts  []string
-	ExtraHermesFlags  []string
+	Dev              bool
+	Sourcemap        bool
+	HermesMode       HermesMode
+	ExtraBundlerOpts []string
+	ExtraHermesFlags []string
 	ProjectDir       string
 	MetroConfig      string
 	SkipInstall      bool

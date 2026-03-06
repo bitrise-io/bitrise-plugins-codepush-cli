@@ -16,9 +16,9 @@ var (
 	bundleBundleName       string
 	bundleDev              bool
 	bundleSourcemap        bool
-	bundleHermes            string
-	bundleExtraBundlerOpts  []string
-	bundleExtraHermesFlags  []string
+	bundleHermes           string
+	bundleExtraBundlerOpts []string
+	bundleExtraHermesFlags []string
 	bundleProjectDir       string
 	bundleMetroConfig      string
 	bundleSkipInstall      bool
