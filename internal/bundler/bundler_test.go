@@ -36,21 +36,21 @@ func (m *mockExecutor) Run(dir string, _ io.Writer, _ io.Writer, name string, ar
 
 func TestValidatePlatform(t *testing.T) {
 	tests := []struct {
-		name     string
-		platform Platform
-		wantErr  bool
+		name            string
+		platform        Platform
+		wantErrContains string // non-empty means error expected
 	}{
-		{"ios is valid", PlatformIOS, false},
-		{"android is valid", PlatformAndroid, false},
-		{"unknown platform errors", Platform("windows"), true},
-		{"empty platform errors", Platform(""), true},
+		{"ios is valid", PlatformIOS, ""},
+		{"android is valid", PlatformAndroid, ""},
+		{"returns error for unknown platform", Platform("windows"), "windows"},
+		{"returns error for empty platform", Platform(""), "--platform"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidatePlatform(tt.platform)
-			if tt.wantErr {
-				assert.Error(t, err)
+			if tt.wantErrContains != "" {
+				assert.ErrorContains(t, err, tt.wantErrContains)
 			} else {
 				assert.NoError(t, err)
 			}
@@ -60,22 +60,22 @@ func TestValidatePlatform(t *testing.T) {
 
 func TestValidateHermesMode(t *testing.T) {
 	tests := []struct {
-		name    string
-		mode    HermesMode
-		wantErr bool
+		name            string
+		mode            HermesMode
+		wantErrContains string // non-empty means error expected
 	}{
-		{"auto is valid", HermesModeAuto, false},
-		{"on is valid", HermesModeOn, false},
-		{"off is valid", HermesModeOff, false},
-		{"unknown mode errors", HermesMode("invalid"), true},
-		{"empty mode errors", HermesMode(""), true},
+		{"auto is valid", HermesModeAuto, ""},
+		{"on is valid", HermesModeOn, ""},
+		{"off is valid", HermesModeOff, ""},
+		{"returns error for unknown mode", HermesMode("invalid"), "invalid"},
+		{"returns error for empty mode", HermesMode(""), "--hermes"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateHermesMode(tt.mode)
-			if tt.wantErr {
-				assert.Error(t, err)
+			if tt.wantErrContains != "" {
+				assert.ErrorContains(t, err, tt.wantErrContains)
 			} else {
 				assert.NoError(t, err)
 			}
