@@ -217,6 +217,8 @@ codepush bundle --platform android
 | `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
 | `--project-dir` | CWD | Project root directory |
 | `--config` | auto-detect | Metro config file path |
+| `--gradle-file, -g` | auto-detect | Override `build.gradle` path for Android Hermes detection |
+| `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection |
 
 ### Auto-Detection
 
@@ -224,7 +226,7 @@ The CLI automatically detects:
 
 - **Project type**: React Native or Expo (from `package.json` dependencies)
 - **Entry file**: `index.<platform>.js`, `index.js`, or `package.json` main field
-- **Hermes**: From `build.gradle` (Android) or `Podfile` (iOS); defaults to enabled for React Native >= 0.70
+- **Hermes**: From `build.gradle` (Android) or `Podfile` (iOS); defaults to enabled for React Native >= 0.70. Override these paths with `--gradle-file` / `--pod-file` when your project layout differs from the standard.
 - **Metro config**: `metro.config.js` or `metro.config.ts`
 
 ## Pushing Updates

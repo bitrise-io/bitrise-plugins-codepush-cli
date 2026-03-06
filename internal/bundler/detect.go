@@ -76,7 +76,9 @@ type packageJSON struct {
 }
 
 // DetectProject inspects the project directory and returns a ProjectConfig.
-func DetectProject(projectDir string, platform Platform, hermesMode HermesMode) (*ProjectConfig, error) {
+// opts may be nil; when provided, GradleFile and PodFile override the default
+// paths used for Hermes auto-detection.
+func DetectProject(projectDir string, platform Platform, hermesMode HermesMode, opts *BundleOptions) (*ProjectConfig, error) {
 	absDir, err := filepath.Abs(projectDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolving project directory: %w", err)
@@ -96,6 +98,12 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode) 
 		return nil, err
 	}
 
+	var gradleFile, podFile string
+	if opts != nil {
+		gradleFile = opts.GradleFile
+		podFile = opts.PodFile
+	}
+
 	var hermesEnabled bool
 	hermescPath := ""
 
@@ -105,7 +113,7 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode) 
 	case HermesModeOff:
 		hermesEnabled = false
 	default:
-		hermesEnabled = detectHermes(absDir, platform)
+		hermesEnabled = detectHermes(absDir, platform, gradleFile, podFile)
 	}
 
 	if hermesEnabled {
@@ -197,14 +205,15 @@ const (
 // detectHermes checks the project for Hermes configuration.
 // If no explicit config is found, defaults to true for React Native >= 0.70
 // (Hermes became the default engine in that version).
-func detectHermes(projectDir string, platform Platform) bool {
+// gradleFile and podFile override the default build file paths for detection.
+func detectHermes(projectDir string, platform Platform, gradleFile, podFile string) bool {
 	var detection hermesDetection
 
 	switch platform {
 	case PlatformAndroid:
-		detection = detectHermesAndroid(projectDir)
+		detection = detectHermesAndroid(projectDir, gradleFile)
 	case PlatformIOS:
-		detection = detectHermesIOS(projectDir)
+		detection = detectHermesIOS(projectDir, podFile)
 	default:
 		return false
 	}
@@ -277,10 +286,16 @@ func parseRNMajorMinor(version string) int {
 }
 
 // detectHermesAndroid checks android/app/build.gradle for Hermes configuration.
-func detectHermesAndroid(projectDir string) hermesDetection {
-	gradlePaths := []string{
-		filepath.Join(projectDir, "android", "app", "build.gradle"),
-		filepath.Join(projectDir, "android", "app", "build.gradle.kts"),
+// If gradleFile is non-empty it is used instead of the default paths.
+func detectHermesAndroid(projectDir string, gradleFile string) hermesDetection {
+	var gradlePaths []string
+	if gradleFile != "" {
+		gradlePaths = []string{gradleFile}
+	} else {
+		gradlePaths = []string{
+			filepath.Join(projectDir, "android", "app", "build.gradle"),
+			filepath.Join(projectDir, "android", "app", "build.gradle.kts"),
+		}
 	}
 
 	for _, gradlePath := range gradlePaths {
@@ -321,8 +336,12 @@ func detectHermesAndroid(projectDir string) hermesDetection {
 }
 
 // detectHermesIOS checks ios/Podfile for Hermes configuration.
-func detectHermesIOS(projectDir string) hermesDetection {
-	podfilePath := filepath.Join(projectDir, "ios", "Podfile")
+// If podFile is non-empty it is used instead of the default path.
+func detectHermesIOS(projectDir string, podFile string) hermesDetection {
+	podfilePath := podFile
+	if podfilePath == "" {
+		podfilePath = filepath.Join(projectDir, "ios", "Podfile")
+	}
 	data, err := os.ReadFile(podfilePath)
 	if err != nil {
 		return hermesNotFound
