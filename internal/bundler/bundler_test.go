@@ -34,6 +34,55 @@ func (m *mockExecutor) Run(dir string, _ io.Writer, _ io.Writer, name string, ar
 	return m.err
 }
 
+func TestValidatePlatform(t *testing.T) {
+	tests := []struct {
+		name     string
+		platform Platform
+		wantErr  bool
+	}{
+		{"ios is valid", PlatformIOS, false},
+		{"android is valid", PlatformAndroid, false},
+		{"unknown platform errors", Platform("windows"), true},
+		{"empty platform errors", Platform(""), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePlatform(tt.platform)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateHermesMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		mode    HermesMode
+		wantErr bool
+	}{
+		{"auto is valid", HermesModeAuto, false},
+		{"on is valid", HermesModeOn, false},
+		{"off is valid", HermesModeOff, false},
+		{"unknown mode errors", HermesMode("invalid"), true},
+		{"empty mode errors", HermesMode(""), true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateHermesMode(tt.mode)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestNewBundler(t *testing.T) {
 	executor := &mockExecutor{}
 
