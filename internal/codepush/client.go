@@ -308,7 +308,7 @@ func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, re
 		if strings.Contains(string(body), "ERR_BAD_REQUEST") && strings.Contains(string(body), "identical to the contents") {
 			return nil, fmt.Errorf("promoting deployment: %w", ErrDuplicateRelease)
 		}
-		return nil, fmt.Errorf("API returned HTTP 400: %s", string(body))
+		return nil, fmt.Errorf("promoting deployment: API returned HTTP 400: %s", string(body))
 	}
 
 	var result Update
