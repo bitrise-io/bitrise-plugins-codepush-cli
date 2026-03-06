@@ -13,11 +13,11 @@ import (
 )
 
 var (
-	renameName          string
-	removeYes           bool
-	historyMax          int
+	renameName           string
+	removeYes            bool
+	historyMax           int
 	historyDisplayAuthor bool
-	clearYes            bool
+	clearYes             bool
 )
 
 var deploymentCmd = &cobra.Command{
