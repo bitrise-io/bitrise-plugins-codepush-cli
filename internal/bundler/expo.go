@@ -48,13 +48,14 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 		Platform:    opts.Platform,
 	}
 
-	// Check for sourcemap
-	mapPath := bundlePath + ".map"
-	if opts.SourcemapOutput != "" {
-		mapPath = opts.SourcemapOutput
-	}
-	if _, err := os.Stat(mapPath); err == nil {
-		result.SourcemapPath = mapPath
+	// Check for sourcemap. expo export always writes the map next to the bundle
+	// at bundlePath+".map"; --sourcemap-output is not supported for Expo since
+	// there is no flag to redirect the map path in expo export.
+	if opts.Sourcemap {
+		mapPath := bundlePath + ".map"
+		if _, err := os.Stat(mapPath); err == nil {
+			result.SourcemapPath = mapPath
+		}
 	}
 
 	return result, nil
