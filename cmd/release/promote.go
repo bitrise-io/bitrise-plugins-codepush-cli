@@ -1,6 +1,7 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -13,14 +14,15 @@ import (
 )
 
 var (
-	promoteSourceDeployment string
-	promoteDestDeployment   string
-	promoteLabel            string
-	promoteAppVersion       string
-	promoteDescription      string
-	promoteMandatory        string
-	promoteDisabled         string
-	promoteRollout          string
+	promoteSourceDeployment  string
+	promoteDestDeployment    string
+	promoteLabel             string
+	promoteAppVersion        string
+	promoteDescription       string
+	promoteMandatory         string
+	promoteDisabled          string
+	promoteRollout           string
+	promoteNoDuplicateError  bool
 )
 
 var promoteCmd = &cobra.Command{
@@ -70,6 +72,10 @@ Example: promote from Staging to Production after testing.`,
 
 		result, err := codepush.Promote(c.Context(), client, opts, out)
 		if err != nil {
+			if promoteNoDuplicateError && errors.Is(err, codepush.ErrDuplicateRelease) {
+				out.Warning("Duplicate release: identical content already exists in target deployment, skipping")
+				return nil
+			}
 			return fmt.Errorf("promote failed: %w", err)
 		}
 
@@ -105,5 +111,6 @@ func init() {
 	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
 	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
+	promoteCmd.Flags().BoolVar(&promoteNoDuplicateError, "no-duplicate-release-error", false, "exit 0 with a warning instead of an error when the target deployment already contains identical content")
 	cmd.RootCmd.AddCommand(promoteCmd)
 }
