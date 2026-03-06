@@ -7,8 +7,10 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -75,7 +77,7 @@ func ComputePackageHash(dir string) (string, error) {
 	}
 
 	sum := sha256.Sum256(manifestJSON)
-	return fmt.Sprintf("%x", sum), nil
+	return hex.EncodeToString(sum[:]), nil
 }
 
 // SignBundle signs the bundle directory and writes a .codepushrelease JWT file.
@@ -95,7 +97,7 @@ func SignBundle(dir string, keyPath string) error {
 	if filepath.Base(absDir) != "CodePush" {
 		return fmt.Errorf(
 			"output directory must be named \"CodePush\" when signing: got %q"+
-				" — the SDK verifies hashes using the directory name as a path prefix",
+				" (the SDK verifies hashes using the directory name as a path prefix)",
 			filepath.Base(absDir),
 		)
 	}
@@ -134,7 +136,7 @@ func sha256File(path string) (string, error) {
 	if _, err := io.Copy(h, f); err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%x", h.Sum(nil)), nil
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
@@ -162,7 +164,7 @@ func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
 		}
 		rsaKey, ok := key.(*rsa.PrivateKey)
 		if !ok {
-			return nil, fmt.Errorf("PKCS8 key is not an RSA key")
+			return nil, errors.New("PKCS8 key is not an RSA key")
 		}
 		return rsaKey, nil
 	default:
