@@ -21,6 +21,7 @@ var (
 	bundleProjectDir       string
 	bundleMetroConfig      string
 	bundleSkipInstall      bool
+	bundlePrivateKeyPath   string
 )
 
 func init() {
@@ -40,6 +41,7 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
+	c.Flags().StringVarP(&bundlePrivateKeyPath, "private-key-path", "k", "", "sign bundle with RSA private key (PEM); output directory must be named CodePush")
 }
 
 // registerPushBundleFlagsOn registers the subset of bundle flags used by push --bundle.
@@ -49,6 +51,7 @@ func registerPushBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
+	c.Flags().StringVarP(&bundlePrivateKeyPath, "private-key-path", "k", "", "sign bundle with RSA private key (PEM); output directory must be named CodePush")
 }
 
 func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {

@@ -9,6 +9,7 @@ import (
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bundler"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/cmdutil"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
@@ -61,6 +62,14 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		bundlePath, err := filepath.Abs(args[0])
 		if err != nil {
 			return fmt.Errorf("resolving bundle path: %w", err)
+		}
+
+		if bundlePrivateKeyPath != "" {
+			out.Step("Signing bundle")
+			if err := bundler.SignBundle(bundlePath, bundlePrivateKeyPath); err != nil {
+				return fmt.Errorf("signing bundle: %w", err)
+			}
+			out.Info("Signed: %s/.codepushrelease", bundlePath)
 		}
 
 		appID, token, err := cmdutil.RequireCredentials(cmd.AppID, out)
