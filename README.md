@@ -213,6 +213,7 @@ codepush bundle --platform android
 | `--bundle-name` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
+| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
 | `--project-dir` | CWD | Project root directory |

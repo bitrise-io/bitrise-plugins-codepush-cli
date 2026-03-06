@@ -36,6 +36,7 @@ type BundleOptions struct {
 	BundleName       string
 	Dev              bool
 	Sourcemap        bool
+	SourcemapOutput  string // when set, overrides the auto-derived sourcemap path and implies Sourcemap=true
 	HermesMode       HermesMode
 	ExtraBundlerOpts []string
 	ProjectDir       string

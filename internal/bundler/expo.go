@@ -50,6 +50,9 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 
 	// Check for sourcemap
 	mapPath := bundlePath + ".map"
+	if opts.SourcemapOutput != "" {
+		mapPath = opts.SourcemapOutput
+	}
 	if _, err := os.Stat(mapPath); err == nil {
 		result.SourcemapPath = mapPath
 	}

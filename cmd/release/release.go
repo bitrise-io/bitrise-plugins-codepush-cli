@@ -16,6 +16,7 @@ var (
 	bundleBundleName       string
 	bundleDev              bool
 	bundleSourcemap        bool
+	bundleSourcemapOutput  string
 	bundleHermes           string
 	bundleExtraBundlerOpts []string
 	bundleProjectDir       string
@@ -35,6 +36,7 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
 	c.Flags().BoolVar(&bundleDev, "dev", false, "enable development mode")
 	c.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
+	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", "override sourcemap output path (implies --sourcemap)")
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
@@ -57,9 +59,10 @@ func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {
 		EntryFile:        bundleEntryFile,
 		OutputDir:        bundleOutputDir,
 		BundleName:       bundleBundleName,
-		Dev:              bundleDev,
-		Sourcemap:        bundleSourcemap,
-		HermesMode:       bundler.HermesMode(bundleHermes),
+		Dev:             bundleDev,
+		Sourcemap:       bundleSourcemap,
+		SourcemapOutput: bundleSourcemapOutput,
+		HermesMode:      bundler.HermesMode(bundleHermes),
 		ExtraBundlerOpts: bundleExtraBundlerOpts,
 		ProjectDir:       bundleProjectDir,
 		MetroConfig:      bundleMetroConfig,

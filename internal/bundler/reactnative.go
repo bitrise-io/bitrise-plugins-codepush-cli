@@ -44,7 +44,11 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 
 	var sourcemapPath string
 	if opts.Sourcemap {
-		sourcemapPath = bundlePath + ".map"
+		if opts.SourcemapOutput != "" {
+			sourcemapPath = opts.SourcemapOutput
+		} else {
+			sourcemapPath = bundlePath + ".map"
+		}
 	}
 
 	paths := bundlePaths{
