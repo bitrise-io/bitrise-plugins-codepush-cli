@@ -162,7 +162,7 @@ The server URL is resolved in this order:
 
 | Command | Description |
 |---------|-------------|
-| `deployment list` | List all deployments |
+| `deployment list` | List all deployments (`--display-keys / -k` to include key column) |
 | `deployment add <name>` | Create a new deployment |
 | `deployment info <deployment>` | Show deployment details and latest release |
 | `deployment rename <deployment>` | Rename a deployment (`--name`) |
@@ -310,6 +310,7 @@ codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID
 ```bash
 # List all deployments
 codepush deployment list --app-id <APP_UUID>
+codepush deployment list --display-keys --app-id <APP_UUID>
 
 # Create a new deployment
 codepush deployment add Beta --app-id <APP_UUID>
