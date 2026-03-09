@@ -113,6 +113,7 @@ type Deployment struct {
 // CreateDeploymentRequest is the JSON body for creating a deployment.
 type CreateDeploymentRequest struct {
 	Name string `json:"name"`
+	Key  string `json:"key,omitempty"`
 }
 
 // RenameDeploymentRequest is the JSON body for renaming a deployment.
