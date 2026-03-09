@@ -124,11 +124,11 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 func init() {
 	pushCmd.Flags().BoolVar(&pushAutoBundle, "bundle", false, "bundle JavaScript before pushing")
 	registerPushBundleFlagsOn(pushCmd)
-	pushCmd.Flags().StringVar(&pushDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	pushCmd.Flags().StringVar(&pushAppVersion, "app-version", "", "target app version (e.g. 1.0.0)")
+	pushCmd.Flags().StringVarP(&pushDeployment, "deployment", "d", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	pushCmd.Flags().StringVarP(&pushAppVersion, "app-version", "t", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
-	pushCmd.Flags().BoolVar(&pushMandatory, "mandatory", false, "mark update as mandatory")
-	pushCmd.Flags().IntVar(&pushRollout, "rollout", 100, "rollout percentage (1-100)")
-	pushCmd.Flags().BoolVar(&pushDisabled, "disabled", false, "disable update after upload")
+	pushCmd.Flags().BoolVarP(&pushMandatory, "mandatory", "m", false, "mark update as mandatory")
+	pushCmd.Flags().IntVarP(&pushRollout, "rollout", "r", 100, "rollout percentage (1-100)")
+	pushCmd.Flags().BoolVarP(&pushDisabled, "disabled", "x", false, "disable update after upload")
 	cmd.RootCmd.AddCommand(pushCmd)
 }

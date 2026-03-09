@@ -400,11 +400,11 @@ func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupDeployment, Title: "Deployment Management:"})
 
 	addCmd.Flags().StringVarP(&addKey, "key", "k", "", "custom deployment key (server assigns one if not specified)")
-	renameCmd.Flags().StringVar(&renameName, "name", "", "new deployment name (required)")
-	removeCmd.Flags().BoolVar(&removeYes, "yes", false, "skip confirmation prompt")
-	historyCmd.Flags().IntVar(&historyMax, "limit", 10, "maximum number of releases to show")
+	renameCmd.Flags().StringVarP(&renameName, "name", "n", "", "new deployment name (required)")
+	removeCmd.Flags().BoolVarP(&removeYes, "yes", "y", false, "skip confirmation prompt")
+	historyCmd.Flags().IntVarP(&historyMax, "limit", "n", 10, "maximum number of releases to show")
 	historyCmd.Flags().BoolVarP(&historyDisplayAuthor, "display-author", "a", false, "include the author column in the history table")
-	clearCmd.Flags().BoolVar(&clearYes, "yes", false, "skip confirmation prompt")
+	clearCmd.Flags().BoolVarP(&clearYes, "yes", "y", false, "skip confirmation prompt")
 
 	deploymentCmd.AddCommand(listCmd, addCmd, infoCmd, renameCmd, removeCmd, historyCmd, clearCmd)
 	cmd.RootCmd.AddCommand(deploymentCmd)

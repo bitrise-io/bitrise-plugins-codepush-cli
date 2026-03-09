@@ -106,7 +106,7 @@ a --token flag or BITRISE_API_TOKEN environment variable.`,
 }
 
 func init() {
-	authLoginCmd.Flags().StringVar(&authLoginToken, "token", "", "Bitrise API token")
+	authLoginCmd.Flags().StringVarP(&authLoginToken, "token", "t", "", "Bitrise API token")
 	authCmd.AddCommand(authLoginCmd, authRevokeCmd)
 	cmd.RootCmd.AddCommand(authCmd)
 }
