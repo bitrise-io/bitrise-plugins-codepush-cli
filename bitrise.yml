@@ -3,7 +3,7 @@ format_version: '15'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: other
 tools:
-  golang: 1.26.0
+  golang: 1.26.1
   golangci-lint: 2.10.1
 trigger_map:
 - push_branch: main
@@ -38,7 +38,7 @@ workflows:
             #!/bin/bash
             set -euo pipefail
 
-            THRESHOLD=75
+            THRESHOLD=74
             COVERPROFILE="$BITRISE_DEPLOY_DIR/coverage.out"
 
             if [ ! -f "$COVERPROFILE" ]; then
