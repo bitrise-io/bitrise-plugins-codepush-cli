@@ -16,6 +16,7 @@ var (
 	renameName           string
 	removeYes            bool
 	historyMax           int
+	addKey               string
 	listDisplayKeys      bool
 	historyDisplayAuthor bool
 	clearYes             bool
@@ -94,7 +95,7 @@ var addCmd = &cobra.Command{
 		}
 
 		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
-		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name})
+		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name, Key: addKey})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
@@ -407,6 +408,7 @@ Requires --yes to confirm.`,
 func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupDeployment, Title: "Deployment Management:"})
 
+	addCmd.Flags().StringVarP(&addKey, "key", "k", "", "custom deployment key (server assigns one if not specified)")
 	listCmd.Flags().BoolVarP(&listDisplayKeys, "display-keys", "k", false, "include the deployment key column in the list table")
 	renameCmd.Flags().StringVarP(&renameName, "name", "n", "", "new deployment name (required)")
 	removeCmd.Flags().BoolVarP(&removeYes, "yes", "y", false, "skip confirmation prompt")
