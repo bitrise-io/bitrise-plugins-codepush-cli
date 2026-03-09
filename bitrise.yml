@@ -4,7 +4,6 @@ default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: other
 tools:
   golang: 1.26.1
-  golangci-lint: 2.10.1
 trigger_map:
 - push_branch: main
   pipeline: pipeline_ci
@@ -23,6 +22,11 @@ workflows:
   ci:
     steps:
     - git-clone@8: {}
+    - script:
+        title: Set up environment
+        inputs:
+          # Set up tools based on the .tool-versions file in the repo
+          - content: bitrise tools setup --config .tool-versions
     - script@1:
         title: Build
         inputs:
