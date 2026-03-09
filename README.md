@@ -275,7 +275,9 @@ codepush promote \
   --rollout 25 --description "Gradual rollout"
 ```
 
-**Promote flags:** `--source-deployment` (`-s`), `--destination-deployment` (`-d`), `--label` (`-l`), `--app-version` (`-t`), `--description`, `--mandatory` (`-m`), `--disabled` (`-x`), `--rollout` (`-r`)
+**Promote flags:** `--source-deployment` (`-s`), `--destination-deployment` (`-d`), `--label` (`-l`), `--app-version` (`-t`), `--description`, `--mandatory` (`-m`), `--disabled` (`-x`), `--rollout` (`-r`), `--no-duplicate-release-error`
+
+Pass `--no-duplicate-release-error` to exit 0 with a warning instead of an error when the target deployment already contains a release with identical content. Useful in CI pipelines where re-promoting after a partial failure should be a no-op.
 
 ### Patch
 
