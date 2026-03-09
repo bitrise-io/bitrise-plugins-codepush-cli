@@ -30,24 +30,24 @@ func init() {
 
 // registerBundleFlagsOn registers the full set of bundle flags on a command.
 func registerBundleFlagsOn(c *cobra.Command) {
-	c.Flags().StringVar(&bundlePlatform, "platform", "", "target platform: ios or android")
-	c.Flags().StringVar(&bundleEntryFile, "entry-file", "", "path to the entry JS file (auto-detected if not set)")
-	c.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
-	c.Flags().StringVar(&bundleBundleName, "bundle-name", "", "custom bundle filename (platform default if not set)")
+	c.Flags().StringVarP(&bundlePlatform, "platform", "p", "", "target platform: ios or android")
+	c.Flags().StringVarP(&bundleEntryFile, "entry-file", "e", "", "path to the entry JS file (auto-detected if not set)")
+	c.Flags().StringVarP(&bundleOutputDir, "output-dir", "o", bundler.DefaultOutputDir, "output directory for the bundle")
+	c.Flags().StringVarP(&bundleBundleName, "bundle-name", "b", "", "custom bundle filename (platform default if not set)")
 	c.Flags().BoolVar(&bundleDev, "dev", false, "enable development mode")
 	c.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	c.Flags().StringArrayVar(&bundleExtraHermesFlags, "extra-hermes-flag", nil, "additional flags passed to hermesc (repeatable; distinct from --extra-bundler-option which targets Metro)")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
-	c.Flags().StringVar(&bundleMetroConfig, "config", "", "path to Metro config file (auto-detected if not set)")
+	c.Flags().StringVarP(&bundleMetroConfig, "config", "c", "", "path to Metro config file (auto-detected if not set)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 }
 
 // registerPushBundleFlagsOn registers the subset of bundle flags used by push --bundle.
 func registerPushBundleFlagsOn(c *cobra.Command) {
-	c.Flags().StringVar(&bundlePlatform, "platform", "", "target platform for bundling: ios or android")
-	c.Flags().StringVar(&bundleOutputDir, "output-dir", bundler.DefaultOutputDir, "output directory for the bundle")
+	c.Flags().StringVarP(&bundlePlatform, "platform", "p", "", "target platform for bundling: ios or android")
+	c.Flags().StringVarP(&bundleOutputDir, "output-dir", "o", bundler.DefaultOutputDir, "output directory for the bundle")
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
