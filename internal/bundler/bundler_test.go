@@ -34,6 +34,55 @@ func (m *mockExecutor) Run(dir string, _ io.Writer, _ io.Writer, name string, ar
 	return m.err
 }
 
+func TestValidatePlatform(t *testing.T) {
+	tests := []struct {
+		name            string
+		platform        Platform
+		wantErrContains string // non-empty means error expected
+	}{
+		{"ios is valid", PlatformIOS, ""},
+		{"android is valid", PlatformAndroid, ""},
+		{"returns error for unknown platform", Platform("windows"), "windows"},
+		{"returns error for empty platform", Platform(""), "--platform"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidatePlatform(tt.platform)
+			if tt.wantErrContains != "" {
+				assert.ErrorContains(t, err, tt.wantErrContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestValidateHermesMode(t *testing.T) {
+	tests := []struct {
+		name            string
+		mode            HermesMode
+		wantErrContains string // non-empty means error expected
+	}{
+		{"auto is valid", HermesModeAuto, ""},
+		{"on is valid", HermesModeOn, ""},
+		{"off is valid", HermesModeOff, ""},
+		{"returns error for unknown mode", HermesMode("invalid"), "invalid"},
+		{"returns error for empty mode", HermesMode(""), "--hermes"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateHermesMode(tt.mode)
+			if tt.wantErrContains != "" {
+				assert.ErrorContains(t, err, tt.wantErrContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestNewBundler(t *testing.T) {
 	executor := &mockExecutor{}
 

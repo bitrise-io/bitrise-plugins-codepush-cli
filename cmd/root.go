@@ -15,6 +15,7 @@ const (
 	GroupDeployment GroupID = "deployment"
 	GroupUpdate     GroupID = "update"
 	GroupSetup      GroupID = "setup"
+	GroupDebug      GroupID = "debug"
 )
 
 // Out is the shared CLI output writer. Set by main() before Execute().

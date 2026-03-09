@@ -186,6 +186,12 @@ The server URL is resolved in this order:
 | `auth login` | Store a Bitrise API token locally |
 | `auth revoke` | Remove the stored API token |
 
+### Developer Tools
+
+| Command | Description |
+|---------|-------------|
+| `debug <platform>` | Stream CodePush log output from a connected device or simulator (`android` or `ios`) |
+
 ### Other
 
 | Command | Description |
@@ -352,6 +358,24 @@ codepush update status Staging --app-id <APP_UUID>
 # Delete a specific update (destructive)
 codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
+
+## Debugging
+
+Stream real-time CodePush log output from a connected Android device or iOS simulator to help diagnose update delivery and installation issues.
+
+```bash
+# Android: stream CodePush logs (requires adb on PATH)
+codepush debug android
+
+# iOS: stream CodePush logs (requires xcrun on PATH)
+codepush debug ios
+```
+
+Android uses `adb logcat` with a `CodePush:V *:S` tag filter (logcat-layer filtering). Each line is prefixed with a timestamp (`[HH:mm:ss.SSS]`).
+
+iOS uses `xcrun simctl spawn booted log stream` with a predicate filter. Lines are printed as-is since the unified log format already includes native timestamps.
+
+Press Ctrl-C to stop streaming.
 
 ## Workflow Examples
 
