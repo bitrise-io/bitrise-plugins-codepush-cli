@@ -103,14 +103,14 @@ Example: promote from Staging to Production after testing.`,
 }
 
 func init() {
-	promoteCmd.Flags().StringVar(&promoteSourceDeployment, "source-deployment", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	promoteCmd.Flags().StringVar(&promoteDestDeployment, "destination-deployment", "", "destination deployment name or UUID (required)")
-	promoteCmd.Flags().StringVar(&promoteLabel, "label", "", "specific release label to promote (e.g. v5)")
-	promoteCmd.Flags().StringVar(&promoteAppVersion, "app-version", "", "override target app version")
+	promoteCmd.Flags().StringVarP(&promoteSourceDeployment, "source-deployment", "s", "", "source deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	promoteCmd.Flags().StringVarP(&promoteDestDeployment, "destination-deployment", "d", "", "destination deployment name or UUID (required)")
+	promoteCmd.Flags().StringVarP(&promoteLabel, "label", "l", "", "specific release label to promote (e.g. v5)")
+	promoteCmd.Flags().StringVarP(&promoteAppVersion, "app-version", "t", "", "override target app version")
 	promoteCmd.Flags().StringVar(&promoteDescription, "description", "", "override release description")
-	promoteCmd.Flags().StringVar(&promoteMandatory, "mandatory", "", "override mandatory flag (true/false)")
-	promoteCmd.Flags().StringVar(&promoteDisabled, "disabled", "", "override disabled flag (true/false)")
-	promoteCmd.Flags().StringVar(&promoteRollout, "rollout", "", "override rollout percentage (1-100)")
+	promoteCmd.Flags().StringVarP(&promoteMandatory, "mandatory", "m", "", "override mandatory flag (true/false)")
+	promoteCmd.Flags().StringVarP(&promoteDisabled, "disabled", "x", "", "override disabled flag (true/false)")
+	promoteCmd.Flags().StringVarP(&promoteRollout, "rollout", "r", "", "override rollout percentage (1-100)")
 	promoteCmd.Flags().BoolVar(&promoteNoDuplicateError, "no-duplicate-release-error", false, "exit 0 with a warning instead of an error when the target deployment already contains identical content")
 	cmd.RootCmd.AddCommand(promoteCmd)
 }

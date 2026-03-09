@@ -98,12 +98,12 @@ Examples:
 }
 
 func init() {
-	patchCmd.Flags().StringVar(&patchDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	patchCmd.Flags().StringVar(&patchLabel, "label", "", "specific release label to patch (e.g. v5, defaults to latest)")
-	patchCmd.Flags().StringVar(&patchRollout, "rollout", "", "rollout percentage (1-100)")
-	patchCmd.Flags().StringVar(&patchMandatory, "mandatory", "", "mark update as mandatory (true/false)")
-	patchCmd.Flags().StringVar(&patchDisabled, "disabled", "", "disable update (true/false)")
+	patchCmd.Flags().StringVarP(&patchDeployment, "deployment", "d", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	patchCmd.Flags().StringVarP(&patchLabel, "label", "l", "", "specific release label to patch (e.g. v5, defaults to latest)")
+	patchCmd.Flags().StringVarP(&patchRollout, "rollout", "r", "", "rollout percentage (1-100)")
+	patchCmd.Flags().StringVarP(&patchMandatory, "mandatory", "m", "", "mark update as mandatory (true/false)")
+	patchCmd.Flags().StringVarP(&patchDisabled, "disabled", "x", "", "disable update (true/false)")
 	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
-	patchCmd.Flags().StringVar(&patchAppVersion, "app-version", "", "target app version")
+	patchCmd.Flags().StringVarP(&patchAppVersion, "app-version", "t", "", "target app version")
 	cmd.RootCmd.AddCommand(patchCmd)
 }
