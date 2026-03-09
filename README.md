@@ -262,6 +262,8 @@ codepush push --bundle --platform ios \
 | `--hermes` | `auto` | Hermes compilation (with `--bundle`) |
 | `--output-dir`, `-o` | `./codepush-bundle` | Bundle output directory (with `--bundle`) |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
+| `--gradle-file`, `-g` | auto-detect | Override `build.gradle` path for Android Hermes detection (with `--bundle`) |
+| `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection (with `--bundle`) |
 
 ## Promoting and Patching
 
