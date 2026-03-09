@@ -162,7 +162,7 @@ The server URL is resolved in this order:
 
 | Command | Description |
 |---------|-------------|
-| `deployment list` | List all deployments |
+| `deployment list` | List all deployments (`--display-keys / -k` to include key column) |
 | `deployment add <name>` | Create a new deployment |
 | `deployment info <deployment>` | Show deployment details and latest release |
 | `deployment rename <deployment>` | Rename a deployment (`--name`, `-n`) |
@@ -185,6 +185,12 @@ The server URL is resolved in this order:
 | `init` | Initialize project config (`.codepush.json`) with app ID |
 | `auth login` | Store a Bitrise API token locally |
 | `auth revoke` | Remove the stored API token |
+
+### Developer Tools
+
+| Command | Description |
+|---------|-------------|
+| `debug <platform>` | Stream CodePush log output from a connected device or simulator (`android` or `ios`) |
 
 ### Other
 
@@ -277,7 +283,9 @@ codepush promote \
   --rollout 25 --description "Gradual rollout"
 ```
 
-**Promote flags:** `--source-deployment` (`-s`), `--destination-deployment` (`-d`), `--label` (`-l`), `--app-version` (`-t`), `--description`, `--mandatory` (`-m`), `--disabled` (`-x`), `--rollout` (`-r`)
+**Promote flags:** `--source-deployment` (`-s`), `--destination-deployment` (`-d`), `--label` (`-l`), `--app-version` (`-t`), `--description`, `--mandatory` (`-m`), `--disabled` (`-x`), `--rollout` (`-r`), `--no-duplicate-release-error`
+
+Pass `--no-duplicate-release-error` to exit 0 with a warning instead of an error when the target deployment already contains a release with identical content. Useful in CI pipelines where re-promoting after a partial failure should be a no-op.
 
 ### Patch
 
@@ -312,6 +320,7 @@ codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID
 ```bash
 # List all deployments
 codepush deployment list --app-id <APP_UUID>
+codepush deployment list --display-keys --app-id <APP_UUID>
 
 # Create a new deployment
 codepush deployment add Beta --app-id <APP_UUID>
@@ -351,6 +360,24 @@ codepush update status Staging --app-id <APP_UUID>
 # Delete a specific update (destructive)
 codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
+
+## Debugging
+
+Stream real-time CodePush log output from a connected Android device or iOS simulator to help diagnose update delivery and installation issues.
+
+```bash
+# Android: stream CodePush logs (requires adb on PATH)
+codepush debug android
+
+# iOS: stream CodePush logs (requires xcrun on PATH)
+codepush debug ios
+```
+
+Android uses `adb logcat` with a `CodePush:V *:S` tag filter (logcat-layer filtering). Each line is prefixed with a timestamp (`[HH:mm:ss.SSS]`).
+
+iOS uses `xcrun simctl spawn booted log stream` with a predicate filter. Lines are printed as-is since the unified log format already includes native timestamps.
+
+Press Ctrl-C to stop streaming.
 
 ## Workflow Examples
 

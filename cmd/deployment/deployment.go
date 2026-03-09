@@ -16,6 +16,7 @@ var (
 	renameName           string
 	removeYes            bool
 	historyMax           int
+	listDisplayKeys      bool
 	historyDisplayAuthor bool
 	clearYes             bool
 )
@@ -53,11 +54,19 @@ var listCmd = &cobra.Command{
 			return nil
 		}
 
+		headers := []string{"NAME", "ID"}
+		if listDisplayKeys {
+			headers = append(headers, "KEY")
+		}
 		rows := make([][]string, len(deployments))
 		for i, d := range deployments {
-			rows[i] = []string{d.Name, d.ID}
+			row := []string{d.Name, d.ID}
+			if listDisplayKeys {
+				row = append(row, d.Key)
+			}
+			rows[i] = row
 		}
-		out.Table([]string{"NAME", "ID"}, rows)
+		out.Table(headers, rows)
 
 		return nil
 	},
@@ -398,6 +407,7 @@ Requires --yes to confirm.`,
 func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupDeployment, Title: "Deployment Management:"})
 
+	listCmd.Flags().BoolVarP(&listDisplayKeys, "display-keys", "k", false, "include the deployment key column in the list table")
 	renameCmd.Flags().StringVarP(&renameName, "name", "n", "", "new deployment name (required)")
 	removeCmd.Flags().BoolVarP(&removeYes, "yes", "y", false, "skip confirmation prompt")
 	historyCmd.Flags().IntVarP(&historyMax, "limit", "n", 10, "maximum number of releases to show")
