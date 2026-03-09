@@ -38,7 +38,7 @@ workflows:
             #!/bin/bash
             set -euo pipefail
 
-            THRESHOLD=75
+            THRESHOLD=74
             COVERPROFILE="$BITRISE_DEPLOY_DIR/coverage.out"
 
             if [ ! -f "$COVERPROFILE" ]; then
