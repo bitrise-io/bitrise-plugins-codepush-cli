@@ -86,7 +86,7 @@ Generate a personal access token at: https://app.bitrise.io/me/account/security
 ```bash
 # Store token locally (interactive or via flag)
 codepush auth login
-codepush auth login --token <TOKEN>
+codepush auth login --token <TOKEN>    # or: -t <TOKEN>
 
 # Remove stored token
 codepush auth revoke
@@ -114,7 +114,7 @@ The app ID is resolved in this order:
 2. `CODEPUSH_APP_ID` environment variable
 3. `.codepush.json` file in current directory
 
-Use `--force` to overwrite an existing `.codepush.json`.
+Use `--force` (`-f`) to overwrite an existing `.codepush.json`.
 
 ### Custom Server URL
 
@@ -145,7 +145,7 @@ The server URL is resolved in this order:
 | Flag | Description |
 |------|-------------|
 | `--app-id` | Release management app UUID (env: `CODEPUSH_APP_ID`) |
-| `--json` | Output results as JSON to stdout |
+| `--json`, `-j` | Output results as JSON to stdout |
 | `--server-url` | API server base URL (env: `CODEPUSH_SERVER_URL`) |
 
 ### Release Management
@@ -165,18 +165,18 @@ The server URL is resolved in this order:
 | `deployment list` | List all deployments |
 | `deployment add <name>` | Create a new deployment |
 | `deployment info <deployment>` | Show deployment details and latest release |
-| `deployment rename <deployment>` | Rename a deployment (`--name`) |
-| `deployment remove <deployment>` | Delete a deployment (`--yes` to confirm) |
-| `deployment history <deployment>` | Show release history (`--limit`, default 10) |
-| `deployment clear <deployment>` | Delete all updates from a deployment (`--yes` to confirm) |
+| `deployment rename <deployment>` | Rename a deployment (`--name`, `-n`) |
+| `deployment remove <deployment>` | Delete a deployment (`--yes`/`-y` to confirm) |
+| `deployment history <deployment>` | Show release history (`--limit`/`-n`, default 10; `--display-author`/`-a` to include author column) |
+| `deployment clear <deployment>` | Delete all updates from a deployment (`--yes`/`-y` to confirm) |
 
 ### Update Management
 
 | Command | Description |
 |---------|-------------|
-| `update info <deployment>` | Show update details (`--label` for specific version) |
-| `update status <deployment>` | Show update processing status |
-| `update remove <deployment>` | Delete an update (`--label` required, `--yes` to confirm) |
+| `update info <deployment>` | Show update details (`--label`/`-l` for specific version) |
+| `update status <deployment>` | Show update processing status (`--label`/`-l`) |
+| `update remove <deployment>` | Delete an update (`--label`/`-l` required, `--yes`/`-y` to confirm) |
 
 ### Setup
 
@@ -213,16 +213,16 @@ codepush bundle --platform android
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--platform` | (required) | `ios` or `android` |
-| `--entry-file` | auto-detect | Path to entry JS file |
-| `--output-dir` | `./codepush-bundle` | Output directory |
-| `--bundle-name` | platform default | Custom bundle filename |
+| `--platform`, `-p` | (required) | `ios` or `android` |
+| `--entry-file`, `-e` | auto-detect | Path to entry JS file |
+| `--output-dir`, `-o` | `./codepush-bundle` | Output directory |
+| `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
 | `--project-dir` | CWD | Project root directory |
-| `--config` | auto-detect | Metro config file path |
+| `--config`, `-c` | auto-detect | Metro config file path |
 
 ### Auto-Detection
 
@@ -249,16 +249,16 @@ codepush push --bundle --platform ios \
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--deployment` | env: `CODEPUSH_DEPLOYMENT` | Deployment name or UUID |
-| `--app-version` | (required) | Target app version (e.g. 1.0.0) |
+| `--deployment`, `-d` | env: `CODEPUSH_DEPLOYMENT` | Deployment name or UUID |
+| `--app-version`, `-t` | (required) | Target app version (e.g. 1.0.0) |
 | `--description` | `""` | Update description |
-| `--mandatory` | `false` | Mark update as mandatory |
-| `--rollout` | `100` | Rollout percentage (1-100) |
-| `--disabled` | `false` | Disable update after upload |
+| `--mandatory`, `-m` | `false` | Mark update as mandatory |
+| `--rollout`, `-r` | `100` | Rollout percentage (1-100) |
+| `--disabled`, `-x` | `false` | Disable update after upload |
 | `--bundle` | `false` | Bundle JavaScript before pushing |
-| `--platform` | | Target platform (required with `--bundle`) |
+| `--platform`, `-p` | | Target platform (required with `--bundle`) |
 | `--hermes` | `auto` | Hermes compilation (with `--bundle`) |
-| `--output-dir` | `./codepush-bundle` | Bundle output directory (with `--bundle`) |
+| `--output-dir`, `-o` | `./codepush-bundle` | Bundle output directory (with `--bundle`) |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
 
 ## Promoting and Patching
@@ -281,7 +281,7 @@ codepush promote \
   --rollout 25 --description "Gradual rollout"
 ```
 
-**Promote flags:** `--source-deployment`, `--destination-deployment`, `--label`, `--app-version`, `--description`, `--mandatory`, `--disabled`, `--rollout`
+**Promote flags:** `--source-deployment` (`-s`), `--destination-deployment` (`-d`), `--label` (`-l`), `--app-version` (`-t`), `--description`, `--mandatory` (`-m`), `--disabled` (`-x`), `--rollout` (`-r`)
 
 ### Patch
 
@@ -295,7 +295,7 @@ codepush patch --deployment Production --rollout 50 --app-id <APP_UUID>
 codepush patch --deployment Production --label v5 --mandatory true --app-id <APP_UUID>
 ```
 
-**Patch flags:** `--deployment`, `--label`, `--rollout`, `--mandatory`, `--disabled`, `--description`, `--app-version`
+**Patch flags:** `--deployment` (`-d`), `--label` (`-l`), `--rollout` (`-r`), `--mandatory` (`-m`), `--disabled` (`-x`), `--description`, `--app-version` (`-t`)
 
 ## Rollback
 
@@ -309,7 +309,7 @@ codepush rollback --deployment Production --app-id <APP_UUID>
 codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID>
 ```
 
-**Rollback flags:** `--deployment`, `--target-release`
+**Rollback flags:** `--deployment` (`-d`), `--target-release` (`-r`)
 
 ## Deployment Management
 
@@ -326,6 +326,7 @@ codepush deployment info Staging --app-id <APP_UUID>
 # View release history (default: last 10)
 codepush deployment history Staging --app-id <APP_UUID>
 codepush deployment history Staging --limit 25 --app-id <APP_UUID>
+codepush deployment history Staging --display-author --app-id <APP_UUID>
 
 # Rename a deployment
 codepush deployment rename OldName --name NewName --app-id <APP_UUID>

@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	renameName string
-	removeYes  bool
-	historyMax int
-	clearYes   bool
+	renameName           string
+	removeYes            bool
+	historyMax           int
+	historyDisplayAuthor bool
+	clearYes             bool
 )
 
 var deploymentCmd = &cobra.Command{
@@ -296,13 +297,27 @@ var historyCmd = &cobra.Command{
 		}
 
 		headers := []string{"LABEL", "APP VERSION", "MANDATORY", "ROLLOUT", "DISABLED", "DESCRIPTION", "CREATED"}
+		if historyDisplayAuthor {
+			headers = append(headers, "AUTHOR")
+		}
 		rows := make([][]string, len(updates))
 		for i, u := range updates {
-			rows[i] = []string{
+			row := []string{
 				u.Label, u.AppVersion, strconv.FormatBool(u.Mandatory),
 				fmt.Sprintf("%.0f%%", u.Rollout), strconv.FormatBool(u.Disabled),
 				cmdutil.Truncate(u.Description, 30), u.CreatedAt,
 			}
+			if historyDisplayAuthor {
+				author := ""
+				if u.CreatedBy != nil {
+					author = u.CreatedBy.Username
+					if author == "" {
+						author = u.CreatedBy.Email
+					}
+				}
+				row = append(row, author)
+			}
+			rows[i] = row
 		}
 		out.Table(headers, rows)
 
@@ -383,10 +398,11 @@ Requires --yes to confirm.`,
 func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupDeployment, Title: "Deployment Management:"})
 
-	renameCmd.Flags().StringVar(&renameName, "name", "", "new deployment name (required)")
-	removeCmd.Flags().BoolVar(&removeYes, "yes", false, "skip confirmation prompt")
-	historyCmd.Flags().IntVar(&historyMax, "limit", 10, "maximum number of releases to show")
-	clearCmd.Flags().BoolVar(&clearYes, "yes", false, "skip confirmation prompt")
+	renameCmd.Flags().StringVarP(&renameName, "name", "n", "", "new deployment name (required)")
+	removeCmd.Flags().BoolVarP(&removeYes, "yes", "y", false, "skip confirmation prompt")
+	historyCmd.Flags().IntVarP(&historyMax, "limit", "n", 10, "maximum number of releases to show")
+	historyCmd.Flags().BoolVarP(&historyDisplayAuthor, "display-author", "a", false, "include the author column in the history table")
+	clearCmd.Flags().BoolVarP(&clearYes, "yes", "y", false, "skip confirmation prompt")
 
 	deploymentCmd.AddCommand(listCmd, addCmd, infoCmd, renameCmd, removeCmd, historyCmd, clearCmd)
 	cmd.RootCmd.AddCommand(deploymentCmd)

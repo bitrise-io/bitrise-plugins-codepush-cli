@@ -42,6 +42,6 @@ Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
 
 func init() {
 	RootCmd.PersistentFlags().StringVar(&AppID, "app-id", "", "release management app UUID (env: CODEPUSH_APP_ID)")
-	RootCmd.PersistentFlags().BoolVar(&JSONOutput, "json", false, "output results as JSON to stdout")
+	RootCmd.PersistentFlags().BoolVarP(&JSONOutput, "json", "j", false, "output results as JSON to stdout")
 	RootCmd.PersistentFlags().StringVar(&ServerURL, "server-url", "", "API server base URL (env: CODEPUSH_SERVER_URL)")
 }
