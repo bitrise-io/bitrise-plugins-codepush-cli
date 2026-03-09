@@ -4,12 +4,24 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
+
+// ErrDuplicateRelease is returned by Promote when the target deployment already
+// contains a release with identical content. Use errors.Is to detect it and
+// implement --no-duplicate-release-error behaviour.
+//
+// NOTE: detection relies on the server's current error message text. If the
+// server team changes the message in internal/service/promote.go, this
+// detection will silently stop working and --no-duplicate-release-error will
+// behave like a normal error again. Update both sides when the server changes.
+var ErrDuplicateRelease = errors.New("duplicate release")
 
 // HTTPClient implements Client using net/http.
 type HTTPClient struct {
@@ -280,12 +292,23 @@ func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, r
 }
 
 // Promote sends a promote request for a deployment.
+// Returns ErrDuplicateRelease (wrapped) when the server rejects the request
+// because the target deployment already contains identical content.
 func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error) {
 	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/promote", appID, deploymentID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
 	if err != nil {
 		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusBadRequest {
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		if strings.Contains(string(body), "ERR_BAD_REQUEST") && strings.Contains(string(body), "identical to the contents") {
+			return nil, fmt.Errorf("promoting deployment: %w", ErrDuplicateRelease)
+		}
+		return nil, fmt.Errorf("promoting deployment: API returned HTTP 400: %s", string(body))
 	}
 
 	var result Update
