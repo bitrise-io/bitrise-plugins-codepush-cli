@@ -1,6 +1,7 @@
 package bundler
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -17,6 +18,12 @@ type ExpoBundler struct {
 
 // Bundle implements Bundler for Expo projects.
 func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*BundleResult, error) {
+	// expo export always writes the sourcemap next to the bundle; there is no
+	// flag to redirect the map path, so --sourcemap-output is unsupported.
+	if opts.SourcemapOutput != "" {
+		return nil, errors.New("--sourcemap-output is not supported for Expo projects: expo export always writes the sourcemap next to the bundle")
+	}
+
 	outputDir, err := filepath.Abs(opts.OutputDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolving output directory: %w", err)
@@ -48,9 +55,7 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 		Platform:    opts.Platform,
 	}
 
-	// Check for sourcemap. expo export always writes the map next to the bundle
-	// at bundlePath+".map"; --sourcemap-output is not supported for Expo since
-	// there is no flag to redirect the map path in expo export.
+	// expo export writes the sourcemap next to the bundle at bundlePath+".map".
 	if opts.Sourcemap {
 		mapPath := bundlePath + ".map"
 		if _, err := os.Stat(mapPath); err == nil {
@@ -104,7 +109,7 @@ func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 		if err != nil {
 			return nil //nolint:nilerr // skip unreadable entries during fallback scan
 		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") && !strings.HasSuffix(info.Name(), ".js.map") {
+		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") {
 			jsFiles = append(jsFiles, path)
 		}
 		return nil

@@ -129,9 +129,9 @@ func resolveSourcemapPath(opts *BundleOptions, bundlePath string) (string, error
 	if opts.SourcemapOutput == "" {
 		return bundlePath + ".map", nil
 	}
-	absPath, err := filepath.Abs(opts.SourcemapOutput)
-	if err != nil {
-		return "", fmt.Errorf("resolving sourcemap output path: %w", err)
+	absPath := opts.SourcemapOutput
+	if !filepath.IsAbs(absPath) {
+		absPath = filepath.Join(opts.ProjectDir, absPath)
 	}
 	if err := ensureDir(filepath.Dir(absPath)); err != nil {
 		return "", fmt.Errorf("creating sourcemap output directory: %w", err)
