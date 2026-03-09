@@ -208,10 +208,10 @@ Requires --label to identify the update and --yes to confirm deletion.`,
 func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupUpdate, Title: "Update Management:"})
 
-	infoCmd.Flags().StringVar(&updateLabel, "label", "", "specific release label (defaults to latest)")
-	statusCmd.Flags().StringVar(&updateLabel, "label", "", "specific release label (defaults to latest)")
-	removeCmd.Flags().StringVar(&updateLabel, "label", "", "release label to delete (required)")
-	removeCmd.Flags().BoolVar(&updateRemoveYes, "yes", false, "skip confirmation prompt")
+	infoCmd.Flags().StringVarP(&updateLabel, "label", "l", "", "specific release label (defaults to latest)")
+	statusCmd.Flags().StringVarP(&updateLabel, "label", "l", "", "specific release label (defaults to latest)")
+	removeCmd.Flags().StringVarP(&updateLabel, "label", "l", "", "release label to delete (required)")
+	removeCmd.Flags().BoolVarP(&updateRemoveYes, "yes", "y", false, "skip confirmation prompt")
 
 	updateCmd.AddCommand(infoCmd, statusCmd, removeCmd)
 	cmd.RootCmd.AddCommand(updateCmd)

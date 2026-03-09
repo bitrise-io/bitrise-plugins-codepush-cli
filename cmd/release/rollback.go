@@ -77,7 +77,7 @@ to specify a specific version label (e.g. v3).`,
 }
 
 func init() {
-	rollbackCmd.Flags().StringVar(&rollbackDeployment, "deployment", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
-	rollbackCmd.Flags().StringVar(&rollbackTargetRelease, "target-release", "", "specific release label to rollback to (e.g. v3)")
+	rollbackCmd.Flags().StringVarP(&rollbackDeployment, "deployment", "d", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
+	rollbackCmd.Flags().StringVarP(&rollbackTargetRelease, "target-release", "r", "", "specific release label to rollback to (e.g. v3)")
 	cmd.RootCmd.AddCommand(rollbackCmd)
 }
