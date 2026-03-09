@@ -75,6 +75,6 @@ func writeProjectConfig(appID string, out *output.Writer) error {
 }
 
 func init() {
-	initCmd.Flags().BoolVar(&initForce, "force", false, "overwrite existing config file")
+	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "overwrite existing config file")
 	cmd.RootCmd.AddCommand(initCmd)
 }
