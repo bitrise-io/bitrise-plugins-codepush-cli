@@ -267,3 +267,95 @@ func TestRunWithExecutor(t *testing.T) {
 		assert.Error(t, err, "RunWithExecutor should not export summary; that responsibility moved to CLI layer")
 	})
 }
+
+func TestCompileWithHermes(t *testing.T) {
+	t.Run("skips when Hermes is disabled", func(t *testing.T) {
+		executor := &mockExecutor{}
+		config := &ProjectConfig{HermesEnabled: false, ProjectType: ProjectTypeReactNative}
+		result := &BundleResult{}
+
+		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		require.NoError(t, err)
+		assert.False(t, result.HermesApplied)
+		assert.Empty(t, executor.commands)
+	})
+
+	t.Run("skips for Expo project even when Hermes enabled", func(t *testing.T) {
+		executor := &mockExecutor{}
+		config := &ProjectConfig{HermesEnabled: true, ProjectType: ProjectTypeExpo}
+		result := &BundleResult{}
+
+		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		require.NoError(t, err)
+		assert.False(t, result.HermesApplied)
+		assert.Empty(t, executor.commands)
+	})
+
+	t.Run("returns error when hermesc path is empty", func(t *testing.T) {
+		executor := &mockExecutor{}
+		config := &ProjectConfig{
+			HermesEnabled: true,
+			ProjectType:   ProjectTypeReactNative,
+			HermescPath:   "",
+		}
+		result := &BundleResult{}
+
+		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "hermesc was not found")
+	})
+
+	t.Run("compiles successfully with mock executor", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "index.bundle")
+		hermescPath := filepath.Join(dir, "hermesc")
+		writeFile(t, bundlePath, "bundle")
+		writeFile(t, hermescPath, "hermesc binary")
+
+		executor := &mockExecutor{}
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "-out" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bytecode"), 0o644)
+				}
+			}
+		}
+
+		config := &ProjectConfig{
+			HermesEnabled: true,
+			ProjectType:   ProjectTypeReactNative,
+			HermescPath:   hermescPath,
+		}
+		result := &BundleResult{BundlePath: bundlePath}
+
+		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		require.NoError(t, err)
+		assert.True(t, result.HermesApplied)
+		assert.Len(t, executor.commands, 1)
+
+		// Verify the bundle file was replaced with the compiled bytecode
+		data, err := os.ReadFile(bundlePath)
+		require.NoError(t, err)
+		assert.Equal(t, "bytecode", string(data))
+	})
+
+	t.Run("returns error when hermesc execution fails", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "index.bundle")
+		hermescPath := filepath.Join(dir, "hermesc")
+		writeFile(t, bundlePath, "bundle")
+		writeFile(t, hermescPath, "hermesc binary")
+
+		executor := &mockExecutor{err: &mockExitError{code: 1}}
+		config := &ProjectConfig{
+			HermesEnabled: true,
+			ProjectType:   ProjectTypeReactNative,
+			HermescPath:   hermescPath,
+		}
+		result := &BundleResult{BundlePath: bundlePath}
+
+		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		require.Error(t, err)
+		assert.False(t, result.HermesApplied)
+	})
+}
