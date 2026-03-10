@@ -32,7 +32,7 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor, out *output.
 		}
 	}
 
-	config, err := DetectProject(opts.ProjectDir, opts.Platform, hermesMode)
+	config, err := DetectProject(opts.ProjectDir, opts.Platform, hermesMode, opts)
 	if err != nil {
 		return nil, err
 	}

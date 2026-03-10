@@ -23,6 +23,8 @@ var (
 	bundleProjectDir       string
 	bundleMetroConfig      string
 	bundleSkipInstall      bool
+	bundleGradleFile       string
+	bundlePodFile          string
 )
 
 func init() {
@@ -44,6 +46,8 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().StringVarP(&bundleMetroConfig, "config", "c", "", "path to Metro config file (auto-detected if not set)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
+	c.Flags().StringVarP(&bundleGradleFile, "gradle-file", "g", "", "override path to build.gradle used for Android Hermes auto-detection")
+	c.Flags().StringVar(&bundlePodFile, "pod-file", "", "override path to Podfile used for iOS Hermes auto-detection")
 }
 
 // registerPushBundleFlagsOn registers the subset of bundle flags used by push --bundle.
@@ -53,6 +57,8 @@ func registerPushBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
+	c.Flags().StringVarP(&bundleGradleFile, "gradle-file", "g", "", "override path to build.gradle used for Android Hermes auto-detection")
+	c.Flags().StringVar(&bundlePodFile, "pod-file", "", "override path to Podfile used for iOS Hermes auto-detection")
 }
 
 func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {
@@ -70,6 +76,8 @@ func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {
 		ProjectDir:       bundleProjectDir,
 		MetroConfig:      bundleMetroConfig,
 		SkipInstall:      bundleSkipInstall,
+		GradleFile:       bundleGradleFile,
+		PodFile:          bundlePodFile,
 	}
 
 	return bundler.Run(opts, out)
