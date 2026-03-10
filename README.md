@@ -3,7 +3,7 @@
 [![Build Status](https://app.bitrise.io/app/7b3ab048-138e-4d17-899c-4ea776b5711f/status.svg?token=-eUGFSXpQwDpmLX18KJUeA&branch=main)](https://app.bitrise.io/app/7b3ab048-138e-4d17-899c-4ea776b5711f)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A CLI tool for managing over-the-air (OTA) updates for React Native and Expo mobile applications using the Bitrise CodePush service. Works as a standalone CLI or as a Bitrise CLI plugin.
+A Bitrise CLI plugin for managing over-the-air (OTA) updates for React Native and Expo mobile applications using the Bitrise CodePush service. Can also be used as a standalone CLI tool outside of Bitrise.
 
 ## What is CodePush?
 
@@ -27,48 +27,49 @@ Once installed, prefix all commands with `bitrise :codepush`:
 bitrise :codepush push --bundle --platform ios --app-version 1.0.0
 ```
 
-### As a Standalone CLI
-
-Download the latest binary for your platform from [Releases](https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases):
-
-| Platform | Binary |
-|----------|--------|
-| macOS (Apple Silicon) | `codepush-Darwin-arm64` |
-| macOS (Intel) | `codepush-Darwin-x86_64` |
-| Linux (x86_64) | `codepush-Linux-x86_64` |
+Manage the plugin lifecycle with standard Bitrise CLI commands:
 
 ```bash
-chmod +x codepush-Darwin-arm64
-mv codepush-Darwin-arm64 /usr/local/bin/codepush
-codepush version
+bitrise plugin list                 # confirm installation
+bitrise plugin update codepush      # upgrade to latest version
+bitrise plugin uninstall codepush   # remove the plugin
 ```
 
+For standalone use outside Bitrise, see [Using as a Standalone CLI](#using-as-a-standalone-cli).
+
+## Prerequisites
+
+These requirements apply in both plugin and standalone mode:
+
+- **[Node.js](https://nodejs.org/)** — required for bundling; version must satisfy your project's requirements.
+- **[React Native](https://reactnative.dev/docs/environment-setup)** or **[Expo](https://docs.expo.dev/get-started/installation/)** — must be present in your project's `node_modules` (the CLI invokes `npx react-native bundle` or `npx expo export`).
+
+Additionally, for plugin mode:
+
+- **[Bitrise CLI](https://devcenter.bitrise.io/en/bitrise-cli.html)** >= 1.3.0
+
 ## Quick Start
+
+> These examples use the Bitrise plugin syntax (`bitrise :codepush ...`). If using the standalone binary, omit the `bitrise :` prefix.
 
 Authenticate, configure your project, and push your first OTA update:
 
 ```bash
 # 1. Store your Bitrise API token
-codepush auth login --token <YOUR_BITRISE_API_TOKEN>
+#    Local dev only: stores token in user config.
+#    In Bitrise CI: set BITRISE_API_TOKEN as a workflow Secret instead.
+bitrise :codepush auth login --token <YOUR_BITRISE_API_TOKEN>
 
 # 2. Initialize project config (prompts for app ID, saves for all future commands)
-codepush init
+bitrise :codepush init
 
-# 3. Bundle your JavaScript for iOS
-codepush bundle --platform ios
-
-# 4. Push the bundle to Staging (no --app-id needed)
-codepush push ./codepush-bundle \
-  --deployment Staging \
-  --app-version 1.0.0
-
-# Or bundle and push in one step
-codepush push --bundle --platform ios \
+# 3. Bundle and push to Staging in one step
+bitrise :codepush push --bundle --platform ios \
   --deployment Staging \
   --app-version 1.0.0
 ```
 
-For Bitrise CI workflows, set `BITRISE_API_TOKEN`, `CODEPUSH_APP_ID`, and `CODEPUSH_DEPLOYMENT` as environment variables and the CLI resolves them automatically:
+In Bitrise CI workflows, set `BITRISE_API_TOKEN`, `CODEPUSH_APP_ID`, and `CODEPUSH_DEPLOYMENT` as environment variables and the CLI resolves them automatically:
 
 ```bash
 bitrise :codepush push --bundle --platform ios --app-version 1.0.0
@@ -78,18 +79,18 @@ bitrise :codepush push --bundle --platform ios --app-version 1.0.0
 
 Commands that interact with the Bitrise API require an API token. Tokens are resolved in this order:
 
-1. `BITRISE_API_TOKEN` environment variable (recommended for CI)
-2. Stored config file from `codepush auth login` (recommended for local development)
+1. `BITRISE_API_TOKEN` environment variable (recommended for CI — Bitrise or any other)
+2. Stored config file from `bitrise :codepush auth login` (recommended for local development)
 
 Generate a personal access token at: https://app.bitrise.io/me/account/security
 
 ```bash
 # Store token locally (interactive or via flag)
-codepush auth login
-codepush auth login --token <TOKEN>    # or: -t <TOKEN>
+bitrise :codepush auth login
+bitrise :codepush auth login --token <TOKEN>    # or: -t <TOKEN>
 
 # Remove stored token
-codepush auth revoke
+bitrise :codepush auth revoke
 ```
 
 The token is stored in the user config directory with restricted permissions (0600):
@@ -98,10 +99,10 @@ The token is stored in the user config directory with restricted permissions (06
 
 ## Project Configuration
 
-Running `codepush init` creates a `.codepush.json` file in the current directory that stores your app ID:
+Running `bitrise :codepush init` creates a `.codepush.json` file in the current directory that stores your app ID:
 
 ```bash
-codepush init
+bitrise :codepush init
 ```
 
 The command prompts for your app ID interactively. You can also pass it via the global `--app-id` flag or `CODEPUSH_APP_ID` environment variable.
@@ -122,13 +123,13 @@ To target a different environment (e.g. staging), set the server base URL:
 
 ```bash
 # Via flag
-codepush push --server-url https://api.staging.bitrise.io
+bitrise :codepush push --server-url https://api.staging.bitrise.io
 
 # Via environment variable
 export CODEPUSH_SERVER_URL=https://api.staging.bitrise.io
 
 # Via .codepush.json (saved during init)
-codepush init --server-url https://api.staging.bitrise.io
+bitrise :codepush init --server-url https://api.staging.bitrise.io
 ```
 
 The server URL is resolved in this order:
@@ -139,6 +140,8 @@ The server URL is resolved in this order:
 4. Default: `https://api.bitrise.io`
 
 ## Commands
+
+> Commands are shown without a prefix. Invoke them as `bitrise :codepush <command>` (plugin) or `codepush <command>` (standalone binary).
 
 ### Global Flags
 
@@ -198,16 +201,18 @@ The server URL is resolved in this order:
 |---------|-------------|
 | `version` | Print version information |
 
-Run `codepush <command> --help` for detailed flags and usage of any command.
+Run `bitrise :codepush <command> --help` for detailed flags and usage of any command.
 
 ## Bundling
 
 The `bundle` command generates JavaScript bundles for React Native and Expo projects. It auto-detects the project type, entry file, Hermes configuration, and Metro config.
 
 ```bash
-codepush bundle --platform ios
-codepush bundle --platform android
+bitrise :codepush bundle --platform ios
+bitrise :codepush bundle --platform android
 ```
+
+The `bundle` command produces a **directory** (not a zip file). This directory is what you pass to `push` as `[bundle-path]`. The CLI zips it internally before upload — you do not need to zip it manually.
 
 ### Bundle Flags
 
@@ -219,7 +224,7 @@ codepush bundle --platform android
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
-| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
+| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`). Not supported for Expo projects — Expo always writes sourcemaps next to the bundle; the path cannot be overridden. |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
 | `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
@@ -239,13 +244,15 @@ The CLI automatically detects:
 
 ## Pushing Updates
 
+The `[bundle-path]` argument must be a **directory** — the output of `bitrise :codepush bundle`. The CLI zips it internally before upload.
+
 ```bash
-# Push a pre-built bundle
-codepush push ./codepush-bundle \
+# Push a pre-built bundle directory
+bitrise :codepush push ./codepush-bundle \
   --app-id <APP_UUID> --deployment Staging --app-version 1.0.0
 
 # Bundle and push in one step
-codepush push --bundle --platform ios \
+bitrise :codepush push --bundle --platform ios \
   --app-id <APP_UUID> --deployment Staging --app-version 1.0.0
 ```
 
@@ -274,13 +281,13 @@ codepush push --bundle --platform ios \
 Copy a release from one deployment to another. Commonly used to promote a tested Staging release to Production.
 
 ```bash
-codepush promote \
+bitrise :codepush promote \
   --source-deployment Staging \
   --destination-deployment Production \
   --app-id <APP_UUID>
 
 # Override metadata during promotion
-codepush promote \
+bitrise :codepush promote \
   --source-deployment Staging \
   --destination-deployment Production \
   --app-id <APP_UUID> \
@@ -297,10 +304,10 @@ Update metadata on an existing release without re-deploying the code.
 
 ```bash
 # Increase rollout on the latest release
-codepush patch --deployment Production --rollout 50 --app-id <APP_UUID>
+bitrise :codepush patch --deployment Production --rollout 50 --app-id <APP_UUID>
 
 # Patch a specific release
-codepush patch --deployment Production --label v5 --mandatory true --app-id <APP_UUID>
+bitrise :codepush patch --deployment Production --label v5 --mandatory true --app-id <APP_UUID>
 ```
 
 **Patch flags:** `--deployment` (`-d`), `--label` (`-l`), `--rollout` (`-r`), `--mandatory` (`-m`), `--disabled` (`-x`), `--description`, `--app-version` (`-t`)
@@ -311,10 +318,10 @@ Rollback creates a new release that mirrors a previous version.
 
 ```bash
 # Rollback to the immediately previous release
-codepush rollback --deployment Production --app-id <APP_UUID>
+bitrise :codepush rollback --deployment Production --app-id <APP_UUID>
 
 # Rollback to a specific release
-codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID>
+bitrise :codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID>
 ```
 
 **Rollback flags:** `--deployment` (`-d`), `--target-release` (`-r`)
@@ -323,29 +330,29 @@ codepush rollback --deployment Production --target-release v3 --app-id <APP_UUID
 
 ```bash
 # List all deployments
-codepush deployment list --app-id <APP_UUID>
-codepush deployment list --display-keys --app-id <APP_UUID>
+bitrise :codepush deployment list --app-id <APP_UUID>
+bitrise :codepush deployment list --display-keys --app-id <APP_UUID>
 
 # Create a new deployment
-codepush deployment add Beta --app-id <APP_UUID>
-codepush deployment add Beta --key my-custom-key --app-id <APP_UUID>
+bitrise :codepush deployment add Beta --app-id <APP_UUID>
+bitrise :codepush deployment add Beta --key my-custom-key --app-id <APP_UUID>
 
 # View deployment details and latest release
-codepush deployment info Staging --app-id <APP_UUID>
+bitrise :codepush deployment info Staging --app-id <APP_UUID>
 
 # View release history (default: last 10)
-codepush deployment history Staging --app-id <APP_UUID>
-codepush deployment history Staging --limit 25 --app-id <APP_UUID>
-codepush deployment history Staging --display-author --app-id <APP_UUID>
+bitrise :codepush deployment history Staging --app-id <APP_UUID>
+bitrise :codepush deployment history Staging --limit 25 --app-id <APP_UUID>
+bitrise :codepush deployment history Staging --display-author --app-id <APP_UUID>
 
 # Rename a deployment
-codepush deployment rename OldName --name NewName --app-id <APP_UUID>
+bitrise :codepush deployment rename OldName --name NewName --app-id <APP_UUID>
 
 # Delete a deployment (destructive, requires --yes in CI)
-codepush deployment remove Beta --app-id <APP_UUID> --yes
+bitrise :codepush deployment remove Beta --app-id <APP_UUID> --yes
 
 # Clear all releases from a deployment (destructive, requires --yes in CI)
-codepush deployment clear Staging --app-id <APP_UUID> --yes
+bitrise :codepush deployment clear Staging --app-id <APP_UUID> --yes
 ```
 
 Destructive operations (`remove`, `clear`) require `--yes` to skip the interactive confirmation prompt. In CI environments, always pass `--yes`.
@@ -354,16 +361,16 @@ Destructive operations (`remove`, `clear`) require `--yes` to skip the interacti
 
 ```bash
 # View details of the latest update
-codepush update info Staging --app-id <APP_UUID>
+bitrise :codepush update info Staging --app-id <APP_UUID>
 
 # View a specific update by label
-codepush update info Staging --label v5 --app-id <APP_UUID>
+bitrise :codepush update info Staging --label v5 --app-id <APP_UUID>
 
 # Check processing status (useful after push)
-codepush update status Staging --app-id <APP_UUID>
+bitrise :codepush update status Staging --app-id <APP_UUID>
 
 # Delete a specific update (destructive)
-codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
+bitrise :codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
 
 ## Debugging
@@ -372,10 +379,10 @@ Stream real-time CodePush log output from a connected Android device or iOS simu
 
 ```bash
 # Android: stream CodePush logs (requires adb on PATH)
-codepush debug android
+bitrise :codepush debug android
 
 # iOS: stream CodePush logs (requires xcrun on PATH)
-codepush debug ios
+bitrise :codepush debug ios
 ```
 
 Android uses `adb logcat` with a `CodePush:V *:S` tag filter (logcat-layer filtering). Each line is prefixed with a timestamp (`[HH:mm:ss.SSS]`).
@@ -390,30 +397,30 @@ Press Ctrl-C to stop streaming.
 
 ```bash
 # 1. Authenticate
-codepush auth login --token $BITRISE_API_TOKEN
+bitrise :codepush auth login --token $BITRISE_API_TOKEN
 
 # 2. Bundle the JavaScript
-codepush bundle --platform ios
+bitrise :codepush bundle --platform ios
 
 # 3. Push to Staging with limited rollout
-codepush push ./codepush-bundle \
+bitrise :codepush push ./codepush-bundle \
   --app-id $APP_ID --deployment Staging \
   --app-version 1.2.0 --rollout 10 --description "Fix login crash"
 
 # 4. Check processing status
-codepush update status Staging --app-id $APP_ID
+bitrise :codepush update status Staging --app-id $APP_ID
 
 # 5. Increase rollout after verifying on test devices
-codepush patch --deployment Staging --rollout 100 --app-id $APP_ID
+bitrise :codepush patch --deployment Staging --rollout 100 --app-id $APP_ID
 
 # 6. Promote to Production
-codepush promote \
+bitrise :codepush promote \
   --source-deployment Staging \
   --destination-deployment Production \
   --app-id $APP_ID --rollout 25
 
 # 7. If something goes wrong, rollback
-codepush rollback --deployment Production --app-id $APP_ID
+bitrise :codepush rollback --deployment Production --app-id $APP_ID
 ```
 
 ### Bitrise CI Pipeline
@@ -426,21 +433,42 @@ bitrise :codepush push --bundle --platform ios --app-version $APP_VERSION
 
 The CLI automatically detects the Bitrise environment, attaches build metadata (build number, commit hash), and exports summary files to `$BITRISE_DEPLOY_DIR`.
 
+### Expo Workflow
+
+Expo is auto-detected from `package.json` — no extra flags are needed. The CLI uses `npx expo export` under the hood instead of `react-native bundle`. All other flags (deployment, app-version, rollout, etc.) behave identically.
+
+```bash
+bitrise :codepush push --bundle --platform ios \
+  --deployment Staging \
+  --app-version 1.0.0
+```
+
+Note: `--sourcemap-output` is not supported for Expo projects. Expo always writes sourcemaps next to the bundle automatically. The `--sourcemap` flag (enable/disable sourcemaps) is still supported.
+
 ## JSON Output
 
 Pass `--json` to any command to get machine-readable JSON output on stdout. Human-readable output always goes to stderr, so JSON output is clean for piping.
 
 ```bash
 # Get push result as JSON
-codepush push ./codepush-bundle --app-id $APP_ID \
+bitrise :codepush push ./codepush-bundle --app-id $APP_ID \
   --deployment Staging --app-version 1.0.0 --json
 
 # List deployments as JSON
-codepush deployment list --app-id $APP_ID --json
+bitrise :codepush deployment list --app-id $APP_ID --json
 
 # Parse with jq
-codepush update info Staging --app-id $APP_ID --json | jq '.app_version'
+bitrise :codepush update info Staging --app-id $APP_ID --json | jq '.app_version'
 ```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| `0` | Success |
+| `1` | Error (authentication failure, API error, validation error, etc.) |
+
+A non-zero exit code from any command means the operation failed. Check stderr for the error message.
 
 ## Environment Variables
 
@@ -480,6 +508,50 @@ When running inside a Bitrise build (detected via `BITRISE_BUILD_NUMBER` or `BIT
 - Exports `codepush-patch-summary.json` after patching
 - Exports environment variables via `envman` for downstream steps
 - Disables interactive prompts and spinners
+
+## Using as a Standalone CLI
+
+When using outside a Bitrise environment, download the binary directly from [Releases](https://github.com/bitrise-io/bitrise-plugins-codepush-cli/releases):
+
+| Platform | Binary |
+|----------|--------|
+| macOS (Apple Silicon) | `codepush-Darwin-arm64` |
+| macOS (Intel) | `codepush-Darwin-x86_64` |
+| Linux (x86_64) | `codepush-Linux-x86_64` |
+
+```bash
+chmod +x codepush-Darwin-arm64
+mv codepush-Darwin-arm64 /usr/local/bin/codepush
+codepush version
+```
+
+All commands work identically — replace `bitrise :codepush` with `codepush` in any example in this document:
+
+```bash
+codepush push --bundle --platform ios --deployment Staging --app-version 1.0.0
+```
+
+**Differences from plugin mode:**
+
+- `BITRISE_BUILD_NUMBER`, `BITRISE_DEPLOY_DIR`, and `GIT_CLONE_COMMIT_HASH` are not auto-populated.
+- `envman` exports (`CODEPUSH_UPDATE_ID`, `CODEPUSH_APP_VERSION`, `CODEPUSH_LABEL`) are not available for downstream steps.
+- Authentication: use `codepush auth login` to store credentials locally, or set `BITRISE_API_TOKEN` as an environment variable — both work in standalone mode.
+
+## Troubleshooting
+
+**Authentication errors** (`token not found` / `401 Unauthorized`): Set `BITRISE_API_TOKEN` as an environment variable, or run `bitrise :codepush auth login` to store a token locally.
+
+**App not initialized** (`app ID is required`): Run `bitrise :codepush init`, pass `--app-id`, or set `CODEPUSH_APP_ID`.
+
+**Bundle path is not a directory**: The `push` command requires a directory path, not a zip file or individual file. Run `bitrise :codepush bundle` first, then pass the output directory to `push`.
+
+**Bundle detection failures**: If auto-detection fails, specify flags explicitly: `--entry-file`, `--config` (Metro), `--gradle-file` (Android Hermes), `--pod-file` (iOS Hermes).
+
+**`adb: command not found`** (`debug android`): Install [Android platform tools](https://developer.android.com/tools/releases/platform-tools) and ensure `adb` is on `PATH`.
+
+**`xcrun: error`** (`debug ios`): Install Xcode Command Line Tools: `xcode-select --install`.
+
+**Expo `--sourcemap-output` rejected**: Expo always writes sourcemaps next to the bundle; the output path cannot be overridden. Remove the `--sourcemap-output` flag. The `--sourcemap` flag (enable/disable sourcemaps) is still supported.
 
 ## Contributing
 
