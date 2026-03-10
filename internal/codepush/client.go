@@ -27,14 +27,19 @@ var ErrDuplicateRelease = errors.New("duplicate release")
 type HTTPClient struct {
 	BaseURL string
 	Token   string
+	version string
 	client  *http.Client
 }
 
 // NewHTTPClient creates a new HTTPClient.
-func NewHTTPClient(baseURL, token string) *HTTPClient {
+func NewHTTPClient(baseURL, token, version string) *HTTPClient {
+	if version == "" {
+		version = "unknown"
+	}
 	return &HTTPClient{
 		BaseURL: baseURL,
 		Token:   token,
+		version: version,
 		client:  &http.Client{},
 	}
 }
@@ -171,6 +176,8 @@ func (c *HTTPClient) UploadFile(ctx context.Context, ufr UploadFileRequest) erro
 	for k, v := range ufr.Headers {
 		req.Header.Set(k, v)
 	}
+	// Set after upload headers so CLI identity is always authoritative.
+	req.Header.Set("X-Bitrise-User-Agent", "codepush-cli/"+c.version)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -337,6 +344,7 @@ func (c *HTTPClient) doJSONRequest(ctx context.Context, method, path string, bod
 
 	req.Header.Set("Authorization", c.Token)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Bitrise-User-Agent", "codepush-cli/"+c.version)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -359,6 +367,7 @@ func (c *HTTPClient) doRequest(ctx context.Context, method, path string) (*http.
 
 	req.Header.Set("Authorization", c.Token)
 	req.Header.Set("Accept", "application/json")
+	req.Header.Set("X-Bitrise-User-Agent", "codepush-cli/"+c.version)
 
 	resp, err := c.client.Do(req)
 	if err != nil {
