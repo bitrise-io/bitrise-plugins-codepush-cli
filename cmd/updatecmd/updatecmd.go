@@ -40,7 +40,7 @@ By default shows the latest update. Use --label to specify a version.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -108,7 +108,7 @@ By default shows the latest update. Use --label to specify a version.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -172,7 +172,7 @@ Requires --label to identify the update and --yes to confirm deletion.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {

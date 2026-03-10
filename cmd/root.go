@@ -21,6 +21,9 @@ const (
 // Out is the shared CLI output writer. Set by main() before Execute().
 var Out *output.Writer
 
+// Version is the CLI version string. Set by main() before Execute().
+var Version string
+
 // Global flag values, bound to RootCmd's persistent flags.
 var (
 	AppID      string

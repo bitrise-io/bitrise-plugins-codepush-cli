@@ -16,6 +16,7 @@ import (
 
 func main() {
 	cmd.Out = output.New()
+	cmd.Version = version
 
 	if err := cmd.RootCmd.Execute(); err != nil {
 		cmd.Out.Error("%v", err)
