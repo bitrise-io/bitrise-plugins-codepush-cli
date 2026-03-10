@@ -39,6 +39,7 @@ type BundleOptions struct {
 	SourcemapOutput  string // when set, overrides the auto-derived sourcemap path and implies Sourcemap=true
 	HermesMode       HermesMode
 	ExtraBundlerOpts []string
+	ExtraHermesFlags []string
 	ProjectDir       string
 	MetroConfig      string
 	SkipInstall      bool

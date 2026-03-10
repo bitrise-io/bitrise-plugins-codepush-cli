@@ -221,7 +221,8 @@ codepush bundle --platform android
 | `--sourcemap` | `true` | Generate source maps |
 | `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
-| `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
+| `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
+| `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
 | `--project-dir` | CWD | Project root directory |
 | `--config`, `-c` | auto-detect | Metro config file path |
 | `--gradle-file, -g` | auto-detect | Override `build.gradle` path for Android Hermes detection |

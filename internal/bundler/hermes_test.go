@@ -32,7 +32,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, "")
+		err := compiler.Compile(hermescPath, bundlePath, "", nil)
 		require.NoError(t, err)
 
 		// Verify the command was called correctly
@@ -70,11 +70,53 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
+		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath, nil)
 		require.NoError(t, err)
 
 		cmd := executor.commands[0]
 		assert.Contains(t, cmd.args, "-output-source-map")
+	})
+
+	t.Run("extra hermes flags are passed before the input file", func(t *testing.T) {
+		dir := t.TempDir()
+		bundlePath := filepath.Join(dir, "main.jsbundle")
+		hermescPath := filepath.Join(dir, "hermesc")
+
+		writeFile(t, bundlePath, "console.log('hello')")
+		writeFile(t, hermescPath, "")
+
+		executor := &mockExecutor{}
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "-out" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bytecode"), 0o644)
+				}
+			}
+		}
+
+		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
+		err := compiler.Compile(hermescPath, bundlePath, "", []string{"-O", "-w"})
+		require.NoError(t, err)
+
+		cmd := executor.commands[0]
+		// Extra flags must appear before the input file
+		inputIdx := -1
+		oIdx := -1
+		wIdx := -1
+		for i, arg := range cmd.args {
+			switch arg {
+			case bundlePath:
+				inputIdx = i
+			case "-O":
+				oIdx = i
+			case "-w":
+				wIdx = i
+			}
+		}
+		require.NotEqual(t, -1, oIdx, "-O flag missing")
+		require.NotEqual(t, -1, wIdx, "-w flag missing")
+		assert.Less(t, oIdx, inputIdx, "-O must come before input file")
+		assert.Less(t, wIdx, inputIdx, "-w must come before input file")
 	})
 
 	t.Run("hermesc binary not found", func(t *testing.T) {
@@ -85,7 +127,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile("/nonexistent/hermesc", bundlePath, "")
+		err := compiler.Compile("/nonexistent/hermesc", bundlePath, "", nil)
 		require.Error(t, err)
 	})
 
@@ -97,7 +139,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile(hermescPath, "/nonexistent/bundle.js", "")
+		err := compiler.Compile(hermescPath, "/nonexistent/bundle.js", "", nil)
 		require.Error(t, err)
 	})
 
@@ -112,7 +154,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{err: &mockExitError{code: 1}}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile(hermescPath, bundlePath, "")
+		err := compiler.Compile(hermescPath, bundlePath, "", nil)
 		require.Error(t, err)
 	})
 
@@ -140,7 +182,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath)
+		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath, nil)
 		require.NoError(t, err)
 
 		// The hermes map should have been renamed to the metro map path

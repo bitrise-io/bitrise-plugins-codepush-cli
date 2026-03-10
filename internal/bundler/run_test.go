@@ -274,7 +274,7 @@ func TestCompileWithHermes(t *testing.T) {
 		config := &ProjectConfig{HermesEnabled: false, ProjectType: ProjectTypeReactNative}
 		result := &BundleResult{}
 
-		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		err := compileWithHermes(config, result, nil, executor, output.NewTest(io.Discard))
 		require.NoError(t, err)
 		assert.False(t, result.HermesApplied)
 		assert.Empty(t, executor.commands)
@@ -285,7 +285,7 @@ func TestCompileWithHermes(t *testing.T) {
 		config := &ProjectConfig{HermesEnabled: true, ProjectType: ProjectTypeExpo}
 		result := &BundleResult{}
 
-		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		err := compileWithHermes(config, result, nil, executor, output.NewTest(io.Discard))
 		require.NoError(t, err)
 		assert.False(t, result.HermesApplied)
 		assert.Empty(t, executor.commands)
@@ -300,7 +300,7 @@ func TestCompileWithHermes(t *testing.T) {
 		}
 		result := &BundleResult{}
 
-		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		err := compileWithHermes(config, result, nil, executor, output.NewTest(io.Discard))
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "hermesc was not found")
 	})
@@ -328,7 +328,7 @@ func TestCompileWithHermes(t *testing.T) {
 		}
 		result := &BundleResult{BundlePath: bundlePath}
 
-		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		err := compileWithHermes(config, result, nil, executor, output.NewTest(io.Discard))
 		require.NoError(t, err)
 		assert.True(t, result.HermesApplied)
 		assert.Len(t, executor.commands, 1)
@@ -354,7 +354,7 @@ func TestCompileWithHermes(t *testing.T) {
 		}
 		result := &BundleResult{BundlePath: bundlePath}
 
-		err := compileWithHermes(config, result, executor, output.NewTest(io.Discard))
+		err := compileWithHermes(config, result, nil, executor, output.NewTest(io.Discard))
 		require.Error(t, err)
 		assert.False(t, result.HermesApplied)
 	})

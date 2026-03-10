@@ -19,6 +19,7 @@ var (
 	bundleSourcemapOutput  string
 	bundleHermes           string
 	bundleExtraBundlerOpts []string
+	bundleExtraHermesFlags []string
 	bundleProjectDir       string
 	bundleMetroConfig      string
 	bundleSkipInstall      bool
@@ -41,6 +42,7 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", "override sourcemap output path (implies --sourcemap)")
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
+	c.Flags().StringArrayVar(&bundleExtraHermesFlags, "extra-hermes-flag", nil, "additional flags passed to hermesc (repeatable; distinct from --extra-bundler-option which targets Metro)")
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().StringVarP(&bundleMetroConfig, "config", "c", "", "path to Metro config file (auto-detected if not set)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
@@ -70,6 +72,7 @@ func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {
 		SourcemapOutput:  bundleSourcemapOutput,
 		HermesMode:       bundler.HermesMode(bundleHermes),
 		ExtraBundlerOpts: bundleExtraBundlerOpts,
+		ExtraHermesFlags: bundleExtraHermesFlags,
 		ProjectDir:       bundleProjectDir,
 		MetroConfig:      bundleMetroConfig,
 		SkipInstall:      bundleSkipInstall,
