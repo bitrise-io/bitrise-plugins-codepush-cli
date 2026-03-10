@@ -16,6 +16,7 @@ var (
 	bundleBundleName       string
 	bundleDev              bool
 	bundleSourcemap        bool
+	bundleSourcemapOutput  string
 	bundleHermes           string
 	bundleExtraBundlerOpts []string
 	bundleExtraHermesFlags []string
@@ -36,6 +37,7 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVarP(&bundleBundleName, "bundle-name", "b", "", "custom bundle filename (platform default if not set)")
 	c.Flags().BoolVar(&bundleDev, "dev", false, "enable development mode")
 	c.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
+	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", "override sourcemap output path (implies --sourcemap)")
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	c.Flags().StringArrayVar(&bundleExtraHermesFlags, "extra-hermes-flag", nil, "additional flags passed to hermesc (repeatable; distinct from --extra-bundler-option which targets Metro)")
@@ -61,6 +63,7 @@ func runBundleWithOpts(out *output.Writer) (*bundler.BundleResult, error) {
 		BundleName:       bundleBundleName,
 		Dev:              bundleDev,
 		Sourcemap:        bundleSourcemap,
+		SourcemapOutput:  bundleSourcemapOutput,
 		HermesMode:       bundler.HermesMode(bundleHermes),
 		ExtraBundlerOpts: bundleExtraBundlerOpts,
 		ExtraHermesFlags: bundleExtraHermesFlags,

@@ -219,6 +219,7 @@ codepush bundle --platform android
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
+| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
 | `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
