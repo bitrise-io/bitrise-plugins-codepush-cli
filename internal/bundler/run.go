@@ -86,6 +86,10 @@ func resolveRunOptions(opts *BundleOptions) (HermesMode, error) {
 		opts.OutputDir = DefaultOutputDir
 	}
 
+	if opts.SourcemapOutput != "" {
+		opts.Sourcemap = true
+	}
+
 	hermesMode := opts.HermesMode
 	if hermesMode == "" {
 		hermesMode = HermesModeAuto
