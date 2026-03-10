@@ -23,7 +23,8 @@ func NewHermesCompiler(executor CommandExecutor, out *output.Writer) *HermesComp
 // The compiled bytecode replaces the original bundle file (CodePush clients
 // expect the original filename).
 // If sourcemapPath is non-empty, attempts to compose source maps.
-func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcemapPath string) error {
+// extraHermesFlags are appended to the hermesc invocation before the input file.
+func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcemapPath string, extraHermesFlags []string) error {
 	if _, err := os.Stat(hermescPath); err != nil {
 		return fmt.Errorf("hermesc binary not found at %s: %w", hermescPath, err)
 	}
@@ -41,6 +42,7 @@ func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcema
 		args = append(args, "-output-source-map")
 	}
 
+	args = append(args, extraHermesFlags...)
 	args = append(args, bundlePath)
 
 	h.out.Step("Running Hermes compilation: %s %v", hermescPath, args)
