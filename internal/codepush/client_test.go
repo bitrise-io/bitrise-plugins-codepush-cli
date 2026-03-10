@@ -24,7 +24,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		deployments, err := client.ListDeployments(context.Background(), "app-123")
 		require.NoError(t, err)
 
@@ -42,7 +42,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "bad-token")
+		client := NewHTTPClient(server.URL, "bad-token", "test")
 		_, err := client.ListDeployments(context.Background(), "app-123")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "401")
@@ -55,7 +55,7 @@ func TestHTTPClientListDeployments(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		deployments, err := client.ListDeployments(context.Background(), "app-123")
 		require.NoError(t, err)
 		assert.Empty(t, deployments)
@@ -78,7 +78,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		dep, err := client.CreateDeployment(context.Background(), "app-123", CreateDeploymentRequest{Name: "QA"})
 		require.NoError(t, err)
 
@@ -93,7 +93,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.CreateDeployment(context.Background(), "app-123", CreateDeploymentRequest{Name: "QA"})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "409")
@@ -111,7 +111,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		dep, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 
@@ -131,7 +131,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		dep, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 
@@ -146,7 +146,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -168,7 +168,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		dep, err := client.RenameDeployment(context.Background(), "app-123", "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
 		require.NoError(t, err)
 
@@ -182,7 +182,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.RenameDeployment(context.Background(), "app-123", "dep-456", RenameDeploymentRequest{Name: ""})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "400")
@@ -199,7 +199,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		err := client.DeleteDeployment(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 	})
@@ -211,7 +211,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		err := client.DeleteDeployment(context.Background(), "app-123", "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -236,7 +236,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		resp, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
@@ -262,7 +262,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
@@ -281,7 +281,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
@@ -298,7 +298,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
@@ -323,7 +323,7 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient("", "test-token")
+		client := NewHTTPClient("", "test-token", "test")
 		err := client.UploadFile(context.Background(), UploadFileRequest{
 			URL:           server.URL,
 			Method:        http.MethodPut,
@@ -341,7 +341,7 @@ func TestHTTPClientUploadFile(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient("", "test-token")
+		client := NewHTTPClient("", "test-token", "test")
 		err := client.UploadFile(context.Background(), UploadFileRequest{
 			URL:           server.URL,
 			Method:        http.MethodPut,
@@ -364,7 +364,7 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
@@ -379,7 +379,7 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
@@ -394,7 +394,7 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "500")
@@ -412,7 +412,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 
@@ -428,7 +428,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.NoError(t, err)
 		assert.Empty(t, updates)
@@ -441,7 +441,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -460,7 +460,7 @@ func TestHTTPClientGetUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		pkg, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 
@@ -477,7 +477,7 @@ func TestHTTPClientGetUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -503,7 +503,7 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 
 		rollout := 50
 		mandatory := true
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		pkg, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout:   &rollout,
 			Mandatory: &mandatory,
@@ -528,7 +528,7 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 		defer server.Close()
 
 		rollout := 50
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
@@ -543,7 +543,7 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 		defer server.Close()
 
 		rollout := 50
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
@@ -562,7 +562,7 @@ func TestHTTPClientDeleteUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.NoError(t, err)
 	})
@@ -574,7 +574,7 @@ func TestHTTPClientDeleteUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -598,7 +598,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		pkg, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{UpdateID: "pkg-target"})
 		require.NoError(t, err)
 
@@ -616,7 +616,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{})
 		require.NoError(t, err)
 	})
@@ -628,7 +628,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
@@ -654,7 +654,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		pkg, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 			AppVersion:         "3.0.0",
@@ -679,7 +679,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 		})
@@ -693,9 +693,69 @@ func TestHTTPClientPromote(t *testing.T) {
 		}))
 		defer server.Close()
 
-		client := NewHTTPClient(server.URL, "test-token")
+		client := NewHTTPClient(server.URL, "test-token", "test")
 		_, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "409")
+	})
+}
+
+func TestHTTPClientSetsUserAgent(t *testing.T) {
+	const expectedHeader = "codepush-cli/1.2.3"
+
+	t.Run("doRequest sets X-Bitrise-User-Agent", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, expectedHeader, r.Header.Get("X-Bitrise-User-Agent"))
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"items":[]}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "token", "1.2.3")
+		_, err := client.ListDeployments(context.Background(), "app-1")
+		require.NoError(t, err)
+	})
+
+	t.Run("doJSONRequest sets X-Bitrise-User-Agent", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, expectedHeader, r.Header.Get("X-Bitrise-User-Agent"))
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"id":"dep-new","name":"QA"}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "token", "1.2.3")
+		_, err := client.CreateDeployment(context.Background(), "app-1", CreateDeploymentRequest{Name: "QA"})
+		require.NoError(t, err)
+	})
+
+	t.Run("UploadFile sets X-Bitrise-User-Agent", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, expectedHeader, r.Header.Get("X-Bitrise-User-Agent"))
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient("", "token", "1.2.3")
+		err := client.UploadFile(context.Background(), UploadFileRequest{
+			URL:           server.URL,
+			Method:        http.MethodPut,
+			Body:          strings.NewReader("data"),
+			ContentLength: 4,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("empty version falls back to unknown", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "codepush-cli/unknown", r.Header.Get("X-Bitrise-User-Agent"))
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"items":[]}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "token", "")
+		_, err := client.ListDeployments(context.Background(), "app-1")
+		require.NoError(t, err)
 	})
 }

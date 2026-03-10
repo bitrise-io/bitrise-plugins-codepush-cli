@@ -40,7 +40,7 @@ var listCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 		deployments, err := client.ListDeployments(c.Context(), appID)
 		if err != nil {
 			return fmt.Errorf("listing deployments: %w", err)
@@ -94,7 +94,7 @@ var addCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name, Key: addKey})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
@@ -121,7 +121,7 @@ var infoCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -182,7 +182,7 @@ var renameCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -225,7 +225,7 @@ var removeCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -276,7 +276,7 @@ var historyCmd = &cobra.Command{
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {
@@ -351,7 +351,7 @@ Requires --yes to confirm.`,
 			return err
 		}
 
-		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
 
 		var argValue string
 		if len(args) > 0 {

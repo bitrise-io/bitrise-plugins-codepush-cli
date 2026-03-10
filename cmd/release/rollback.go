@@ -35,7 +35,7 @@ to specify a specific version label (e.g. v3).`,
 		}
 
 		serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
-		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token, cmd.Version)
 
 		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, rollbackDeployment, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {

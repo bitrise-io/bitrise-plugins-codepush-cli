@@ -45,7 +45,7 @@ Example: promote from Staging to Production after testing.`,
 		}
 
 		serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
-		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token, cmd.Version)
 
 		sourceDeploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, promoteSourceDeployment, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {
