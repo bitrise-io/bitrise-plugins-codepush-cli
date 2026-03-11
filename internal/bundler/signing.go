@@ -36,7 +36,7 @@ func ComputePackageHash(dir string) (string, error) {
 
 	basePath := filepath.Dir(absDir)
 
-	var entries []string
+	entries := make([]string, 0)
 	err = filepath.Walk(absDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -102,7 +102,12 @@ func SignBundle(dir string, keyPath string) error {
 		)
 	}
 
-	key, err := loadRSAPrivateKey(keyPath)
+	absKeyPath, err := filepath.Abs(keyPath)
+	if err != nil {
+		return fmt.Errorf("resolving key path: %w", err)
+	}
+
+	key, err := loadRSAPrivateKey(absKeyPath)
 	if err != nil {
 		return fmt.Errorf("loading private key: %w", err)
 	}

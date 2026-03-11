@@ -141,6 +141,46 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("returns error when key file does not exist", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "CodePush")
+		require.NoError(t, os.Mkdir(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
+
+		err := SignBundle(dir, "/nonexistent/key.pem")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "reading key file")
+	})
+
+	t.Run("returns error for unsupported PEM block type", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "CodePush")
+		require.NoError(t, os.Mkdir(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
+
+		// Write a PEM file with a CERTIFICATE block (not a key)
+		path := filepath.Join(t.TempDir(), "cert.pem")
+		f, err := os.Create(path)
+		require.NoError(t, err)
+		require.NoError(t, pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: []byte("not a cert")}))
+		_ = f.Close()
+
+		err = SignBundle(dir, path)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported PEM block type")
+	})
+
+	t.Run("returns error for file with no PEM block", func(t *testing.T) {
+		dir := filepath.Join(t.TempDir(), "CodePush")
+		require.NoError(t, os.Mkdir(dir, 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
+
+		path := filepath.Join(t.TempDir(), "notapem.txt")
+		require.NoError(t, os.WriteFile(path, []byte("not a pem file"), 0o644))
+
+		err := SignBundle(dir, path)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "no PEM block found")
+	})
+
 	t.Run("hash is stable across sign calls (deterministic hash)", func(t *testing.T) {
 		dir := filepath.Join(t.TempDir(), "CodePush")
 		require.NoError(t, os.Mkdir(dir, 0o755))
