@@ -46,7 +46,7 @@ Examples:
 		}
 
 		serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
-		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token)
+		client := codepush.NewHTTPClient(cmdutil.APIURL(serverURL), token, cmd.Version)
 
 		deploymentID, err := cmdutil.ResolveDeploymentInteractive(c.Context(), client, appID, patchDeployment, "CODEPUSH_DEPLOYMENT", out)
 		if err != nil {

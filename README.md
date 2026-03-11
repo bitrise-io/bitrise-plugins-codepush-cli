@@ -219,10 +219,14 @@ codepush bundle --platform android
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
+| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
-| `--extra-bundler-option` | none | Pass-through flags to bundler (repeatable) |
+| `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
+| `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
 | `--project-dir` | CWD | Project root directory |
 | `--config`, `-c` | auto-detect | Metro config file path |
+| `--gradle-file, -g` | auto-detect | Override `build.gradle` path for Android Hermes detection |
+| `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection |
 | `--private-key-path, -k` | | Sign bundle with RSA private key (PEM); output directory must be named `CodePush` |
 
 ### Auto-Detection
@@ -231,7 +235,7 @@ The CLI automatically detects:
 
 - **Project type**: React Native or Expo (from `package.json` dependencies)
 - **Entry file**: `index.<platform>.js`, `index.js`, or `package.json` main field
-- **Hermes**: From `build.gradle` (Android) or `Podfile` (iOS); defaults to enabled for React Native >= 0.70
+- **Hermes**: From `build.gradle` (Android) or `Podfile` (iOS); defaults to enabled for React Native >= 0.70. Override these paths with `--gradle-file` / `--pod-file` when your project layout differs from the standard.
 - **Metro config**: `metro.config.js` or `metro.config.ts`
 
 ## Pushing Updates
@@ -262,6 +266,8 @@ codepush push --bundle --platform ios \
 | `--output-dir`, `-o` | `./CodePush` | Bundle output directory (with `--bundle`) |
 | `--private-key-path, -k` | | Sign bundle before uploading |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
+| `--gradle-file`, `-g` | auto-detect | Override `build.gradle` path for Android Hermes detection (with `--bundle`) |
+| `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection (with `--bundle`) |
 
 ## Code Signing
 

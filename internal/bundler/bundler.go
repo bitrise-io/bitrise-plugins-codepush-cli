@@ -39,11 +39,15 @@ type BundleOptions struct {
 	BundleName       string
 	Dev              bool
 	Sourcemap        bool
+	SourcemapOutput  string // when set, overrides the auto-derived sourcemap path and implies Sourcemap=true
 	HermesMode       HermesMode
 	ExtraBundlerOpts []string
+	ExtraHermesFlags []string
 	ProjectDir       string
 	MetroConfig      string
 	SkipInstall      bool
+	GradleFile       string // override path for android/app/build.gradle (Hermes auto-detection)
+	PodFile          string // override path for ios/Podfile (Hermes auto-detection)
 }
 
 // BundleResult contains the output of a successful bundle operation.
