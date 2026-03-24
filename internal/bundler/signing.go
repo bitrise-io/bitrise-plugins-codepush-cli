@@ -180,7 +180,7 @@ func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
 func buildRS256JWT(key *rsa.PrivateKey, contentHash string) (string, error) {
 	headerJSON, err := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT"})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("marshaling JWT header: %w", err)
 	}
 
 	payloadJSON, err := json.Marshal(map[string]any{
@@ -189,7 +189,7 @@ func buildRS256JWT(key *rsa.PrivateKey, contentHash string) (string, error) {
 		"iat":          time.Now().Unix(),
 	})
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("marshaling JWT payload: %w", err)
 	}
 
 	h := base64RawURL(headerJSON)
