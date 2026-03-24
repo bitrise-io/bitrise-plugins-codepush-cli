@@ -63,7 +63,15 @@ bitrise :codepush auth login --token <YOUR_BITRISE_API_TOKEN>
 # 2. Initialize project config (prompts for app ID, saves for all future commands)
 bitrise :codepush init
 
-# 3. Bundle and push to Staging in one step
+# 3. Bundle your JavaScript for iOS
+bitrise :codepush bundle --platform ios
+
+# 4. Push the bundle to Staging (no --app-id needed)
+bitrise :codepush push ./CodePush \
+  --deployment Staging \
+  --app-version 1.0.0
+
+# Or bundle and push in one step
 bitrise :codepush push --bundle --platform ios \
   --deployment Staging \
   --app-version 1.0.0
@@ -220,7 +228,7 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 |------|---------|-------------|
 | `--platform`, `-p` | (required) | `ios` or `android` |
 | `--entry-file`, `-e` | auto-detect | Path to entry JS file |
-| `--output-dir`, `-o` | `./codepush-bundle` | Output directory |
+| `--output-dir`, `-o` | `./CodePush` | Output directory |
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--sourcemap` | `true` | Generate source maps |
@@ -232,6 +240,7 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--config`, `-c` | auto-detect | Metro config file path |
 | `--gradle-file, -g` | auto-detect | Override `build.gradle` path for Android Hermes detection |
 | `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection |
+| `--private-key-path, -k` | | Sign bundle with RSA private key (PEM); output directory must be named `CodePush` |
 
 ### Auto-Detection
 
@@ -248,7 +257,7 @@ The `[bundle-path]` argument must be a **directory** — the output of `bitrise 
 
 ```bash
 # Push a pre-built bundle directory
-bitrise :codepush push ./codepush-bundle \
+bitrise :codepush push ./CodePush \
   --app-id <APP_UUID> --deployment Staging --app-version 1.0.0
 
 # Bundle and push in one step
@@ -269,10 +278,42 @@ bitrise :codepush push --bundle --platform ios \
 | `--bundle` | `false` | Bundle JavaScript before pushing |
 | `--platform`, `-p` | | Target platform (required with `--bundle`) |
 | `--hermes` | `auto` | Hermes compilation (with `--bundle`) |
-| `--output-dir`, `-o` | `./codepush-bundle` | Bundle output directory (with `--bundle`) |
+| `--output-dir`, `-o` | `./CodePush` | Bundle output directory (with `--bundle`) |
+| `--private-key-path, -k` | | Sign bundle before uploading |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
 | `--gradle-file`, `-g` | auto-detect | Override `build.gradle` path for Android Hermes detection (with `--bundle`) |
 | `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection (with `--bundle`) |
+
+## Code Signing
+
+Code signing lets the mobile SDK verify that an update was produced by a trusted source and has not been tampered with. The CLI signs the bundle with an RSA private key; the corresponding public key must be embedded in the mobile app at build time.
+
+**Requirements:**
+- The output directory must be named exactly `CodePush` (the default). The SDK verifies the package hash using the directory name as a path prefix, so any other name causes hash mismatch and the update is rejected on-device.
+- Signing must happen after Hermes compilation (the CLI handles this automatically).
+
+```bash
+# Generate a key pair (one-time setup)
+openssl genrsa -out private_key.pem 2048
+openssl rsa -in private_key.pem -pubout -out public_key.pem
+
+# Bundle and sign
+codepush bundle --platform ios --private-key-path ./private_key.pem
+
+# Or sign a pre-built bundle before pushing
+codepush push ./CodePush \
+  --deployment Staging --app-version 1.0.0 \
+  --private-key-path ./private_key.pem
+
+# Or bundle, sign, and push in one step
+codepush push --bundle --platform ios \
+  --deployment Staging --app-version 1.0.0 \
+  --private-key-path ./private_key.pem
+```
+
+The private key is read locally and never transmitted. The signed JWT is written to `./CodePush/.codepushrelease` inside the bundle directory and is included in the ZIP uploaded to the server.
+
+Configure the public key in your React Native app by following the [react-native-code-push code signing guide](https://github.com/microsoft/react-native-code-push/blob/master/docs/code-signing.md).
 
 ## Promoting and Patching
 
@@ -403,7 +444,7 @@ bitrise :codepush auth login --token $BITRISE_API_TOKEN
 bitrise :codepush bundle --platform ios
 
 # 3. Push to Staging with limited rollout
-bitrise :codepush push ./codepush-bundle \
+bitrise :codepush push ./CodePush \
   --app-id $APP_ID --deployment Staging \
   --app-version 1.2.0 --rollout 10 --description "Fix login crash"
 
@@ -451,7 +492,7 @@ Pass `--json` to any command to get machine-readable JSON output on stdout. Huma
 
 ```bash
 # Get push result as JSON
-bitrise :codepush push ./codepush-bundle --app-id $APP_ID \
+bitrise :codepush push ./CodePush --app-id $APP_ID \
   --deployment Staging --app-version 1.0.0 --json
 
 # List deployments as JSON
