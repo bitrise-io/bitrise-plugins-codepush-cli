@@ -83,13 +83,16 @@ func (b *ExpoBundler) buildArgs(opts *BundleOptions, outputDir string) []string 
 	return args
 }
 
-// findExpoBundleOutput locates the JS bundle file in the Expo export output directory.
+// findExpoBundleOutput locates the JS/HBC bundle file in the Expo export output directory.
+// It prefers .hbc (Hermes bytecode) over .js when both are present.
 func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 	// Expo export creates bundles in _expo/static/js directories or
 	// in bundles/ directory depending on the version.
-	// Check common locations.
+	// Check common locations, preferring .hbc (Hermes) over .js.
 	candidates := []string{
+		filepath.Join(outputDir, "bundles", fmt.Sprintf("%s-*.hbc", platform)),
 		filepath.Join(outputDir, "bundles", fmt.Sprintf("%s-*.js", platform)),
+		filepath.Join(outputDir, "_expo", "static", "js", string(platform), "*.hbc"),
 		filepath.Join(outputDir, "_expo", "static", "js", string(platform), "*.js"),
 	}
 
@@ -103,23 +106,34 @@ func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
 		}
 	}
 
-	// Fallback: scan the output directory for .js bundle files (not sourcemaps)
-	var jsFiles []string
+	// Fallback: scan the output directory for .hbc or .js bundle files (not sourcemaps).
+	// Collect both and prefer .hbc over .js.
+	var hbcFiles, jsFiles []string
 	_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil //nolint:nilerr // skip unreadable entries during fallback scan
 		}
-		if !info.IsDir() && strings.HasSuffix(info.Name(), ".js") {
+		if info.IsDir() {
+			return nil
+		}
+		switch {
+		case strings.HasSuffix(info.Name(), ".hbc"):
+			hbcFiles = append(hbcFiles, path)
+		case strings.HasSuffix(info.Name(), ".js"):
 			jsFiles = append(jsFiles, path)
 		}
 		return nil
 	})
 
-	if len(jsFiles) == 1 {
-		return jsFiles[0], nil
-	}
-	if len(jsFiles) > 1 {
-		return "", fmt.Errorf("found %d .js files in %s but could not determine which is the bundle: expected output in bundles/ or _expo/static/js/%s/", len(jsFiles), outputDir, platform)
+	// Prefer .hbc; fall back to .js.
+	for _, candidates := range [][]string{hbcFiles, jsFiles} {
+		if len(candidates) == 1 {
+			return candidates[0], nil
+		}
+		if len(candidates) > 1 {
+			ext := filepath.Ext(candidates[0])
+			return "", fmt.Errorf("found %d %s files in %s but could not determine which is the bundle: expected output in bundles/ or _expo/static/js/%s/", len(candidates), ext, outputDir, platform)
+		}
 	}
 
 	return "", fmt.Errorf("could not find bundle output in %s: check that expo export completed successfully", outputDir)
