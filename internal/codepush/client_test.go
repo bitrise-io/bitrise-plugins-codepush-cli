@@ -250,12 +250,12 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		assert.Equal(t, "PUT", resp.Method)
 	})
 
-	t.Run("omits optional params when empty", func(t *testing.T) {
+	t.Run("sends rollout=100 for full rollout", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			query := r.URL.Query()
 			assert.Empty(t, query.Get("description"))
 			assert.Empty(t, query.Get("mandatory"))
-			assert.Empty(t, query.Get("rollout"))
+			assert.Equal(t, "100", query.Get("rollout"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"url":"https://example.com/upload","method":"PUT","headers":{}}`))
@@ -272,7 +272,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("includes rollout when less than 100", func(t *testing.T) {
+	t.Run("includes rollout in query params", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, "25", r.URL.Query().Get("rollout"))
 

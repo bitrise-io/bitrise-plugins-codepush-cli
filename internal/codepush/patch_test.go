@@ -345,8 +345,16 @@ func TestBuildPatchRequest(t *testing.T) {
 		assert.Nil(t, req.AppVersion)
 	})
 
-	t.Run("invalid rollout too low", func(t *testing.T) {
+	t.Run("rollout zero is valid", func(t *testing.T) {
 		opts := &PatchOptions{Rollout: "0"}
+		req, err := buildPatchRequest(opts)
+		require.NoError(t, err)
+		require.NotNil(t, req.Rollout)
+		assert.Equal(t, 0, *req.Rollout)
+	})
+
+	t.Run("invalid rollout too low", func(t *testing.T) {
+		opts := &PatchOptions{Rollout: "-1"}
 		_, err := buildPatchRequest(opts)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "rollout must be between")
