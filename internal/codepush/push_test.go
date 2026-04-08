@@ -58,9 +58,11 @@ func TestPush(t *testing.T) {
 		assert.Equal(t, StatusProcessedValid, result.Status)
 		assert.NotEmpty(t, result.UpdateID)
 		assert.NotZero(t, result.FileSizeBytes)
+		assert.Equal(t, 100, result.Rollout)
 
 		assert.Equal(t, "1.0.0", capturedReq.AppVersion)
 		assert.True(t, capturedReq.Mandatory)
+		assert.Equal(t, 100, capturedReq.Rollout)
 		assert.NotEmpty(t, capturedUploadBody)
 	})
 
@@ -243,6 +245,37 @@ func TestPush(t *testing.T) {
 		assert.ErrorContains(t, err, "timed out")
 	})
 
+	t.Run("rollout is sent and captured in result", func(t *testing.T) {
+		bundleDir := createTestBundleDir(t)
+		var capturedReq UploadURLRequest
+
+		client := &mockClient{
+			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+				capturedReq = req
+				return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
+			},
+			uploadFileFunc: func(req UploadFileRequest) error { return nil },
+			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
+			},
+		}
+
+		opts := &PushOptions{
+			AppID:        "app-123",
+			DeploymentID: "00000000-0000-0000-0000-000000000001",
+			Token:        "tok",
+			AppVersion:   "1.0.0",
+			Rollout:      50,
+			BundlePath:   bundleDir,
+		}
+
+		result, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
+		require.NoError(t, err)
+
+		assert.Equal(t, 50, result.Rollout)
+		assert.Equal(t, 50, capturedReq.Rollout)
+	})
+
 	t.Run("does not export bitrise summary", func(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 		deployDir := t.TempDir()
@@ -272,6 +305,11 @@ func TestPush(t *testing.T) {
 
 func TestValidatePushOptions(t *testing.T) {
 	bundleDir := createTestBundleDir(t)
+
+	t.Run("rollout zero is valid", func(t *testing.T) {
+		opts := PushOptions{AppID: "app", DeploymentID: "dep", Token: "tok", AppVersion: "1.0", Rollout: 0, BundlePath: bundleDir}
+		require.NoError(t, validatePushOptions(&opts))
+	})
 
 	tests := []struct {
 		name    string
@@ -305,13 +343,13 @@ func TestValidatePushOptions(t *testing.T) {
 		},
 		{
 			name:    "rollout too low",
-			opts:    PushOptions{AppID: "app", DeploymentID: "dep", Token: "tok", AppVersion: "1.0", Rollout: 0, BundlePath: bundleDir},
-			wantErr: "rollout must be between 1 and 100",
+			opts:    PushOptions{AppID: "app", DeploymentID: "dep", Token: "tok", AppVersion: "1.0", Rollout: -1, BundlePath: bundleDir},
+			wantErr: "rollout must be between 0 and 100",
 		},
 		{
 			name:    "rollout too high",
 			opts:    PushOptions{AppID: "app", DeploymentID: "dep", Token: "tok", AppVersion: "1.0", Rollout: 101, BundlePath: bundleDir},
-			wantErr: "rollout must be between 1 and 100",
+			wantErr: "rollout must be between 0 and 100",
 		},
 		{
 			name:    "bundle path does not exist",

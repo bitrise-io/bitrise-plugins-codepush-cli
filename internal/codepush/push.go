@@ -52,6 +52,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 		AppVersion:    opts.AppVersion,
 		Status:        status.Status,
 		FileSizeBytes: fileSizeBytes,
+		Rollout:       opts.Rollout,
 	}, nil
 }
 
@@ -120,8 +121,8 @@ func validatePushOptions(opts *PushOptions) error {
 	if opts.BundlePath == "" {
 		return errors.New("bundle path is required: provide as argument or use --bundle")
 	}
-	if opts.Rollout < 1 || opts.Rollout > 100 {
-		return fmt.Errorf("rollout must be between 1 and 100, got %d", opts.Rollout)
+	if opts.Rollout < 0 || opts.Rollout > 100 {
+		return fmt.Errorf("rollout must be between 0 and 100, got %d", opts.Rollout)
 	}
 
 	info, err := os.Stat(opts.BundlePath)

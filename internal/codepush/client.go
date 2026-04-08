@@ -146,7 +146,7 @@ func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, upda
 	if req.Disabled {
 		params.Set("disabled", "true")
 	}
-	if req.Rollout > 0 && req.Rollout < 100 {
+	if req.Rollout >= 0 && req.Rollout <= 100 {
 		params.Set("rollout", strconv.Itoa(req.Rollout))
 	}
 

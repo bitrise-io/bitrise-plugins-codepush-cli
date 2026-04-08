@@ -110,7 +110,7 @@ func init() {
 	promoteCmd.Flags().StringVar(&promoteDescription, "description", "", "override release description")
 	promoteCmd.Flags().StringVarP(&promoteMandatory, "mandatory", "m", "", "override mandatory flag (true/false)")
 	promoteCmd.Flags().StringVarP(&promoteDisabled, "disabled", "x", "", "override disabled flag (true/false)")
-	promoteCmd.Flags().StringVarP(&promoteRollout, "rollout", "r", "", "override rollout percentage (1-100)")
+	promoteCmd.Flags().StringVarP(&promoteRollout, "rollout", "r", "", "override rollout percentage (0-100)")
 	promoteCmd.Flags().BoolVar(&promoteNoDuplicateError, "no-duplicate-release-error", false, "exit 0 with a warning instead of an error when the target deployment already contains identical content")
 	cmd.RootCmd.AddCommand(promoteCmd)
 }

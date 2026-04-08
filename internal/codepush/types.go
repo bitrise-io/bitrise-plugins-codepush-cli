@@ -134,6 +134,7 @@ type PushResult struct {
 	AppVersion    string `json:"app_version"`
 	Status        string `json:"status"`
 	FileSizeBytes int64  `json:"file_size_bytes"`
+	Rollout       int    `json:"rollout"`
 }
 
 // PollConfig controls the polling behavior when waiting for update processing.
@@ -219,7 +220,7 @@ type PromoteOptions struct {
 	Description        string // optional: override description
 	Mandatory          string // optional: "true"/"false" override
 	Disabled           string // optional: "true"/"false" override
-	Rollout            string // optional: "1"-"100" override
+	Rollout            string // optional: "0"-"100" override
 }
 
 // PromoteRequest is the JSON body sent to the promote API endpoint.
@@ -250,7 +251,7 @@ type PatchOptions struct {
 	DeploymentID string
 	Token        string
 	Label        string // optional: specific label like "v5", defaults to latest
-	Rollout      string // optional: "1"-"100"
+	Rollout      string // optional: "0"-"100"
 	Mandatory    string // optional: "true"/"false"
 	Disabled     string // optional: "true"/"false"
 	Description  string // optional
