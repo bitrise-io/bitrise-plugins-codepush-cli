@@ -32,7 +32,17 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 	bundleName := resolveExpoBundleName(config, opts)
 	bundlePath := filepath.Join(outputDir, bundleName)
 
-	args := b.buildArgs(config, opts, outputDir, bundlePath)
+	var mapPath string
+	if opts.Sourcemap || opts.SourcemapOutput != "" {
+		mapPath = sourcemapPath(opts, bundlePath)
+		if opts.SourcemapOutput != "" {
+			if err := ensureDir(filepath.Dir(mapPath)); err != nil {
+				return nil, fmt.Errorf("creating sourcemap output directory: %w", err)
+			}
+		}
+	}
+
+	args := b.buildArgs(config, opts, outputDir, bundlePath, mapPath)
 
 	b.out.Info("Running: npx %s", strings.Join(args, " "))
 
@@ -41,15 +51,18 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 	}
 
 	result := &BundleResult{
-		BundlePath:  bundlePath,
-		AssetsDir:   outputDir,
-		OutputDir:   outputDir,
-		ProjectType: ProjectTypeExpo,
-		Platform:    opts.Platform,
+		BundlePath: bundlePath,
+		AssetsDir:  outputDir,
+		OutputDir:  outputDir,
+		// HermesApplied mirrors config.HermesEnabled: when true, --bytecode was passed
+		// to expo export:embed, which manages Hermes internally (unlike the RN path where
+		// hermesc runs as a separate post-bundle step).
+		HermesApplied: config.HermesEnabled,
+		ProjectType:   ProjectTypeExpo,
+		Platform:      opts.Platform,
 	}
 
-	if opts.Sourcemap || opts.SourcemapOutput != "" {
-		mapPath := sourcemapPath(opts, bundlePath)
+	if mapPath != "" {
 		if _, err := os.Stat(mapPath); err == nil {
 			result.SourcemapPath = mapPath
 		}
@@ -59,7 +72,7 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 }
 
 // buildArgs constructs the argument list for "npx expo export:embed".
-func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outputDir, bundlePath string) []string {
+func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outputDir, bundlePath, mapPath string) []string {
 	args := []string{
 		"expo", "export:embed",
 		"--entry-file", config.EntryFile,
@@ -78,8 +91,7 @@ func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outp
 		args = append(args, "--bytecode")
 	}
 
-	mapPath := sourcemapPath(opts, bundlePath)
-	if opts.Sourcemap || opts.SourcemapOutput != "" {
+	if mapPath != "" {
 		args = append(args, "--sourcemap-output", mapPath)
 	}
 
@@ -90,20 +102,27 @@ func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outp
 
 // resolveExpoBundleName returns the bundle filename the CodePush SDK expects to find
 // in the zip. Priority: opts.BundleName (--bundle-name flag) > config.BundleName
-// (auto-detected from native project files).
+// (auto-detected from native project files) > DefaultBundleName.
 func resolveExpoBundleName(config *ProjectConfig, opts *BundleOptions) string {
 	if opts.BundleName != "" {
 		return opts.BundleName
 	}
-	return config.BundleName
+	if config.BundleName != "" {
+		return config.BundleName
+	}
+	return DefaultBundleName(config.Platform)
 }
 
 // sourcemapPath returns the sourcemap output path for expo export:embed.
-// If SourcemapOutput is explicitly set, that path is used; otherwise the
-// map is placed next to the bundle at bundlePath+".map".
+// If SourcemapOutput is explicitly set, that path is used (resolved to absolute
+// against ProjectDir if relative); otherwise the map is placed next to the
+// bundle at bundlePath+".map".
 func sourcemapPath(opts *BundleOptions, bundlePath string) string {
 	if opts.SourcemapOutput != "" {
-		return opts.SourcemapOutput
+		if filepath.IsAbs(opts.SourcemapOutput) {
+			return opts.SourcemapOutput
+		}
+		return filepath.Join(opts.ProjectDir, opts.SourcemapOutput)
 	}
 	return bundlePath + ".map"
 }

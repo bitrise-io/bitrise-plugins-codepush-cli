@@ -268,7 +268,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 			Platform:         PlatformIOS,
 			OutputDir:        outputDir,
 			Sourcemap:        false,
-			ExtraBundlerOpts: []string{"--reset-cache", "--verbose"},
+			ExtraBundlerOpts: []string{"--max-workers", "4"},
 		}
 
 		_, err := bundler.Bundle(config, opts)
@@ -277,8 +277,8 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		cmd := executor.commands[0]
 		args := cmd.args
 		// Last two args should be the extra options
-		assert.Equal(t, "--reset-cache", args[len(args)-2])
-		assert.Equal(t, "--verbose", args[len(args)-1])
+		assert.Equal(t, "--max-workers", args[len(args)-2])
+		assert.Equal(t, "4", args[len(args)-1])
 	})
 
 	t.Run("reset-cache flag is passed when set", func(t *testing.T) {
@@ -484,7 +484,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 		assertContainsArgs(t, executor.commands[0].args, "--dev", "true")
 	})
 
-	t.Run("hermes enabled adds --bytecode flag", func(t *testing.T) {
+	t.Run("hermes enabled adds --bytecode flag and sets HermesApplied", func(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{}
 
@@ -509,10 +509,84 @@ func TestExpoBundlerBundle(t *testing.T) {
 			OutputDir: outputDir,
 		}
 
-		_, err := bundler.Bundle(config, opts)
+		result, err := bundler.Bundle(config, opts)
 		require.NoError(t, err)
 
 		assert.Contains(t, executor.commands[0].args, "--bytecode")
+		assert.True(t, result.HermesApplied)
+	})
+
+	t.Run("sourcemap written next to bundle when Sourcemap is true", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+					os.WriteFile(args[i+1]+".map", []byte("sourcemap"), 0o644)
+				}
+			}
+		}
+
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{
+			ProjectDir: "/project",
+			Platform:   PlatformIOS,
+			EntryFile:  "index.js",
+			BundleName: "main.jsbundle",
+		}
+		opts := &BundleOptions{
+			Platform:  PlatformIOS,
+			OutputDir: outputDir,
+			Sourcemap: true,
+		}
+
+		result, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		expectedMap := filepath.Join(outputDir, "main.jsbundle.map")
+		assertContainsArgs(t, executor.commands[0].args, "--sourcemap-output", expectedMap)
+		assert.Equal(t, expectedMap, result.SourcemapPath)
+	})
+
+	t.Run("custom SourcemapOutput relative path resolved against ProjectDir", func(t *testing.T) {
+		outputDir := t.TempDir()
+		projectDir := t.TempDir()
+		executor := &mockExecutor{}
+
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+				if arg == "--sourcemap-output" && i+1 < len(args) {
+					os.MkdirAll(filepath.Dir(args[i+1]), 0o755)
+					os.WriteFile(args[i+1], []byte("sourcemap"), 0o644)
+				}
+			}
+		}
+
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{
+			ProjectDir: projectDir,
+			Platform:   PlatformIOS,
+			EntryFile:  "index.js",
+			BundleName: "main.jsbundle",
+		}
+		opts := &BundleOptions{
+			Platform:        PlatformIOS,
+			OutputDir:       outputDir,
+			ProjectDir:      projectDir,
+			SourcemapOutput: "maps/bundle.map",
+		}
+
+		result, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		expectedMap := filepath.Join(projectDir, "maps", "bundle.map")
+		assertContainsArgs(t, executor.commands[0].args, "--sourcemap-output", expectedMap)
+		assert.Equal(t, expectedMap, result.SourcemapPath)
 	})
 }
 
