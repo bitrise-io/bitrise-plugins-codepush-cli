@@ -303,15 +303,17 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 }
 
 func TestExpoBundlerBundle(t *testing.T) {
-	t.Run("basic expo bundle", func(t *testing.T) {
+	t.Run("basic expo bundle uses export:embed with correct bundle path", func(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{}
 
-		// Simulate expo export creating bundle files
-		executor.onRun = func(_ string, _ string, _ ...string) {
-			bundleDir := filepath.Join(outputDir, "bundles")
-			os.MkdirAll(bundleDir, 0o755)
-			os.WriteFile(filepath.Join(bundleDir, "ios-abc123.js"), []byte("bundle"), 0o644)
+		executor.onRun = func(_ string, _ string, args ...string) {
+			// expo export:embed writes directly to --bundle-output path
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+			}
 		}
 
 		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
@@ -320,6 +322,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 			ProjectType: ProjectTypeExpo,
 			Platform:    PlatformIOS,
 			EntryFile:   "index.js",
+			BundleName:  "main.jsbundle",
 		}
 		opts := &BundleOptions{
 			Platform:  PlatformIOS,
@@ -330,21 +333,65 @@ func TestExpoBundlerBundle(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, ProjectTypeExpo, result.ProjectType)
+		assert.Equal(t, filepath.Join(outputDir, "main.jsbundle"), result.BundlePath)
 
 		cmd := executor.commands[0]
 		assert.Equal(t, "npx", cmd.name)
 		assert.Equal(t, "expo", cmd.args[0])
-		assert.Equal(t, "export", cmd.args[1])
+		assert.Equal(t, "export:embed", cmd.args[1])
 
 		assertContainsArgs(t, cmd.args, "--platform", "ios")
+		assertContainsArgs(t, cmd.args, "--entry-file", "index.js")
+		assertContainsArgs(t, cmd.args, "--bundle-output", filepath.Join(outputDir, "main.jsbundle"))
+		assertContainsArgs(t, cmd.args, "--assets-dest", outputDir)
+		assertContainsArgs(t, cmd.args, "--dev", "false")
+		assertContainsArgs(t, cmd.args, "--minify", "false")
+		assert.Contains(t, cmd.args, "--reset-cache")
 	})
 
-	t.Run("expo bundle with dev mode", func(t *testing.T) {
+	t.Run("opts.BundleName overrides config.BundleName", func(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{}
 
-		executor.onRun = func(_ string, _ string, _ ...string) {
-			os.WriteFile(filepath.Join(outputDir, "bundle.js"), []byte("bundle"), 0o644)
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+			}
+		}
+
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{
+			ProjectDir:  "/project",
+			ProjectType: ProjectTypeExpo,
+			Platform:    PlatformIOS,
+			EntryFile:   "index.js",
+			BundleName:  "main.jsbundle",
+		}
+		opts := &BundleOptions{
+			Platform:   PlatformIOS,
+			OutputDir:  outputDir,
+			BundleName: "override.jsbundle",
+		}
+
+		result, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		assert.Equal(t, filepath.Join(outputDir, "override.jsbundle"), result.BundlePath)
+		assertContainsArgs(t, executor.commands[0].args, "--bundle-output", filepath.Join(outputDir, "override.jsbundle"))
+	})
+
+	t.Run("expo bundle with dev mode passes --dev true", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+			}
 		}
 
 		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
@@ -352,6 +399,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 			ProjectDir: "/project",
 			Platform:   PlatformAndroid,
 			EntryFile:  "index.js",
+			BundleName: "index.android.bundle",
 		}
 		opts := &BundleOptions{
 			Platform:  PlatformAndroid,
@@ -362,8 +410,38 @@ func TestExpoBundlerBundle(t *testing.T) {
 		_, err := bundler.Bundle(config, opts)
 		require.NoError(t, err)
 
-		cmd := executor.commands[0]
-		assert.Contains(t, cmd.args, "--dev")
+		assertContainsArgs(t, executor.commands[0].args, "--dev", "true")
+	})
+
+	t.Run("hermes enabled adds --bytecode flag", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+			}
+		}
+
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{
+			ProjectDir:    "/project",
+			Platform:      PlatformIOS,
+			EntryFile:     "index.js",
+			BundleName:    "main.jsbundle",
+			HermesEnabled: true,
+		}
+		opts := &BundleOptions{
+			Platform:  PlatformIOS,
+			OutputDir: outputDir,
+		}
+
+		_, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		assert.Contains(t, executor.commands[0].args, "--bytecode")
 	})
 }
 
