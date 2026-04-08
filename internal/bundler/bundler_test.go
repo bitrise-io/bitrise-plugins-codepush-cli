@@ -281,6 +281,42 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		assert.Equal(t, "--verbose", args[len(args)-1])
 	})
 
+	t.Run("reset-cache flag is passed when set", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+		executor.onRun = func(_ string, _ string, _ ...string) {
+			os.WriteFile(filepath.Join(outputDir, "main.jsbundle"), []byte("bundle"), 0o644)
+		}
+
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{ProjectDir: "/project", Platform: PlatformIOS, EntryFile: "index.js"}
+		opts := &BundleOptions{Platform: PlatformIOS, OutputDir: outputDir, ResetCache: true}
+
+		_, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		cmd := executor.commands[0]
+		assert.Contains(t, cmd.args, "--reset-cache")
+	})
+
+	t.Run("reset-cache flag is absent when false", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+		executor.onRun = func(_ string, _ string, _ ...string) {
+			os.WriteFile(filepath.Join(outputDir, "main.jsbundle"), []byte("bundle"), 0o644)
+		}
+
+		bundler := &ReactNativeBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{ProjectDir: "/project", Platform: PlatformIOS, EntryFile: "index.js"}
+		opts := &BundleOptions{Platform: PlatformIOS, OutputDir: outputDir, ResetCache: false}
+
+		_, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		cmd := executor.commands[0]
+		assert.NotContains(t, cmd.args, "--reset-cache")
+	})
+
 	t.Run("bundler execution error", func(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{err: &mockExitError{code: 1}}

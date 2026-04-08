@@ -224,7 +224,7 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
 | `--minify` | `false` | Minify the bundle (Expo only) |
-| `--reset-cache` | `true` | Clear Metro bundler cache before bundling (Expo only) |
+| `--reset-cache` | `true` | Clear Metro bundler cache before bundling |
 | `--sourcemap` | `true` | Generate source maps |
 | `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
@@ -445,10 +445,10 @@ bitrise :codepush push --bundle --platform ios \
   --app-version 1.0.0
 ```
 
-Two Expo-specific flags control the bundler behavior:
+Two flags control the bundler behavior:
 
-- `--minify` (default `false`): whether to minify the bundle. Disabled by default to aid debugging; set `--minify=true` for the smallest possible bundle.
-- `--reset-cache` (default `true`): clears the Metro bundler cache before each run, ensuring a clean output. Set `--reset-cache=false` to skip cache clearing and speed up repeated local runs.
+- `--minify` (default `false`): whether to minify the bundle (Expo only). Disabled by default to aid debugging; set `--minify=true` for the smallest possible bundle.
+- `--reset-cache` (default `true`): clears the Metro bundler cache before each run, ensuring a clean output. Applies to both React Native and Expo projects. Set `--reset-cache=false` to skip cache clearing and speed up repeated local runs.
 
 ## JSON Output
 
