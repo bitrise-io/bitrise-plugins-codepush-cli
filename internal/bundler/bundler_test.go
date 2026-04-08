@@ -325,8 +325,9 @@ func TestExpoBundlerBundle(t *testing.T) {
 			BundleName:  "main.jsbundle",
 		}
 		opts := &BundleOptions{
-			Platform:  PlatformIOS,
-			OutputDir: outputDir,
+			Platform:   PlatformIOS,
+			OutputDir:  outputDir,
+			ResetCache: true,
 		}
 
 		result, err := bundler.Bundle(config, opts)
@@ -347,6 +348,40 @@ func TestExpoBundlerBundle(t *testing.T) {
 		assertContainsArgs(t, cmd.args, "--dev", "false")
 		assertContainsArgs(t, cmd.args, "--minify", "false")
 		assert.Contains(t, cmd.args, "--reset-cache")
+	})
+
+	t.Run("minify true and reset-cache false", func(t *testing.T) {
+		outputDir := t.TempDir()
+		executor := &mockExecutor{}
+
+		executor.onRun = func(_ string, _ string, args ...string) {
+			for i, arg := range args {
+				if arg == "--bundle-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
+				}
+			}
+		}
+
+		bundler := &ExpoBundler{executor: executor, out: output.NewTest(io.Discard)}
+		config := &ProjectConfig{
+			ProjectDir: "/project",
+			Platform:   PlatformIOS,
+			EntryFile:  "index.js",
+			BundleName: "main.jsbundle",
+		}
+		opts := &BundleOptions{
+			Platform:   PlatformIOS,
+			OutputDir:  outputDir,
+			Minify:     true,
+			ResetCache: false,
+		}
+
+		_, err := bundler.Bundle(config, opts)
+		require.NoError(t, err)
+
+		args := executor.commands[0].args
+		assertContainsArgs(t, args, "--minify", "true")
+		assert.NotContains(t, args, "--reset-cache")
 	})
 
 	t.Run("opts.BundleName overrides config.BundleName", func(t *testing.T) {

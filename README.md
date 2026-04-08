@@ -223,8 +223,10 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--output-dir`, `-o` | `./codepush-bundle` | Output directory |
 | `--bundle-name`, `-b` | platform default | Custom bundle filename |
 | `--dev` | `false` | Development mode |
+| `--minify` | `false` | Minify the bundle (Expo only) |
+| `--reset-cache` | `true` | Clear Metro bundler cache before bundling (Expo only) |
 | `--sourcemap` | `true` | Generate source maps |
-| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`). Not supported for Expo projects — Expo always writes sourcemaps next to the bundle; the path cannot be overridden. |
+| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
 | `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
@@ -435,7 +437,7 @@ The CLI automatically detects the Bitrise environment, attaches build metadata (
 
 ### Expo Workflow
 
-Expo is auto-detected from `package.json` — no extra flags are needed. The CLI uses `npx expo export` under the hood instead of `react-native bundle`. All other flags (deployment, app-version, rollout, etc.) behave identically.
+Expo is auto-detected from `package.json` — no extra flags are needed. The CLI uses `npx expo export:embed` under the hood instead of `react-native bundle`, which uses the same Metro and Hermes pipeline as the native app binary. All other flags (deployment, app-version, rollout, etc.) behave identically.
 
 ```bash
 bitrise :codepush push --bundle --platform ios \
@@ -443,7 +445,10 @@ bitrise :codepush push --bundle --platform ios \
   --app-version 1.0.0
 ```
 
-Note: `--sourcemap-output` is not supported for Expo projects. Expo always writes sourcemaps next to the bundle automatically. The `--sourcemap` flag (enable/disable sourcemaps) is still supported.
+Two Expo-specific flags control the bundler behavior:
+
+- `--minify` (default `false`): whether to minify the bundle. Disabled by default to aid debugging; set `--minify=true` for the smallest possible bundle.
+- `--reset-cache` (default `true`): clears the Metro bundler cache before each run, ensuring a clean output. Set `--reset-cache=false` to skip cache clearing and speed up repeated local runs.
 
 ## JSON Output
 
@@ -551,7 +556,6 @@ codepush push --bundle --platform ios --deployment Staging --app-version 1.0.0
 
 **`xcrun: error`** (`debug ios`): Install Xcode Command Line Tools: `xcode-select --install`.
 
-**Expo `--sourcemap-output` rejected**: Expo always writes sourcemaps next to the bundle; the output path cannot be overridden. Remove the `--sourcemap-output` flag. The `--sourcemap` flag (enable/disable sourcemaps) is still supported.
 
 ## Contributing
 

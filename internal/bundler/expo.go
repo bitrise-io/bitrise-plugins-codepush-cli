@@ -67,8 +67,11 @@ func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outp
 		"--bundle-output", bundlePath,
 		"--assets-dest", outputDir,
 		"--dev", strconv.FormatBool(opts.Dev),
-		"--minify", "false",
-		"--reset-cache",
+		"--minify", strconv.FormatBool(opts.Minify),
+	}
+
+	if opts.ResetCache {
+		args = append(args, "--reset-cache")
 	}
 
 	if config.HermesEnabled {

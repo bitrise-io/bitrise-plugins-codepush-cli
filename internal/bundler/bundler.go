@@ -35,6 +35,8 @@ type BundleOptions struct {
 	OutputDir        string
 	BundleName       string
 	Dev              bool
+	Minify           bool // Expo only: pass --minify to expo export:embed
+	ResetCache       bool // Expo only: pass --reset-cache to expo export:embed
 	Sourcemap        bool
 	SourcemapOutput  string // when set, overrides the auto-derived sourcemap path and implies Sourcemap=true
 	HermesMode       HermesMode
