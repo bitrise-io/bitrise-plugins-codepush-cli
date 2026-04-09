@@ -515,53 +515,152 @@ func TestFindHermesc(t *testing.T) {
 	})
 }
 
-func TestFindExpoBundleOutput(t *testing.T) {
-	t.Run("finds bundle in bundles directory", func(t *testing.T) {
-		dir := t.TempDir()
-		bundleDir := filepath.Join(dir, "bundles")
-		os.MkdirAll(bundleDir, 0o755)
-		writeFile(t, filepath.Join(bundleDir, "ios-abc123.js"), "bundle content")
+func TestDetectBundleNameAndroid(t *testing.T) {
+	tests := []struct {
+		name   string
+		gradle string
+		want   string
+	}{
+		{
+			name:   "custom bundle name found",
+			gradle: `android { react { bundleAssetName = "app.bundle" } }`,
+			want:   "app.bundle",
+		},
+		{
+			name:   "no bundleAssetName in gradle",
+			gradle: `android { defaultConfig {} }`,
+			want:   "",
+		},
+		{
+			name: "no gradle file",
+			want: "",
+		},
+	}
 
-		path, err := findExpoBundleOutput(dir, PlatformIOS)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+
+			if tt.gradle != "" {
+				gradleDir := filepath.Join(dir, "android", "app")
+				require.NoError(t, os.MkdirAll(gradleDir, 0o755))
+				writeFile(t, filepath.Join(gradleDir, "build.gradle"), tt.gradle)
+			}
+
+			assert.Equal(t, tt.want, detectBundleNameAndroid(dir, nil))
+		})
+	}
+}
+
+func TestDetectBundleNameIOS(t *testing.T) {
+	tests := []struct {
+		name     string
+		filename string
+		content  string
+		want     string
+	}{
+		{
+			name:     "ObjC AppDelegate.m with custom name",
+			filename: "AppDelegate.m",
+			content:  `[bridge bundleURLForResource: @"myapp" withExtension:@"jsbundle"]`,
+			want:     "myapp.jsbundle",
+		},
+		{
+			name:     "ObjC++ AppDelegate.mm with custom name",
+			filename: "AppDelegate.mm",
+			content:  `[bridge bundleURLForResource: @"custom" withExtension:@"jsbundle"]`,
+			want:     "custom.jsbundle",
+		},
+		{
+			name:     "Swift AppDelegate with custom name",
+			filename: "AppDelegate.swift",
+			content:  `return bundleURL(forResource: "mybundle", withExtension: "jsbundle")`,
+			want:     "mybundle.jsbundle",
+		},
+		{
+			name:     "no custom name in AppDelegate",
+			filename: "AppDelegate.m",
+			content:  `@implementation AppDelegate`,
+			want:     "",
+		},
+		{
+			name: "no AppDelegate files",
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+
+			if tt.filename != "" {
+				iosDir := filepath.Join(dir, "ios")
+				require.NoError(t, os.MkdirAll(iosDir, 0o755))
+				writeFile(t, filepath.Join(iosDir, tt.filename), tt.content)
+			}
+
+			assert.Equal(t, tt.want, detectBundleNameIOS(dir))
+		})
+	}
+}
+
+func TestDetectBundleName(t *testing.T) {
+	t.Run("Android with custom gradle name", func(t *testing.T) {
+		dir := t.TempDir()
+		gradleDir := filepath.Join(dir, "android", "app")
+		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
+		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `android { react { bundleAssetName = "custom.bundle" } }`)
+
+		assert.Equal(t, "custom.bundle", detectBundleName(dir, PlatformAndroid, nil))
+	})
+
+	t.Run("Android defaults to index.android.bundle when no gradle config", func(t *testing.T) {
+		dir := t.TempDir()
+		assert.Equal(t, "index.android.bundle", detectBundleName(dir, PlatformAndroid, nil))
+	})
+
+	t.Run("iOS defaults to main.jsbundle when no AppDelegate config", func(t *testing.T) {
+		dir := t.TempDir()
+		assert.Equal(t, "main.jsbundle", detectBundleName(dir, PlatformIOS, nil))
+	})
+}
+
+func TestDetectProjectBundleName(t *testing.T) {
+	t.Run("Expo project gets BundleName from gradle", func(t *testing.T) {
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"expo": "~49.0.0", "react-native": "0.72.0"}}`)
+		writeFile(t, filepath.Join(dir, "index.js"), "")
+
+		gradleDir := filepath.Join(dir, "android", "app")
+		require.NoError(t, os.MkdirAll(gradleDir, 0o755))
+		writeFile(t, filepath.Join(gradleDir, "build.gradle"), `android { react { bundleAssetName = "app.bundle" } }`)
+
+		config, err := DetectProject(dir, PlatformAndroid, HermesModeAuto, nil)
 		require.NoError(t, err)
-		assert.NotEmpty(t, path)
+
+		assert.Equal(t, "app.bundle", config.BundleName)
 	})
 
-	t.Run("finds bundle in _expo/static/js directory", func(t *testing.T) {
+	t.Run("Expo project falls back to default when no gradle config", func(t *testing.T) {
 		dir := t.TempDir()
-		jsDir := filepath.Join(dir, "_expo", "static", "js", "ios")
-		os.MkdirAll(jsDir, 0o755)
-		writeFile(t, filepath.Join(jsDir, "entry-abc123.js"), "bundle content")
+		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"expo": "~49.0.0", "react-native": "0.72.0"}}`)
+		writeFile(t, filepath.Join(dir, "index.js"), "")
 
-		path, err := findExpoBundleOutput(dir, PlatformIOS)
+		config, err := DetectProject(dir, PlatformAndroid, HermesModeAuto, nil)
 		require.NoError(t, err)
-		assert.NotEmpty(t, path)
+
+		assert.Equal(t, "index.android.bundle", config.BundleName)
 	})
 
-	t.Run("single js file fallback succeeds", func(t *testing.T) {
+	t.Run("React Native project has empty BundleName", func(t *testing.T) {
 		dir := t.TempDir()
-		writeFile(t, filepath.Join(dir, "bundle.js"), "bundle content")
+		writeFile(t, filepath.Join(dir, "package.json"), `{"dependencies": {"react-native": "0.72.0"}}`)
+		writeFile(t, filepath.Join(dir, "index.js"), "")
 
-		path, err := findExpoBundleOutput(dir, PlatformIOS)
+		config, err := DetectProject(dir, PlatformAndroid, HermesModeAuto, nil)
 		require.NoError(t, err)
-		assert.NotEmpty(t, path)
-	})
 
-	t.Run("multiple js files in fallback returns error", func(t *testing.T) {
-		dir := t.TempDir()
-		writeFile(t, filepath.Join(dir, "one.js"), "content")
-		writeFile(t, filepath.Join(dir, "two.js"), "content")
-
-		_, err := findExpoBundleOutput(dir, PlatformIOS)
-		require.Error(t, err)
-		assert.ErrorContains(t, err, "could not determine which is the bundle")
-	})
-
-	t.Run("empty directory returns error", func(t *testing.T) {
-		dir := t.TempDir()
-
-		_, err := findExpoBundleOutput(dir, PlatformIOS)
-		require.Error(t, err)
+		assert.Empty(t, config.BundleName)
 	})
 }
 
