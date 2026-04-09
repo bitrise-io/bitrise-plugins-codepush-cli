@@ -100,7 +100,7 @@ Examples:
 func init() {
 	patchCmd.Flags().StringVarP(&patchDeployment, "deployment", "d", "", "deployment name or UUID (env: CODEPUSH_DEPLOYMENT)")
 	patchCmd.Flags().StringVarP(&patchLabel, "label", "l", "", "specific release label to patch (e.g. v5, defaults to latest)")
-	patchCmd.Flags().StringVarP(&patchRollout, "rollout", "r", "", "rollout percentage (1-100)")
+	patchCmd.Flags().StringVarP(&patchRollout, "rollout", "r", "", "rollout percentage (0-100)")
 	patchCmd.Flags().StringVarP(&patchMandatory, "mandatory", "m", "", "mark update as mandatory (true/false)")
 	patchCmd.Flags().StringVarP(&patchDisabled, "disabled", "x", "", "disable update (true/false)")
 	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")

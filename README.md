@@ -273,7 +273,7 @@ bitrise :codepush push --bundle --platform ios \
 | `--app-version`, `-t` | (required) | Target app version (e.g. 1.0.0) |
 | `--description` | `""` | Update description |
 | `--mandatory`, `-m` | `false` | Mark update as mandatory |
-| `--rollout`, `-r` | `100` | Rollout percentage (1-100) |
+| `--rollout`, `-r` | `100` | Rollout percentage (0-100) |
 | `--disabled`, `-x` | `false` | Disable update after upload |
 | `--bundle` | `false` | Bundle JavaScript before pushing |
 | `--platform`, `-p` | | Target platform (required with `--bundle`) |

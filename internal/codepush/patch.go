@@ -101,8 +101,8 @@ func buildPatchRequest(opts *PatchOptions) (PatchRequest, error) {
 
 	if opts.Rollout != "" {
 		v, err := strconv.Atoi(opts.Rollout)
-		if err != nil || v < 1 || v > 100 {
-			return req, fmt.Errorf("rollout must be between 1 and 100, got %q", opts.Rollout)
+		if err != nil || v < 0 || v > 100 {
+			return req, fmt.Errorf("rollout must be between 0 and 100, got %q", opts.Rollout)
 		}
 		req.Rollout = &v
 	}

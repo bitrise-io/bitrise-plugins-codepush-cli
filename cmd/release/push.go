@@ -112,11 +112,15 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		}
 
 		out.Success("Push successful")
-		out.Result([]output.KeyValue{
+		kvs := []output.KeyValue{
 			{Key: "Update ID", Value: result.UpdateID},
 			{Key: "App version", Value: result.AppVersion},
 			{Key: "Status", Value: result.Status},
-		})
+		}
+		if result.Rollout < 100 {
+			kvs = append(kvs, output.KeyValue{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)})
+		}
+		out.Result(kvs)
 
 		if bitrise.IsBitriseEnvironment() {
 			cmdutil.ExportDeploySummary("codepush-push-summary.json", result, out)
@@ -137,7 +141,7 @@ func init() {
 	pushCmd.Flags().StringVarP(&pushAppVersion, "app-version", "t", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVarP(&pushMandatory, "mandatory", "m", false, "mark update as mandatory")
-	pushCmd.Flags().IntVarP(&pushRollout, "rollout", "r", 100, "rollout percentage (1-100)")
+	pushCmd.Flags().IntVarP(&pushRollout, "rollout", "r", 100, "rollout percentage (0-100)")
 	pushCmd.Flags().BoolVarP(&pushDisabled, "disabled", "x", false, "disable update after upload")
 	cmd.RootCmd.AddCommand(pushCmd)
 }
