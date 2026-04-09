@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 )
@@ -66,6 +67,7 @@ type ProjectConfig struct {
 	MetroConfig   string
 	HermesEnabled bool
 	HermescPath   string
+	BundleName    string // expected filename the SDK will search for (Expo only)
 }
 
 // packageJSON represents the relevant fields of a package.json file.
@@ -122,6 +124,11 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode, 
 
 	metroConfig := detectMetroConfig(absDir)
 
+	bundleName := ""
+	if projectType == ProjectTypeExpo {
+		bundleName = detectBundleName(absDir, platform, opts)
+	}
+
 	return &ProjectConfig{
 		ProjectDir:    absDir,
 		ProjectType:   projectType,
@@ -130,6 +137,7 @@ func DetectProject(projectDir string, platform Platform, hermesMode HermesMode, 
 		MetroConfig:   metroConfig,
 		HermesEnabled: hermesEnabled,
 		HermescPath:   hermescPath,
+		BundleName:    bundleName,
 	}, nil
 }
 
@@ -422,5 +430,79 @@ func detectMetroConfig(projectDir string) string {
 		}
 	}
 
+	return ""
+}
+
+// Bundle name detection regexes. Compiled once at package init to avoid repeated allocation.
+var (
+	reBundleAssetName      = regexp.MustCompile(`bundleAssetName\s*=\s*"([^"]+)"`)
+	reBundleURLForResObjC  = regexp.MustCompile(`bundleURLForResource:\s*@"([^"]+)"`)
+	reBundleURLForResSwift = regexp.MustCompile(`bundleURL\(forResource:\s*"([^"]+)"`)
+)
+
+// detectBundleName returns the expected bundle filename from native project files.
+// Always returns a non-empty string; falls back to DefaultBundleName(platform).
+func detectBundleName(projectDir string, platform Platform, opts *BundleOptions) string {
+	var name string
+	switch platform {
+	case PlatformAndroid:
+		name = detectBundleNameAndroid(projectDir, opts)
+	case PlatformIOS:
+		name = detectBundleNameIOS(projectDir)
+	}
+	if name == "" {
+		return DefaultBundleName(platform)
+	}
+	return name
+}
+
+// detectBundleNameAndroid scans android/app/build.gradle (and build.gradle.kts)
+// for bundleAssetName. Respects opts.GradleFile override (same as Hermes detection).
+func detectBundleNameAndroid(projectDir string, opts *BundleOptions) string {
+	var gradlePaths []string
+	if opts != nil && opts.GradleFile != "" {
+		p := opts.GradleFile
+		if !filepath.IsAbs(p) {
+			p = filepath.Join(projectDir, p)
+		}
+		gradlePaths = []string{p}
+	} else {
+		gradlePaths = []string{
+			filepath.Join(projectDir, "android", "app", "build.gradle"),
+			filepath.Join(projectDir, "android", "app", "build.gradle.kts"),
+		}
+	}
+	for _, gradlePath := range gradlePaths {
+		data, err := os.ReadFile(gradlePath)
+		if err != nil {
+			continue
+		}
+		if m := reBundleAssetName.FindStringSubmatch(string(data)); len(m) >= 2 {
+			return m[1]
+		}
+	}
+	return ""
+}
+
+// detectBundleNameIOS scans ios/AppDelegate.{m,mm,swift} for a custom bundle name.
+// Returns "" if no custom name is found; caller falls back to DefaultBundleName.
+func detectBundleNameIOS(projectDir string) string {
+	candidates := []string{
+		filepath.Join(projectDir, "ios", "AppDelegate.m"),
+		filepath.Join(projectDir, "ios", "AppDelegate.mm"),
+		filepath.Join(projectDir, "ios", "AppDelegate.swift"),
+	}
+	for _, path := range candidates {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		content := string(data)
+		for _, re := range []*regexp.Regexp{reBundleURLForResObjC, reBundleURLForResSwift} {
+			if m := re.FindStringSubmatch(content); len(m) >= 2 {
+				return m[1] + ".jsbundle"
+			}
+		}
+	}
 	return ""
 }

@@ -1,16 +1,18 @@
 package bundler
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
-// ExpoBundler bundles using "npx expo export" for Expo-managed projects.
+// ExpoBundler bundles using "npx expo export:embed" for Expo-managed projects.
+// export:embed uses the same Metro+Hermes pipeline as the native app build,
+// producing a bundle the CodePush SDK can load directly.
 type ExpoBundler struct {
 	executor CommandExecutor
 	out      *output.Writer
@@ -18,12 +20,6 @@ type ExpoBundler struct {
 
 // Bundle implements Bundler for Expo projects.
 func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*BundleResult, error) {
-	// expo export always writes the sourcemap next to the bundle; there is no
-	// flag to redirect the map path, so --sourcemap-output is unsupported.
-	if opts.SourcemapOutput != "" {
-		return nil, errors.New("--sourcemap-output is not supported for Expo projects: expo export always writes the sourcemap next to the bundle")
-	}
-
 	outputDir, err := filepath.Abs(opts.OutputDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolving output directory: %w", err)
@@ -33,31 +29,40 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 		return nil, err
 	}
 
-	args := b.buildArgs(opts, outputDir)
+	bundleName := resolveExpoBundleName(config, opts)
+	bundlePath := filepath.Join(outputDir, bundleName)
+
+	var mapPath string
+	if opts.Sourcemap || opts.SourcemapOutput != "" {
+		mapPath = sourcemapPath(opts, bundlePath)
+		if opts.SourcemapOutput != "" {
+			if err := ensureDir(filepath.Dir(mapPath)); err != nil {
+				return nil, fmt.Errorf("creating sourcemap output directory: %w", err)
+			}
+		}
+	}
+
+	args := b.buildArgs(config, opts, outputDir, bundlePath, mapPath)
 
 	b.out.Info("Running: npx %s", strings.Join(args, " "))
 
 	if err := b.executor.Run(config.ProjectDir, os.Stderr, os.Stderr, "npx", args...); err != nil {
-		return nil, fmt.Errorf("expo export failed: %w", err)
-	}
-
-	// Locate the bundle in Expo's output structure
-	bundlePath, err := findExpoBundleOutput(outputDir, opts.Platform)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("expo export:embed failed: %w", err)
 	}
 
 	result := &BundleResult{
-		BundlePath:  bundlePath,
-		AssetsDir:   filepath.Join(outputDir, "assets"),
-		OutputDir:   outputDir,
-		ProjectType: ProjectTypeExpo,
-		Platform:    opts.Platform,
+		BundlePath: bundlePath,
+		AssetsDir:  outputDir,
+		OutputDir:  outputDir,
+		// HermesApplied mirrors config.HermesEnabled: when true, --bytecode was passed
+		// to expo export:embed, which manages Hermes internally (unlike the RN path where
+		// hermesc runs as a separate post-bundle step).
+		HermesApplied: config.HermesEnabled,
+		ProjectType:   ProjectTypeExpo,
+		Platform:      opts.Platform,
 	}
 
-	// expo export writes the sourcemap next to the bundle at bundlePath+".map".
-	if opts.Sourcemap {
-		mapPath := bundlePath + ".map"
+	if mapPath != "" {
 		if _, err := os.Stat(mapPath); err == nil {
 			result.SourcemapPath = mapPath
 		}
@@ -66,16 +71,28 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 	return result, nil
 }
 
-// buildArgs constructs the argument list for "npx expo export".
-func (b *ExpoBundler) buildArgs(opts *BundleOptions, outputDir string) []string {
+// buildArgs constructs the argument list for "npx expo export:embed".
+func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outputDir, bundlePath, mapPath string) []string {
 	args := []string{
-		"expo", "export",
-		"--output-dir", outputDir,
+		"expo", "export:embed",
+		"--entry-file", config.EntryFile,
 		"--platform", string(opts.Platform),
+		"--bundle-output", bundlePath,
+		"--assets-dest", outputDir,
+		"--dev", strconv.FormatBool(opts.Dev),
+		"--minify", strconv.FormatBool(opts.Minify),
 	}
 
-	if opts.Dev {
-		args = append(args, "--dev")
+	if opts.ResetCache {
+		args = append(args, "--reset-cache")
+	}
+
+	if config.HermesEnabled {
+		args = append(args, "--bytecode")
+	}
+
+	if mapPath != "" {
+		args = append(args, "--sourcemap-output", mapPath)
 	}
 
 	args = append(args, opts.ExtraBundlerOpts...)
@@ -83,58 +100,29 @@ func (b *ExpoBundler) buildArgs(opts *BundleOptions, outputDir string) []string 
 	return args
 }
 
-// findExpoBundleOutput locates the JS/HBC bundle file in the Expo export output directory.
-// It prefers .hbc (Hermes bytecode) over .js when both are present.
-func findExpoBundleOutput(outputDir string, platform Platform) (string, error) {
-	// Expo export creates bundles in _expo/static/js directories or
-	// in bundles/ directory depending on the version.
-	// Check common locations, preferring .hbc (Hermes) over .js.
-	candidates := []string{
-		filepath.Join(outputDir, "bundles", fmt.Sprintf("%s-*.hbc", platform)),
-		filepath.Join(outputDir, "bundles", fmt.Sprintf("%s-*.js", platform)),
-		filepath.Join(outputDir, "_expo", "static", "js", string(platform), "*.hbc"),
-		filepath.Join(outputDir, "_expo", "static", "js", string(platform), "*.js"),
+// resolveExpoBundleName returns the bundle filename the CodePush SDK expects to find
+// in the zip. Priority: opts.BundleName (--bundle-name flag) > config.BundleName
+// (auto-detected from native project files) > DefaultBundleName.
+func resolveExpoBundleName(config *ProjectConfig, opts *BundleOptions) string {
+	if opts.BundleName != "" {
+		return opts.BundleName
 	}
-
-	for _, pattern := range candidates {
-		matches, err := filepath.Glob(pattern)
-		if err != nil {
-			continue
-		}
-		if len(matches) > 0 {
-			return matches[0], nil
-		}
+	if config.BundleName != "" {
+		return config.BundleName
 	}
+	return DefaultBundleName(config.Platform)
+}
 
-	// Fallback: scan the output directory for .hbc or .js bundle files (not sourcemaps).
-	// Collect both and prefer .hbc over .js.
-	var hbcFiles, jsFiles []string
-	_ = filepath.Walk(outputDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil //nolint:nilerr // skip unreadable entries during fallback scan
+// sourcemapPath returns the sourcemap output path for expo export:embed.
+// If SourcemapOutput is explicitly set, that path is used (resolved to absolute
+// against ProjectDir if relative); otherwise the map is placed next to the
+// bundle at bundlePath+".map".
+func sourcemapPath(opts *BundleOptions, bundlePath string) string {
+	if opts.SourcemapOutput != "" {
+		if filepath.IsAbs(opts.SourcemapOutput) {
+			return opts.SourcemapOutput
 		}
-		if info.IsDir() {
-			return nil
-		}
-		switch {
-		case strings.HasSuffix(info.Name(), ".hbc"):
-			hbcFiles = append(hbcFiles, path)
-		case strings.HasSuffix(info.Name(), ".js"):
-			jsFiles = append(jsFiles, path)
-		}
-		return nil
-	})
-
-	// Prefer .hbc; fall back to .js.
-	for _, candidates := range [][]string{hbcFiles, jsFiles} {
-		if len(candidates) == 1 {
-			return candidates[0], nil
-		}
-		if len(candidates) > 1 {
-			ext := filepath.Ext(candidates[0])
-			return "", fmt.Errorf("found %d %s files in %s but could not determine which is the bundle: expected output in bundles/ or _expo/static/js/%s/", len(candidates), ext, outputDir, platform)
-		}
+		return filepath.Join(opts.ProjectDir, opts.SourcemapOutput)
 	}
-
-	return "", fmt.Errorf("could not find bundle output in %s: check that expo export completed successfully", outputDir)
+	return bundlePath + ".map"
 }

@@ -107,6 +107,10 @@ func (b *ReactNativeBundler) buildArgs(config *ProjectConfig, opts *BundleOption
 		args = append(args, "--sourcemap-output", paths.sourcemapPath)
 	}
 
+	if opts.ResetCache {
+		args = append(args, "--reset-cache")
+	}
+
 	metroConfig := opts.MetroConfig
 	if metroConfig == "" {
 		metroConfig = config.MetroConfig
