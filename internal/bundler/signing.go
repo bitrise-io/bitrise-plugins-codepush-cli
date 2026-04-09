@@ -80,6 +80,13 @@ func ComputePackageHash(dir string) (string, error) {
 	return hex.EncodeToString(sum[:]), nil
 }
 
+// claimVersion identifies the schema of this JWT payload. It must only be
+// incremented when the payload structure changes in a breaking way, for
+// example if the hashing algorithm or a required field changes. The mobile
+// SDK uses it to select the correct verification logic. Informational extra
+// claims (e.g. bitriseUserAgent) do not require a bump.
+const claimVersion = "1.0.0"
+
 // SignBundle signs the bundle directory and writes a .codepushrelease JWT file.
 //
 // The directory MUST be named "CodePush": the mobile SDK verifies package hashes
@@ -88,7 +95,10 @@ func ComputePackageHash(dir string) (string, error) {
 //
 // Signing must be called after Hermes compilation so the .hbc files (not the
 // original .js files) are included in the hash.
-func SignBundle(dir string, keyPath string) error {
+func SignBundle(dir string, keyPath string, cliVersion string) error {
+	if cliVersion == "" {
+		cliVersion = "dev"
+	}
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
 		return fmt.Errorf("resolving bundle directory: %w", err)
@@ -117,7 +127,7 @@ func SignBundle(dir string, keyPath string) error {
 		return fmt.Errorf("computing package hash: %w", err)
 	}
 
-	jwt, err := buildRS256JWT(key, contentHash)
+	jwt, err := buildRS256JWT(key, contentHash, cliVersion)
 	if err != nil {
 		return fmt.Errorf("building JWT: %w", err)
 	}
@@ -177,16 +187,17 @@ func loadRSAPrivateKey(path string) (*rsa.PrivateKey, error) {
 	}
 }
 
-func buildRS256JWT(key *rsa.PrivateKey, contentHash string) (string, error) {
+func buildRS256JWT(key *rsa.PrivateKey, contentHash string, cliVersion string) (string, error) {
 	headerJSON, err := json.Marshal(map[string]string{"alg": "RS256", "typ": "JWT"})
 	if err != nil {
 		return "", fmt.Errorf("marshaling JWT header: %w", err)
 	}
 
 	payloadJSON, err := json.Marshal(map[string]any{
-		"claimVersion": "1.0.0",
-		"contentHash":  contentHash,
-		"iat":          time.Now().Unix(),
+		"claimVersion":     claimVersion,
+		"contentHash":      contentHash,
+		"iat":              time.Now().Unix(),
+		"bitriseUserAgent": "codepush-cli/" + cliVersion,
 	})
 	if err != nil {
 		return "", fmt.Errorf("marshaling JWT payload: %w", err)

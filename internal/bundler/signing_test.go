@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/json"
 	"encoding/pem"
 	"os"
 	"path/filepath"
@@ -104,7 +106,7 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
 
-		err := SignBundle(dir, keyPath)
+		err := SignBundle(dir, keyPath, "test")
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(filepath.Join(dir, ".codepushrelease"))
@@ -114,6 +116,16 @@ func TestSignBundle(t *testing.T) {
 		parts := strings.Split(jwt, ".")
 		assert.Len(t, parts, 3, "JWT must have 3 dot-separated parts")
 		assert.True(t, strings.HasPrefix(jwt, "eyJ"), "JWT header must start with eyJ (base64url of {)")
+
+		payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+		require.NoError(t, err)
+		var payload map[string]any
+		require.NoError(t, json.Unmarshal(payloadBytes, &payload))
+		assert.Equal(t, "codepush-cli/test", payload["bitriseUserAgent"])
+		assert.Equal(t, "1.0.0", payload["claimVersion"])
+		contentHash, ok := payload["contentHash"].(string)
+		assert.True(t, ok, "contentHash must be a string")
+		assert.Len(t, contentHash, 64, "contentHash must be a 64-character hex string")
 	})
 
 	t.Run("returns error when directory is not named CodePush", func(t *testing.T) {
@@ -121,7 +133,7 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
 
-		err := SignBundle(dir, keyPath)
+		err := SignBundle(dir, keyPath, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `must be named "CodePush"`)
 		assert.Contains(t, err.Error(), "wrong-name")
@@ -134,7 +146,7 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
 
-		err := SignBundle(dir, pkcs8Path)
+		err := SignBundle(dir, pkcs8Path, "test")
 		require.NoError(t, err)
 
 		_, err = os.ReadFile(filepath.Join(dir, ".codepushrelease"))
@@ -146,7 +158,7 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
 
-		err := SignBundle(dir, "/nonexistent/key.pem")
+		err := SignBundle(dir, "/nonexistent/key.pem", "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "reading key file")
 	})
@@ -163,7 +175,7 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, pem.Encode(f, &pem.Block{Type: "CERTIFICATE", Bytes: []byte("not a cert")}))
 		_ = f.Close()
 
-		err = SignBundle(dir, path)
+		err = SignBundle(dir, path, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported PEM block type")
 	})
@@ -176,7 +188,7 @@ func TestSignBundle(t *testing.T) {
 		path := filepath.Join(t.TempDir(), "notapem.txt")
 		require.NoError(t, os.WriteFile(path, []byte("not a pem file"), 0o644))
 
-		err := SignBundle(dir, path)
+		err := SignBundle(dir, path, "test")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "no PEM block found")
 	})
@@ -186,11 +198,11 @@ func TestSignBundle(t *testing.T) {
 		require.NoError(t, os.Mkdir(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
 
-		err := SignBundle(dir, keyPath)
+		err := SignBundle(dir, keyPath, "test")
 		require.NoError(t, err)
 
 		// second call: .codepushrelease now exists but must be excluded from hash
-		err = SignBundle(dir, keyPath)
+		err = SignBundle(dir, keyPath, "test")
 		require.NoError(t, err)
 	})
 }

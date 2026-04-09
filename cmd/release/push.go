@@ -66,7 +66,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 
 		if bundlePrivateKeyPath != "" {
 			out.Step("Signing bundle")
-			if err := bundler.SignBundle(bundlePath, bundlePrivateKeyPath); err != nil {
+			if err := bundler.SignBundle(bundlePath, bundlePrivateKeyPath, cmd.Version); err != nil {
 				return fmt.Errorf("signing bundle: %w", err)
 			}
 			out.Info("Signed: %s/.codepushrelease", bundlePath)
