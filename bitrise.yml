@@ -6,7 +6,7 @@ tools:
   golang: 1.26.1
 trigger_map:
 - push_branch: main
-  pipeline: pipeline_ci
+  pipeline: pipeline_main
 - pull_request_target_branch: main
   pipeline: pipeline_ci
 - tag: "*.*.*"
@@ -15,6 +15,11 @@ pipelines:
   pipeline_ci:
     workflows:
       ci: {}
+  pipeline_main:
+    workflows:
+      ci: {}
+      auto-tag:
+        depends_on: [ci]
   pipeline_release:
     workflows:
       release: {}
@@ -97,6 +102,35 @@ workflows:
         title: golangci-lint
         inputs:
         - content: golangci-lint run
+  auto-tag:
+    steps:
+    - git-clone@8:
+        inputs:
+        - clone_depth: "0"
+        - fetch_tags: "yes"
+    - script@1:
+        title: Create version tag if not already tagged
+        inputs:
+        - content: |
+            #!/bin/bash
+            set -euo pipefail
+
+            VERSION=$(grep 'version = ' cmd/codepush/version.go | head -1 | sed 's/.*"\(.*\)".*/\1/')
+
+            if [ -z "$VERSION" ]; then
+              echo "FAIL: could not parse version from version.go"
+              exit 1
+            fi
+
+            echo "Code version: $VERSION"
+
+            if git rev-parse "$VERSION" >/dev/null 2>&1; then
+              echo "Tag $VERSION already exists -- nothing to do."
+            else
+              echo "Creating and pushing tag $VERSION"
+              git tag -a "$VERSION" -m "Release $VERSION"
+              git push origin "$VERSION"
+            fi
   release:
     steps:
     - git-clone@8:
