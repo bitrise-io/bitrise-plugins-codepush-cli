@@ -128,6 +128,7 @@ workflows:
               echo "Tag $VERSION already exists -- nothing to do."
             else
               echo "Creating and pushing tag $VERSION"
+              git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/bitrise-io/bitrise-plugins-codepush-cli.git"
               git tag -a "$VERSION" -m "Release $VERSION"
               git push origin "$VERSION"
             fi
