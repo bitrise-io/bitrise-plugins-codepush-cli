@@ -108,6 +108,9 @@ workflows:
         inputs:
         - clone_depth: "0"
         - fetch_tags: "yes"
+    - authenticate-with-github-oauth@0:
+        inputs:
+        - access_token: $GITHUB_TOKEN
     - script@1:
         title: Create version tag if not already tagged
         inputs:
@@ -128,7 +131,6 @@ workflows:
               echo "Tag $VERSION already exists -- nothing to do."
             else
               echo "Creating and pushing tag $VERSION"
-              git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/bitrise-io/bitrise-plugins-codepush-cli.git"
               git tag -a "$VERSION" -m "Release $VERSION"
               git push origin "$VERSION"
             fi
