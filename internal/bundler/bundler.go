@@ -10,7 +10,10 @@ import (
 )
 
 // DefaultOutputDir is the default output directory for bundle generation.
-const DefaultOutputDir = "./codepush-bundle"
+// The name "CodePush" is required when code signing is used: the mobile SDK
+// verifies package hashes using the directory name as a path prefix, so any
+// other name produces a hash mismatch and the signed update is rejected.
+const DefaultOutputDir = "./CodePush"
 
 // ValidatePlatform checks that the given platform string is valid.
 func ValidatePlatform(p Platform) error {

@@ -1,6 +1,8 @@
 package release
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/cmd"
@@ -47,6 +49,14 @@ func runBundle(out *output.Writer) error {
 	result, err := runBundleWithOpts(out)
 	if err != nil {
 		return err
+	}
+
+	if bundlePrivateKeyPath != "" {
+		out.Step("Signing bundle")
+		if err := bundler.SignBundle(result.OutputDir, bundlePrivateKeyPath, cmd.Version); err != nil {
+			return fmt.Errorf("signing bundle: %w", err)
+		}
+		out.Info("Signed: %s/.codepushrelease", result.OutputDir)
 	}
 
 	if cmd.JSONOutput {
