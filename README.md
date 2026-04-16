@@ -288,34 +288,127 @@ bitrise :codepush push --bundle --platform ios \
 
 ## Code Signing
 
-Code signing lets the mobile SDK verify that an update was produced by a trusted source and has not been tampered with. The CLI signs the bundle with an RSA private key; the corresponding public key must be embedded in the mobile app at build time.
+Code signing is a security mechanism that adds a digital signature to your CodePush bundles (JavaScript updates). This signature allows the client app to verify that a trusted source created the update and that it has not been tampered with during delivery.
 
-**Requirements:**
-- The output directory must be named exactly `CodePush` (the default). The SDK verifies the package hash using the directory name as a path prefix, so any other name causes hash mismatch and the update is rejected on-device.
-- Signing must happen after Hermes compilation (the CLI handles this automatically).
+### Why Use Code Signing?
+
+- **Security**: Protects against man-in-the-middle (MitM) attacks, ensuring your users only install authentic updates.
+- **Trust**: Provides developers with confidence that the code running on user devices is exactly what they shipped.
+- **Integrity**: Guarantees the bundle's integrity by validating the digital signature on the client side before installation.
+
+### How It Works
+
+1. **Key pair generation**: Generate an RSA asymmetric key pair. The private key is used to sign CodePush bundles; the public key is embedded into the mobile app to validate signatures.
+2. **Signing**: When releasing a new CodePush update, the CLI signs the bundle using the private key. It creates a JWT (JSON Web Token) containing the bundle's hash, digitally signed with this private key.
+3. **Verification**: The mobile app (with the embedded public key) verifies the JWT signature before applying the update. If verification fails, the update is rejected.
+
+### Requirements
+
+- Use the **CodePushNext** fork of `react-native-code-push` for code signing support: [CodePushNext GitHub Repository](https://github.com/CodePushNext/react-native-code-push)
+- Minimum required versions:
+
+| SDK | Version supporting code signing | Platform support | Minimum Bitrise CLI version |
+|-----|--------------------------------|------------------|-----------------------------|
+| `react-native-code-push` (CodePushNext) | 5.1.0+ | Android, iOS, Expo* | 1.0.0+ |
+
+*Expo support requires specific config; see [Step 4: Expo Support](#step-4-expo-support).*
+
+- Your mobile app must include the updated CodePushNext SDK (>= 5.1.0) that supports embedding the public key and signature validation.
+- You need to regenerate your app binaries (iOS and Android) with the embedded public key.
+
+### Step-by-Step Setup Guide
+
+#### Step 1: Generate an RSA Key Pair
+
+Use OpenSSL to generate keys in PEM format:
 
 ```bash
-# Generate a key pair (one-time setup)
 openssl genrsa -out private_key.pem 2048
 openssl rsa -in private_key.pem -pubout -out public_key.pem
+```
 
+- Keep the private key secure and never share it.
+- The public key will be embedded inside the app.
+
+#### Step 2: iOS Setup
+
+Add the public key string inside your main app target's `Info.plist`:
+
+```xml
+<key>CodePushPublicKey</key>
+<string>-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArVJ2k...
+-----END PUBLIC KEY-----</string>
+```
+
+Rebuild your iOS app with the updated `react-native-code-push` SDK (>= 5.1.0).
+
+#### Step 3: Android Setup
+
+Add the public key string in `android/app/src/main/res/values/strings.xml`:
+
+```xml
+<resources>
+    <string name="CodePushPublicKey">-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArVJ2k...
+-----END PUBLIC KEY-----</string>
+</resources>
+```
+
+Configure the `CodePush` instance (React Native <= 0.60):
+
+```java
+// inside getPackages() in MainApplication.java
+
+// Using constructor
+new CodePush("deployment-key", getApplicationContext(), BuildConfig.DEBUG, R.string.CodePushPublicKey);
+
+// Or using builder
+new CodePushBuilder("deployment-key", getApplicationContext())
+    .setIsDebugMode(BuildConfig.DEBUG)
+    .setPublicKeyResourceDescriptor(R.string.CodePushPublicKey)
+    .build();
+```
+
+For React Native >= 0.61, follow the [CodePushNext Android setup guide](https://github.com/CodePushNext/react-native-code-push/blob/main/docs/setup-android.md).
+
+Rebuild your Android app with the updated SDK.
+
+#### Step 4: Expo Support
+
+A bare Expo project has the same native structure as vanilla React Native — follow the iOS and Android steps above directly. For managed workflow, embedding the public key requires [EAS Build](https://docs.expo.dev/build/introduction/) and a custom config plugin.
+
+The CLI detects Expo projects automatically. Note that `--sourcemap-output` is not supported for Expo and should be omitted.
+
+For detailed Expo setup, see the [CodePushNext Expo docs](https://github.com/CodePushNext/react-native-code-push/blob/main/docs/expo.md).
+
+#### Step 5: Code Signing with the Bitrise CodePush CLI
+
+Use `--private-key-path` (`-k`) to sign during bundling or pushing.
+
+> **Important:** The output directory must be named exactly `CodePush` (the default). The SDK uses the directory name as a path prefix when verifying the package hash — any other name causes a hash mismatch and the update is silently rejected on-device.
+
+```bash
 # Bundle and sign
-codepush bundle --platform ios --private-key-path ./private_key.pem
+bitrise :codepush bundle --platform ios --private-key-path ./private_key.pem
 
-# Or sign a pre-built bundle before pushing
-codepush push ./CodePush \
+# Push a pre-built bundle and sign it
+bitrise :codepush push ./CodePush \
   --deployment Staging --app-version 1.0.0 \
   --private-key-path ./private_key.pem
 
-# Or bundle, sign, and push in one step
-codepush push --bundle --platform ios \
+# Bundle, sign, and push in one step
+bitrise :codepush push --bundle --platform ios \
   --deployment Staging --app-version 1.0.0 \
   --private-key-path ./private_key.pem
 ```
 
-The private key is read locally and never transmitted. The signed JWT is written to `./CodePush/.codepushrelease` inside the bundle directory and is included in the ZIP uploaded to the server.
+### Important Notes
 
-Configure the public key in your React Native app by following the [react-native-code-push code signing guide](https://github.com/microsoft/react-native-code-push/blob/master/docs/code-signing.md).
+- The signed JWT (`.codepushrelease` file) is generated inside the bundle directory and uploaded to the server. The uploaded ZIP contains both the `.codepushrelease` file and the bundled output.
+- After bundling, confirm `./CodePush/.codepushrelease` was created to verify signing succeeded.
+- The private key is used locally only and never transmitted.
+- Public key embedding is mandatory for the app to verify incoming updates.
 
 ## Promoting and Patching
 
