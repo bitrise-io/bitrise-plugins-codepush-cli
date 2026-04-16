@@ -316,9 +316,7 @@ Code signing is a security mechanism that adds a digital signature to your CodeP
 - Your mobile app must include the updated CodePushNext SDK (>= 5.1.0) that supports embedding the public key and signature validation.
 - You need to regenerate your app binaries (iOS and Android) with the embedded public key.
 
-### Step-by-Step Setup Guide
-
-#### Step 1: Generate an RSA Key Pair
+### Step 1: Generate an RSA Key Pair
 
 Use OpenSSL to generate keys in PEM format:
 
@@ -330,7 +328,7 @@ openssl rsa -in private_key.pem -pubout -out public_key.pem
 - Keep the private key secure and never share it.
 - The public key will be embedded inside the app.
 
-#### Step 2: iOS Setup
+### Step 2: iOS Setup
 
 Add the public key string inside your main app target's `Info.plist`:
 
@@ -343,7 +341,7 @@ MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArVJ2k...
 
 Rebuild your iOS app with the updated `react-native-code-push` SDK (>= 5.1.0).
 
-#### Step 3: Android Setup
+### Step 3: Android Setup
 
 Add the public key string in `android/app/src/main/res/values/strings.xml`:
 
@@ -374,7 +372,7 @@ For React Native >= 0.61, follow the [CodePushNext Android setup guide](https://
 
 Rebuild your Android app with the updated SDK.
 
-#### Step 4: Expo Support
+### Step 4: Expo Support
 
 A bare Expo project has the same native structure as vanilla React Native — follow the iOS and Android steps above directly. For managed workflow, embedding the public key requires [EAS Build](https://docs.expo.dev/build/introduction/) and a custom config plugin.
 
@@ -382,7 +380,7 @@ The CLI detects Expo projects automatically. Note that `--sourcemap-output` is n
 
 For detailed Expo setup, see the [CodePushNext Expo docs](https://github.com/CodePushNext/react-native-code-push/blob/main/docs/expo.md).
 
-#### Step 5: Code Signing with the Bitrise CodePush CLI
+### Step 5: Code Signing with the Bitrise CodePush CLI
 
 Use `--private-key-path` (`-k`) to sign during bundling or pushing.
 
