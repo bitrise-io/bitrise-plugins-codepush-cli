@@ -111,6 +111,7 @@ workflows:
     - authenticate-with-github-oauth@0:
         inputs:
         - access_token: $GITHUB_TOKEN
+        - username: x-access-token
     - script@1:
         title: Create version tag if not already tagged
         inputs:
