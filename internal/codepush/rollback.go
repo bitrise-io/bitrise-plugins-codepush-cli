@@ -34,6 +34,7 @@ func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *ou
 	step := out.StartStep("Rolling back deployment")
 	pkg, err := client.Rollback(ctx, opts.AppID, deploymentID, req)
 	if err != nil {
+		step.Cancel()
 		return nil, fmt.Errorf("rollback failed: %w", err)
 	}
 	step.Done()
@@ -73,6 +74,7 @@ func resolveUpdateLabel(ctx context.Context, client updateLister, appID, deploym
 	step := out.StartStep("Resolving release label %q", label)
 	updates, err := client.ListUpdates(ctx, appID, deploymentID)
 	if err != nil {
+		step.Cancel()
 		return "", fmt.Errorf("listing updates: %w", err)
 	}
 
@@ -84,5 +86,6 @@ func resolveUpdateLabel(ctx context.Context, client updateLister, appID, deploym
 		}
 	}
 
+	step.Cancel()
 	return "", fmt.Errorf("release label %q not found in deployment: check the label or omit --target-release to rollback to the previous release", label)
 }

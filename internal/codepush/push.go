@@ -60,6 +60,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	step := out.StartStep("Packaging bundle: %s", opts.BundlePath)
 	zipPath, err := ziputil.Directory(opts.BundlePath)
 	if err != nil {
+		step.Cancel()
 		return "", 0, fmt.Errorf("packaging bundle: %w", err)
 	}
 	defer func() { _ = os.Remove(zipPath) }()
@@ -84,6 +85,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 		Rollout:       opts.Rollout,
 	})
 	if err != nil {
+		stepURL.Cancel()
 		return "", 0, fmt.Errorf("requesting upload URL: %w", err)
 	}
 	stepURL.Done()
@@ -167,6 +169,7 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 		}
 	}
 
+	step.Cancel()
 	return "", fmt.Errorf("deployment %q not found: check the deployment name or use a deployment UUID", deploymentNameOrID)
 }
 

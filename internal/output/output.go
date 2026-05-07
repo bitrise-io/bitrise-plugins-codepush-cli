@@ -40,6 +40,12 @@ type StepHandle struct {
 	label       string
 }
 
+// Cancel is the error-path counterpart to Done. Unlike ProgressBar.Cancel it
+// is always a no-op: StartStep writes the "-> label\n" line immediately, so
+// the terminal line is already complete. Cancel exists purely for call-site
+// symmetry so error paths can mirror success paths.
+func (sh *StepHandle) Cancel() {}
+
 // New creates a Writer that writes to stderr with auto-detected capabilities.
 func New() *Writer {
 	return NewWriter(os.Stderr)
