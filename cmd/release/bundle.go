@@ -54,6 +54,7 @@ func runBundle(out *output.Writer) error {
 	if bundlePrivateKeyPath != "" {
 		stepSign := out.StartStep("Signing bundle")
 		if err := bundler.SignBundle(result.OutputDir, bundlePrivateKeyPath, cmd.Version); err != nil {
+			stepSign.Cancel()
 			return fmt.Errorf("signing bundle: %w", err)
 		}
 		stepSign.Done()

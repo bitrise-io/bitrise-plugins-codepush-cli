@@ -46,6 +46,7 @@ func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *outp
 	step := out.StartStep("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
 	pkg, err := client.Promote(ctx, opts.AppID, sourceDeploymentID, req)
 	if err != nil {
+		step.Cancel()
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
 	step.Done()
