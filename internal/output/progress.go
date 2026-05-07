@@ -13,6 +13,33 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// BarStyle selects the visual appearance of progress and indeterminate bars.
+type BarStyle int
+
+const (
+	// StyleGradient renders background-colored spaces with an indigo-to-pink
+	// gradient. This is the default.
+	StyleGradient BarStyle = iota
+	// StyleClassic renders filled (█) and empty (░) block characters in
+	// lavender. Matches the original single-color design.
+	StyleClassic
+	// StyleBlock renders a bounded bar [███▓░░░] inspired by the mpb library.
+	StyleBlock
+)
+
+// ParseBarStyle converts a string name to a BarStyle. Returns StyleGradient
+// for unrecognised values.
+func ParseBarStyle(s string) BarStyle {
+	switch s {
+	case "classic":
+		return StyleClassic
+	case "block":
+		return StyleBlock
+	default:
+		return StyleGradient
+	}
+}
+
 // HumanBytes formats a byte count into a human-readable string using binary SI units.
 func HumanBytes(n int64) string {
 	const (
@@ -40,6 +67,7 @@ type ProgressBar struct {
 	write       func([]byte) // bound to Writer.write
 	interactive bool
 	color       bool
+	barStyle    BarStyle
 	label       string
 	width       int // default 30 track chars
 }
@@ -53,6 +81,7 @@ func (w *Writer) NewProgress(label string) *ProgressBar {
 		write:       w.write,
 		interactive: w.interactive,
 		color:       w.color,
+		barStyle:    w.barStyle,
 		label:       label,
 		width:       30,
 	}
@@ -74,7 +103,7 @@ func (pb *ProgressBar) Update(pct float64, sub string) {
 
 	filled := max(min(int(math.Round(float64(pb.width)*pct/100)), pb.width), 0)
 	empty := pb.width - filled
-	bar := renderGradientBar(filled, empty, pb.color)
+	bar := renderBar(filled, empty, pb.barStyle, pb.color)
 
 	var pctStr string
 	if pb.color {
@@ -103,7 +132,7 @@ func (pb *ProgressBar) Done(sub string) {
 		return
 	}
 	pb.once.Do(func() {
-		bar := renderGradientBar(pb.width, 0, pb.color)
+		bar := renderBar(pb.width, 0, pb.barStyle, pb.color)
 		var pctStr, ok string
 		if pb.color {
 			pctStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")).Render("100%")
@@ -229,6 +258,7 @@ type IndeterminateBar struct {
 	write       func([]byte)
 	interactive bool
 	color       bool
+	barStyle    BarStyle
 	label       string
 	width       int
 	stop        chan struct{}
@@ -244,6 +274,7 @@ func (w *Writer) NewIndeterminate(label string) *IndeterminateBar {
 		write:       w.write,
 		interactive: w.interactive,
 		color:       w.color,
+		barStyle:    w.barStyle,
 		label:       label,
 		width:       30,
 	}
@@ -326,6 +357,17 @@ func (ib *IndeterminateBar) renderFrame(pos int) []byte {
 }
 
 func (ib *IndeterminateBar) renderSweepBar(runes []rune, filledRune rune) string {
+	switch ib.barStyle {
+	case StyleClassic:
+		return ib.renderClassicSweepBar(runes, filledRune)
+	case StyleBlock:
+		return ib.renderBlockSweepBar(runes, filledRune)
+	default:
+		return ib.renderGradientSweepBar(runes, filledRune)
+	}
+}
+
+func (ib *IndeterminateBar) renderGradientSweepBar(runes []rune, filledRune rune) string {
 	if !ib.color {
 		return string(runes)
 	}
@@ -333,12 +375,108 @@ func (ib *IndeterminateBar) renderSweepBar(runes []rune, filledRune rune) string
 	var sb strings.Builder
 	for i, r := range runes {
 		if r == filledRune {
-			color := blendHex("#5A56E0", "#EE6FF8", float64(i)/float64(max(len(runes)-1, 1)))
-			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+			c := blendHex("#5A56E0", "#EE6FF8", float64(i)/float64(max(len(runes)-1, 1)))
+			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(c)).Render(" "))
 		} else {
 			sb.WriteString(emptyStyle.Render(" "))
 		}
 	}
+	return sb.String()
+}
+
+func (ib *IndeterminateBar) renderClassicSweepBar(runes []rune, filledRune rune) string {
+	if !ib.color {
+		return string(runes)
+	}
+	fillStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
+	emptyStyle := lipgloss.NewStyle().Faint(true)
+	var sb strings.Builder
+	for _, r := range runes {
+		if r == filledRune {
+			sb.WriteString(fillStyle.Render("█"))
+		} else {
+			sb.WriteString(emptyStyle.Render("░"))
+		}
+	}
+	return sb.String()
+}
+
+func (ib *IndeterminateBar) renderBlockSweepBar(runes []rune, filledRune rune) string {
+	identity := func(s string) string { return s }
+	bound, fillFn, emptyFn := identity, identity, identity
+	if ib.color {
+		dim := lipgloss.NewStyle().Faint(true)
+		fill := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
+		bound = func(s string) string { return dim.Render(s) }
+		fillFn = func(s string) string { return fill.Render(s) }
+		emptyFn = bound
+	}
+
+	var sb strings.Builder
+	sb.WriteString(bound("["))
+	for _, r := range runes {
+		if r == filledRune {
+			sb.WriteString(fillFn("█"))
+		} else {
+			sb.WriteString(emptyFn(" "))
+		}
+	}
+	sb.WriteString(bound("]"))
+	return sb.String()
+}
+
+// renderBar dispatches to the correct bar renderer based on the active style.
+func renderBar(filled, empty int, style BarStyle, color bool) string {
+	switch style {
+	case StyleClassic:
+		return renderClassicBar(filled, empty, color)
+	case StyleBlock:
+		return renderBlockBar(filled, empty, color)
+	default:
+		return renderGradientBar(filled, empty, color)
+	}
+}
+
+// renderClassicBar renders filled (█) and empty (░) block characters. The
+// filled portion is coloured lavender (#cba6f7) in colour mode.
+func renderClassicBar(filled, empty int, color bool) string {
+	if !color {
+		return strings.Repeat("█", filled) + strings.Repeat("░", empty)
+	}
+	var sb strings.Builder
+	if filled > 0 {
+		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7")).Render(strings.Repeat("█", filled)))
+	}
+	if empty > 0 {
+		sb.WriteString(lipgloss.NewStyle().Faint(true).Render(strings.Repeat("░", empty)))
+	}
+	return sb.String()
+}
+
+// renderBlockBar renders a bounded [███▓░░░] bar inspired by the mpb library.
+// A tip character (▓) marks the leading edge when the bar is not full.
+func renderBlockBar(filled, empty int, color bool) string {
+	identity := func(s string) string { return s }
+	bound, fillFn, emptyFn := identity, identity, identity
+	if color {
+		dim := lipgloss.NewStyle().Faint(true)
+		fill := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
+		bound = func(s string) string { return dim.Render(s) }
+		fillFn = func(s string) string { return fill.Render(s) }
+		emptyFn = bound
+	}
+
+	var sb strings.Builder
+	sb.WriteString(bound("["))
+	for i := range filled {
+		if i == filled-1 && empty > 0 {
+			sb.WriteString(fillFn("▓"))
+		} else {
+			sb.WriteString(fillFn("█"))
+		}
+	}
+	sb.WriteString(emptyFn(strings.Repeat("░", empty)))
+	sb.WriteString(bound("]"))
 	return sb.String()
 }
 

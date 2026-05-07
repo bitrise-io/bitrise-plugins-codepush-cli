@@ -20,8 +20,9 @@ import (
 type Writer struct {
 	mu          sync.Mutex
 	w           io.Writer
-	interactive bool // terminal AND not CI
-	color       bool // terminal AND not NO_COLOR
+	interactive bool     // terminal AND not CI
+	color       bool     // terminal AND not NO_COLOR
+	barStyle    BarStyle // default StyleGradient (zero value)
 }
 
 // KeyValue is a key-value pair for Result output.
@@ -221,6 +222,12 @@ func (w *Writer) Table(headers []string, rows [][]string) {
 // Println prints a plain line with no prefix or styling.
 func (w *Writer) Println(format string, args ...any) {
 	w.write(fmt.Appendf(nil, format+"\n", args...))
+}
+
+// SetBarStyle configures the visual style used by all progress and indeterminate
+// bars created from this Writer. The default is StyleGradient.
+func (w *Writer) SetBarStyle(s BarStyle) {
+	w.barStyle = s
 }
 
 func (w *Writer) write(b []byte) {
