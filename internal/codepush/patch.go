@@ -32,11 +32,12 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		return nil, err
 	}
 
-	out.Step("Patching release %s", updateLabel)
+	step := out.StartStep("Patching release %s", updateLabel)
 	pkg, err := client.PatchUpdate(ctx, opts.AppID, deploymentID, updateID, req)
 	if err != nil {
 		return nil, fmt.Errorf("patch failed: %w", err)
 	}
+	step.Done()
 
 	result := &PatchResult{
 		UpdateID:     pkg.ID,
@@ -81,7 +82,7 @@ func ResolveUpdateForPatch(ctx context.Context, client updateLister, appID, depl
 		return id, label, nil
 	}
 
-	out.Step("Resolving latest release")
+	step := out.StartStep("Resolving latest release")
 	updates, err := client.ListUpdates(ctx, appID, deploymentID)
 	if err != nil {
 		return "", "", fmt.Errorf("listing updates: %w", err)
@@ -92,6 +93,7 @@ func ResolveUpdateForPatch(ctx context.Context, client updateLister, appID, depl
 	}
 
 	latest := updates[len(updates)-1]
+	step.Done()
 	out.Info("Resolved latest release: %s (%s)", latest.Label, latest.ID)
 	return latest.ID, latest.Label, nil
 }

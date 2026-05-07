@@ -30,7 +30,7 @@ func TestProgressBarDoneIdempotent(t *testing.T) {
 	var buf bytes.Buffer
 
 	pb := &ProgressBar{
-		write:       func(b []byte) { buf.Write(b) }, //nolint:errcheck
+		write:       func(b []byte) { _, _ = buf.Write(b) },
 		interactive: true,
 		label:       "Test",
 		width:       30,
@@ -76,15 +76,8 @@ func TestProgressReaderWithTotal(t *testing.T) {
 		}
 		numStr := strings.TrimSpace(s[start:idx])
 		var f float64
-		if _, err := io.ReadFull(strings.NewReader(""), nil); err == nil {
-			// just use the manual parser
-			if v, ok := parseTestFloat(numStr); ok {
-				f = v
-			}
-		} else {
-			if v, ok := parseTestFloat(numStr); ok {
-				f = v
-			}
+		if v, ok := parseTestFloat(numStr); ok {
+			f = v
 		}
 		if f >= 0 {
 			pcts = append(pcts, f)

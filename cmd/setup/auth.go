@@ -55,7 +55,7 @@ Token resolution order: --token flag > BITRISE_API_TOKEN env var > stored config
 		serverURL := cmdutil.ResolveServerURL(cmd.ServerURL, out)
 
 		var userInfo *auth.UserInfo
-		err := out.Spinner("Validating token", func() error {
+		err := out.Indeterminate("Validating token", func() error {
 			var valErr error
 			userInfo, valErr = auth.ValidateToken(token, serverURL)
 			return valErr

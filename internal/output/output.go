@@ -30,6 +30,15 @@ type KeyValue struct {
 	Value string
 }
 
+// StepHandle is returned by StartStep and lets the caller mark the step
+// as completed. In interactive mode Done replaces the "->" line with "OK".
+type StepHandle struct {
+	write       func([]byte)
+	interactive bool
+	color       bool
+	label       string
+}
+
 // New creates a Writer that writes to stderr with auto-detected capabilities.
 func New() *Writer {
 	return NewWriter(os.Stderr)
@@ -62,17 +71,39 @@ func NewTest(w io.Writer) *Writer {
 	}
 }
 
-// write acquires the mutex and writes b to the underlying writer.
-func (w *Writer) write(b []byte) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	_, _ = w.w.Write(b)
-}
-
 // IsInteractive returns true if the writer targets an interactive terminal
 // (not CI, not piped).
 func (w *Writer) IsInteractive() bool {
 	return w.interactive
+}
+
+// StartStep prints a progress step and returns a StepHandle. In interactive
+// mode, calling Done on the handle replaces the "->" line with "OK" using
+// cursor-up. In non-interactive mode Done is a no-op.
+func (w *Writer) StartStep(format string, args ...any) *StepHandle {
+	label := fmt.Sprintf(format, args...)
+	w.Step("%s", label)
+	return &StepHandle{
+		write:       w.write,
+		interactive: w.interactive,
+		color:       w.color,
+		label:       label,
+	}
+}
+
+// Done replaces the step line with a green "OK label" line using cursor-up.
+// No-op in non-interactive mode.
+func (sh *StepHandle) Done() {
+	if !sh.interactive {
+		return
+	}
+	var ok string
+	if sh.color {
+		ok = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
+	} else {
+		ok = "OK"
+	}
+	sh.write(fmt.Appendf(nil, "\033[1A\r\033[2K%s %s\n", ok, sh.label))
 }
 
 // Step prints a progress step. Color mode: "-> message" with cyan arrow.
@@ -81,9 +112,9 @@ func (w *Writer) Step(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		arrow := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render("->")
-		w.write([]byte(fmt.Sprintf("%s %s\n", arrow, msg)))
+		w.write(fmt.Appendf(nil, "%s %s\n", arrow, msg))
 	} else {
-		w.write([]byte(fmt.Sprintf("-> %s\n", msg)))
+		w.write(fmt.Appendf(nil, "-> %s\n", msg))
 	}
 }
 
@@ -93,9 +124,9 @@ func (w *Writer) Success(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
-		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
+		w.write(fmt.Appendf(nil, "%s %s\n", prefix, msg))
 	} else {
-		w.write([]byte(fmt.Sprintf("OK %s\n", msg)))
+		w.write(fmt.Appendf(nil, "OK %s\n", msg))
 	}
 }
 
@@ -105,9 +136,9 @@ func (w *Writer) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1")).Render("ERROR")
-		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
+		w.write(fmt.Appendf(nil, "%s %s\n", prefix, msg))
 	} else {
-		w.write([]byte(fmt.Sprintf("ERROR %s\n", msg)))
+		w.write(fmt.Appendf(nil, "ERROR %s\n", msg))
 	}
 }
 
@@ -117,9 +148,9 @@ func (w *Writer) Warning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render("WARNING")
-		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
+		w.write(fmt.Appendf(nil, "%s %s\n", prefix, msg))
 	} else {
-		w.write([]byte(fmt.Sprintf("WARNING %s\n", msg)))
+		w.write(fmt.Appendf(nil, "WARNING %s\n", msg))
 	}
 }
 
@@ -129,9 +160,9 @@ func (w *Writer) Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		dim := lipgloss.NewStyle().Faint(true)
-		w.write([]byte(fmt.Sprintf("   %s\n", dim.Render(msg))))
+		w.write(fmt.Appendf(nil, "   %s\n", dim.Render(msg)))
 	} else {
-		w.write([]byte(fmt.Sprintf("   %s\n", msg)))
+		w.write(fmt.Appendf(nil, "   %s\n", msg))
 	}
 }
 
@@ -152,10 +183,10 @@ func (w *Writer) Result(pairs []KeyValue) {
 	for _, p := range pairs {
 		padding := strings.Repeat(" ", maxKeyLen-len(p.Key))
 		if w.color {
-			key := lipgloss.NewStyle().Bold(true).Render(p.Key)
-			w.write([]byte(fmt.Sprintf("  %s%s  %s\n", key, padding, p.Value)))
+			key := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#cba6f7")).Render(p.Key)
+			w.write(fmt.Appendf(nil, "  %s%s  %s\n", key, padding, p.Value))
 		} else {
-			w.write([]byte(fmt.Sprintf("  %s%s  %s\n", p.Key, padding, p.Value)))
+			w.write(fmt.Appendf(nil, "  %s%s  %s\n", p.Key, padding, p.Value))
 		}
 	}
 }
@@ -189,5 +220,11 @@ func (w *Writer) Table(headers []string, rows [][]string) {
 
 // Println prints a plain line with no prefix or styling.
 func (w *Writer) Println(format string, args ...any) {
-	w.write([]byte(fmt.Sprintf(format+"\n", args...)))
+	w.write(fmt.Appendf(nil, format+"\n", args...))
+}
+
+func (w *Writer) write(b []byte) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, _ = w.w.Write(b)
 }

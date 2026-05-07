@@ -3,6 +3,7 @@ package output
 import (
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -43,8 +44,10 @@ type ProgressBar struct {
 	width       int // default 30 track chars
 }
 
-// NewProgress creates a ProgressBar for the given label. In non-interactive
-// mode it prints "-> label..." immediately via Step.
+// NewProgress creates a ProgressBar for the given label. In interactive mode
+// it prints "-> label" without a newline so that Update can overwrite it
+// in-place. In non-interactive mode it prints "-> label...\n" and the bar
+// is a no-op.
 func (w *Writer) NewProgress(label string) *ProgressBar {
 	pb := &ProgressBar{
 		write:       w.write,
@@ -53,40 +56,25 @@ func (w *Writer) NewProgress(label string) *ProgressBar {
 		label:       label,
 		width:       30,
 	}
-	if !w.interactive {
+	if w.interactive {
+		w.write(fmt.Appendf(nil, "%s %s", renderArrow(w.color), label))
+	} else {
 		w.Step("%s...", label)
 	}
 	return pb
 }
 
 // Update renders the progress bar at the given percentage with an optional sub-label.
+// Overwrites the current line (which NewProgress left without a newline) in-place.
 // In non-interactive mode this is a no-op.
 func (pb *ProgressBar) Update(pct float64, sub string) {
 	if !pb.interactive {
 		return
 	}
 
-	filled := int(float64(pb.width) * pct / 100)
-	if filled > pb.width {
-		filled = pb.width
-	}
-	if filled < 0 {
-		filled = 0
-	}
+	filled := max(min(int(math.Round(float64(pb.width)*pct/100)), pb.width), 0)
 	empty := pb.width - filled
-
-	filledChar := "█"
-	emptyChar := "░"
-
-	var bar string
-	if pb.color {
-		filledStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
-		emptyStyle := lipgloss.NewStyle().Faint(true)
-		bar = filledStyle.Render(strings.Repeat(filledChar, filled)) +
-			emptyStyle.Render(strings.Repeat(emptyChar, empty))
-	} else {
-		bar = strings.Repeat(filledChar, filled) + strings.Repeat(emptyChar, empty)
-	}
+	bar := renderGradientBar(filled, empty, pb.color)
 
 	var pctStr string
 	if pb.color {
@@ -99,20 +87,36 @@ func (pb *ProgressBar) Update(pct float64, sub string) {
 		pctStr = fmt.Sprintf("%3.0f%%", pct)
 	}
 
-	line := fmt.Sprintf("\r\033[2K\r   %-20s  %s  %s  %s", pb.label, bar, pctStr, sub)
-	pb.write([]byte(line))
+	arrow := renderArrow(pb.color)
+	if sub != "" {
+		pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s", arrow, pb.label, bar, pctStr, sub))
+	} else {
+		pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, pb.label, bar, pctStr))
+	}
 }
 
-// Done finalises the progress bar, printing a 100% frame and a newline.
-// Idempotent: safe to call multiple times.
-// In non-interactive mode this is a no-op.
+// Done finalises the progress bar. In interactive mode it overwrites the
+// current line with "OK label  bar  100%  sub\n". Idempotent.
+// No-op in non-interactive mode.
 func (pb *ProgressBar) Done(sub string) {
 	if !pb.interactive {
 		return
 	}
 	pb.once.Do(func() {
-		pb.Update(100, sub)
-		pb.write([]byte("\n"))
+		bar := renderGradientBar(pb.width, 0, pb.color)
+		var pctStr, ok string
+		if pb.color {
+			pctStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")).Render("100%")
+			ok = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
+		} else {
+			pctStr = "100%"
+			ok = "OK"
+		}
+		if sub != "" {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s\n", ok, pb.label, bar, pctStr, sub))
+		} else {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s\n", ok, pb.label, bar, pctStr))
+		}
 	})
 }
 
@@ -142,10 +146,13 @@ func (r *progressReader) Read(p []byte) (int, error) {
 	return n, err
 }
 
-var metroProgressRe = regexp.MustCompile(`(\d+\.?\d*)%\s*\((\d+)/(\d+)\)`)
+// metroProgressRe matches Metro's progress lines in both pipe and PTY modes.
+// .*? handles ANSI escape codes or extra text between % and (N/M).
+// [^)]* allows trailing text like "modules" inside the parentheses.
+var metroProgressRe = regexp.MustCompile(`(\d+\.?\d*)%.*?\((\d+)/(\d+)[^)]*\)`)
 
-// MetroProgressWriter parses Metro bundler stderr output, forwards progress
-// percentages to a ProgressBar, and buffers non-progress lines in a ring.
+// MetroProgressWriter buffers Metro bundler stderr output into a 20-line ring
+// for error display. pb may be nil (progress updates are skipped when nil).
 type MetroProgressWriter struct {
 	pb   *ProgressBar
 	buf  []byte
@@ -202,7 +209,7 @@ func (w *MetroProgressWriter) Buffered() string {
 
 func (w *MetroProgressWriter) processLine(line string) {
 	m := metroProgressRe.FindStringSubmatch(line)
-	if m != nil {
+	if m != nil && w.pb != nil {
 		pct, _ := strconv.ParseFloat(m[1], 64)
 		sub := m[2] + "/" + m[3] + " modules"
 		w.pb.Update(pct, sub)
@@ -225,11 +232,12 @@ type IndeterminateBar struct {
 	width       int
 	stop        chan struct{}
 	done        chan struct{}
+	doneLine    []byte // pre-rendered completion line written by Stop
 }
 
-// NewIndeterminate creates an IndeterminateBar. In interactive mode it starts
-// a background sweep goroutine. In non-interactive mode it prints "-> label..."
-// via Step and does nothing else.
+// NewIndeterminate creates an IndeterminateBar. In interactive mode it prints
+// "-> label" without a newline (the sweep goroutine overwrites it in-place).
+// In non-interactive mode it prints "-> label...\n" and does nothing else.
 func (w *Writer) NewIndeterminate(label string) *IndeterminateBar {
 	ib := &IndeterminateBar{
 		write:       w.write,
@@ -242,10 +250,22 @@ func (w *Writer) NewIndeterminate(label string) *IndeterminateBar {
 		w.Step("%s...", label)
 		return ib
 	}
+	w.write(fmt.Appendf(nil, "%s %s", renderArrow(w.color), label))
+	ib.doneLine = indeterminateDoneLine(label, w.color)
 	ib.stop = make(chan struct{})
 	ib.done = make(chan struct{})
 	go ib.sweep()
 	return ib
+}
+
+// indeterminateDoneLine builds the line written by Stop: erases the sweep bar
+// and replaces it with a green "OK label" success-style line.
+func indeterminateDoneLine(label string, color bool) []byte {
+	if color {
+		ok := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
+		return fmt.Appendf(nil, "\r\033[2K%s %s\n", ok, label)
+	}
+	return fmt.Appendf(nil, "\r\033[2KOK %s\n", label)
 }
 
 const (
@@ -253,68 +273,17 @@ const (
 	sweepInterval   = 80 * time.Millisecond
 )
 
-func (ib *IndeterminateBar) renderFrame(pos int) []byte {
-	filled := "█"
-	empty := "░"
-
-	track := make([]byte, ib.width)
-	for i := range track {
-		track[i] = []byte(empty)[0]
+// Stop finalises the indeterminate bar. Idempotent and safe to call multiple times.
+// In non-interactive mode this is a no-op.
+func (ib *IndeterminateBar) Stop() {
+	if !ib.interactive {
+		return
 	}
-
-	// build as rune slice for proper rendering
-	runes := []rune(strings.Repeat(empty, ib.width))
-	filledRune := []rune(filled)[0]
-	for i := 0; i < sweepWindowSize; i++ {
-		idx := (pos + i) % ib.width
-		runes[idx] = filledRune
-	}
-
-	var bar string
-	if ib.color {
-		filledStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
-		emptyStyle := lipgloss.NewStyle().Faint(true)
-		var sb strings.Builder
-		inFilled := false
-		segStart := 0
-		for i, r := range runes {
-			isFilled := r == filledRune
-			if i == 0 {
-				inFilled = isFilled
-				segStart = 0
-				continue
-			}
-			if isFilled != inFilled {
-				seg := string(runes[segStart:i])
-				if inFilled {
-					sb.WriteString(filledStyle.Render(seg))
-				} else {
-					sb.WriteString(emptyStyle.Render(seg))
-				}
-				inFilled = isFilled
-				segStart = i
-			}
-		}
-		seg := string(runes[segStart:])
-		if inFilled {
-			sb.WriteString(filledStyle.Render(seg))
-		} else {
-			sb.WriteString(emptyStyle.Render(seg))
-		}
-		bar = sb.String()
-	} else {
-		bar = string(runes)
-	}
-
-	var dots string
-	if ib.color {
-		dots = lipgloss.NewStyle().Faint(true).Render("...")
-	} else {
-		dots = "..."
-	}
-
-	line := fmt.Sprintf("\r\033[2K\r   %-20s  %s  %s", ib.label, bar, dots)
-	return []byte(line)
+	ib.once.Do(func() {
+		close(ib.stop)
+		<-ib.done
+		ib.write(ib.doneLine)
+	})
 }
 
 func (ib *IndeterminateBar) sweep() {
@@ -338,17 +307,90 @@ func (ib *IndeterminateBar) sweep() {
 	}
 }
 
-// Stop finalises the indeterminate bar. Idempotent and safe to call multiple times.
-// In non-interactive mode this is a no-op.
-func (ib *IndeterminateBar) Stop() {
-	if !ib.interactive {
-		return
+func (ib *IndeterminateBar) renderFrame(pos int) []byte {
+	const (
+		filledChar = "█"
+		emptyChar  = "░"
+	)
+	filledRune := []rune(filledChar)[0]
+	runes := []rune(strings.Repeat(emptyChar, ib.width))
+	for i := range sweepWindowSize {
+		runes[(pos+i)%ib.width] = filledRune
 	}
-	ib.once.Do(func() {
-		close(ib.stop)
-		<-ib.done
-		ib.write([]byte("\n"))
-	})
+
+	arrow := renderArrow(ib.color)
+	bar := ib.renderSweepBar(runes, filledRune)
+	dots := ib.renderDots()
+	return fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, ib.label, bar, dots)
+}
+
+func (ib *IndeterminateBar) renderSweepBar(runes []rune, filledRune rune) string {
+	if !ib.color {
+		return string(runes)
+	}
+	emptyStyle := lipgloss.NewStyle().Background(lipgloss.Color("#313244"))
+	var sb strings.Builder
+	for i, r := range runes {
+		if r == filledRune {
+			color := blendHex("#5A56E0", "#EE6FF8", float64(i)/float64(max(len(runes)-1, 1)))
+			sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(color)).Render(" "))
+		} else {
+			sb.WriteString(emptyStyle.Render(" "))
+		}
+	}
+	return sb.String()
+}
+
+// renderArrow returns the styled "->" prefix used on progress bar lines.
+func renderArrow(color bool) string {
+	if color {
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render("->")
+	}
+	return "->"
+}
+
+// renderGradientBar renders a progress bar. The filled portion uses a
+// left-to-right gradient from #5A56E0 (indigo) to #EE6FF8 (pink), matching
+// the Charm package-manager demo. The empty track uses faint ░ chars.
+func renderGradientBar(filled, empty int, color bool) string {
+	if !color {
+		return strings.Repeat("█", filled) + strings.Repeat("░", empty)
+	}
+	emptyStyle := lipgloss.NewStyle().Background(lipgloss.Color("#313244"))
+	if filled == 0 {
+		return emptyStyle.Render(strings.Repeat(" ", empty))
+	}
+	var sb strings.Builder
+	for i := range filled {
+		sb.WriteString(lipgloss.NewStyle().Background(lipgloss.Color(blendHex("#5A56E0", "#EE6FF8", float64(i)/float64(max(filled-1, 1))))).Render(" "))
+	}
+	sb.WriteString(emptyStyle.Render(strings.Repeat(" ", empty)))
+	return sb.String()
+}
+
+// blendHex linearly interpolates between two hex color strings at position t ∈ [0,1].
+func blendHex(from, to string, t float64) string {
+	r1, g1, b1 := parseHex(from)
+	r2, g2, b2 := parseHex(to)
+	r := uint8(float64(r1) + t*float64(int(r2)-int(r1)))
+	g := uint8(float64(g1) + t*float64(int(g2)-int(g1)))
+	b := uint8(float64(b1) + t*float64(int(b2)-int(b1)))
+	return fmt.Sprintf("#%02X%02X%02X", r, g, b)
+}
+
+// parseHex parses a "#RRGGBB" color string into its R, G, B components.
+func parseHex(hex string) (uint8, uint8, uint8) {
+	hex = strings.TrimPrefix(hex, "#")
+	var r, g, b uint8
+	fmt.Sscanf(hex, "%02X%02X%02X", &r, &g, &b) //nolint:errcheck
+	return r, g, b
+}
+
+func (ib *IndeterminateBar) renderDots() string {
+	if ib.color {
+		return lipgloss.NewStyle().Faint(true).Render("...")
+	}
+	return "..."
 }
 
 // Indeterminate runs action while displaying a sweeping indeterminate progress
@@ -357,9 +399,4 @@ func (w *Writer) Indeterminate(label string, action func() error) error {
 	bar := w.NewIndeterminate(label)
 	defer bar.Stop()
 	return action()
-}
-
-// Spinner is an alias for Indeterminate, preserved for backward compatibility.
-func (w *Writer) Spinner(label string, action func() error) error {
-	return w.Indeterminate(label, action)
 }

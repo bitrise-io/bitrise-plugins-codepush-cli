@@ -2,10 +2,10 @@ package bundler
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
@@ -44,9 +44,13 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 
 	args := b.buildArgs(config, opts, outputDir, bundlePath, mapPath)
 
-	b.out.Info("Running: npx %s", strings.Join(args, " "))
-
-	if err := b.executor.Run(config.ProjectDir, os.Stderr, os.Stderr, "npx", args...); err != nil {
+	progress := b.out.NewProgress("Bundling " + string(opts.Platform))
+	mw := output.NewMetroProgressWriter(progress)
+	err = b.runBundle(config.ProjectDir, mw, "npx", args...)
+	mw.Flush()
+	progress.Done("")
+	if err != nil {
+		b.out.Info("%s", mw.Buffered())
 		return nil, fmt.Errorf("expo export:embed failed: %w", err)
 	}
 
@@ -72,6 +76,13 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 }
 
 // buildArgs constructs the argument list for "npx expo export:embed".
+func (b *ExpoBundler) runBundle(dir string, w io.Writer, name string, args ...string) error {
+	if b.out.IsInteractive() {
+		return runWithPTY(dir, w, name, args...)
+	}
+	return b.executor.Run(dir, io.Discard, w, name, args...)
+}
+
 func (b *ExpoBundler) buildArgs(config *ProjectConfig, opts *BundleOptions, outputDir, bundlePath, mapPath string) []string {
 	args := []string{
 		"expo", "export:embed",

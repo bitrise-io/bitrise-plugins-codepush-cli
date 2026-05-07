@@ -52,10 +52,11 @@ func runBundle(out *output.Writer) error {
 	}
 
 	if bundlePrivateKeyPath != "" {
-		out.Step("Signing bundle")
+		stepSign := out.StartStep("Signing bundle")
 		if err := bundler.SignBundle(result.OutputDir, bundlePrivateKeyPath, cmd.Version); err != nil {
 			return fmt.Errorf("signing bundle: %w", err)
 		}
+		stepSign.Done()
 		out.Info("Signed: %s/.codepushrelease", result.OutputDir)
 	}
 

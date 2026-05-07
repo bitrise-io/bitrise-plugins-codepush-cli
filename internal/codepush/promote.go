@@ -43,11 +43,12 @@ func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *outp
 		req.UpdateID = updateID
 	}
 
-	out.Step("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
+	step := out.StartStep("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
 	pkg, err := client.Promote(ctx, opts.AppID, sourceDeploymentID, req)
 	if err != nil {
 		return nil, fmt.Errorf("promote failed: %w", err)
 	}
+	step.Done()
 
 	result := &PromoteResult{
 		UpdateID:         pkg.ID,

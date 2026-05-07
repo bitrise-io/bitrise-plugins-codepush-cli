@@ -2,9 +2,9 @@ package bundler
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
@@ -55,11 +55,16 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 	}
 	args := b.buildArgs(config, opts, paths)
 
-	b.out.Info("Running: npx %s", strings.Join(args, " "))
-
-	if err := b.executor.Run(config.ProjectDir, os.Stderr, os.Stderr, "npx", args...); err != nil {
+	progress := b.out.NewProgress("Bundling " + string(opts.Platform))
+	mw := output.NewMetroProgressWriter(progress)
+	if err := b.runBundle(config.ProjectDir, mw, "npx", args...); err != nil {
+		mw.Flush()
+		progress.Done("")
+		b.out.Info("%s", mw.Buffered())
 		return nil, fmt.Errorf("react-native bundle failed: %w", err)
 	}
+	mw.Flush()
+	progress.Done("")
 
 	if _, err := os.Stat(bundlePath); err != nil {
 		return nil, fmt.Errorf("bundle file was not created at %s", bundlePath)
@@ -122,6 +127,13 @@ func (b *ReactNativeBundler) buildArgs(config *ProjectConfig, opts *BundleOption
 	args = append(args, opts.ExtraBundlerOpts...)
 
 	return args
+}
+
+func (b *ReactNativeBundler) runBundle(dir string, w io.Writer, name string, args ...string) error {
+	if b.out.IsInteractive() {
+		return runWithPTY(dir, w, name, args...)
+	}
+	return b.executor.Run(dir, io.Discard, w, name, args...)
 }
 
 // resolveSourcemapPath returns the absolute sourcemap path based on bundle options.

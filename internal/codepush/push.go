@@ -36,7 +36,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 	}
 
 	var status *UpdateStatus
-	err = out.Spinner("Processing update", func() error {
+	err = out.Indeterminate("Processing update", func() error {
 		var pollErr error
 		status, pollErr = pollStatus(ctx, client, UpdateRef{AppID: opts.AppID, DeploymentID: deploymentID, UpdateID: updateID}, pollCfg)
 		return pollErr
@@ -57,7 +57,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 }
 
 func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploymentID string, out *output.Writer) (string, int64, error) {
-	out.Step("Packaging bundle: %s", opts.BundlePath)
+	step := out.StartStep("Packaging bundle: %s", opts.BundlePath)
 	zipPath, err := ziputil.Directory(opts.BundlePath)
 	if err != nil {
 		return "", 0, fmt.Errorf("packaging bundle: %w", err)
@@ -68,11 +68,12 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	if err != nil {
 		return "", 0, fmt.Errorf("reading zip file info: %w", err)
 	}
-	out.Info("Update size: %d bytes", zipInfo.Size())
+	step.Done()
+	out.Info("Update size: %s", output.HumanBytes(zipInfo.Size()))
 
 	updateID := uuid.New().String()
 
-	out.Step("Requesting upload URL")
+	stepURL := out.StartStep("Requesting upload URL")
 	uploadResp, err := client.GetUploadURL(ctx, opts.AppID, deploymentID, updateID, UploadURLRequest{
 		AppVersion:    opts.AppVersion,
 		FileName:      filepath.Base(zipPath),
@@ -85,24 +86,26 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	if err != nil {
 		return "", 0, fmt.Errorf("requesting upload URL: %w", err)
 	}
+	stepURL.Done()
 
-	err = out.Spinner("Uploading update", func() error {
-		zipFile, openErr := os.Open(zipPath)
-		if openErr != nil {
-			return fmt.Errorf("opening zip for upload: %w", openErr)
-		}
-		defer func() { _ = zipFile.Close() }()
-
-		return client.UploadFile(ctx, UploadFileRequest{
-			URL:           uploadResp.URL,
-			Method:        uploadResp.Method,
-			Headers:       uploadResp.Headers,
-			Body:          zipFile,
-			ContentLength: zipInfo.Size(),
-		})
-	})
+	zipFile, err := os.Open(zipPath)
 	if err != nil {
-		return "", 0, fmt.Errorf("uploading update: %w", err)
+		return "", 0, fmt.Errorf("opening zip for upload: %w", err)
+	}
+	defer func() { _ = zipFile.Close() }()
+
+	progress := out.NewProgress("Uploading")
+	pr := output.NewProgressReader(zipFile, zipInfo.Size(), progress)
+	uploadErr := client.UploadFile(ctx, UploadFileRequest{
+		URL:           uploadResp.URL,
+		Method:        uploadResp.Method,
+		Headers:       uploadResp.Headers,
+		Body:          pr,
+		ContentLength: zipInfo.Size(),
+	})
+	progress.Done(output.HumanBytes(zipInfo.Size()))
+	if uploadErr != nil {
+		return "", 0, fmt.Errorf("uploading update: %w", uploadErr)
 	}
 
 	return updateID, zipInfo.Size(), nil
@@ -149,7 +152,7 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 		return deploymentNameOrID, nil
 	}
 
-	out.Step("Resolving deployment %q", deploymentNameOrID)
+	step := out.StartStep("Resolving deployment %q", deploymentNameOrID)
 	deployments, err := client.ListDeployments(ctx, appID)
 	if err != nil {
 		return "", fmt.Errorf("listing deployments: %w", err)
@@ -157,6 +160,7 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 
 	for _, d := range deployments {
 		if d.Name == deploymentNameOrID {
+			step.Done()
 			out.Info("Resolved to %s", d.ID)
 			return d.ID, nil
 		}

@@ -100,12 +100,24 @@ func TestPrintln(t *testing.T) {
 	assert.Equal(t, "CodePush CLI 1.0.0\n", buf.String())
 }
 
-func TestSpinnerNonInteractive(t *testing.T) {
+func TestStartStepNonInteractive(t *testing.T) {
+	var buf bytes.Buffer
+	w := NewTest(&buf)
+
+	sh := w.StartStep("Packaging bundle: %s", "./bundle")
+	assert.Contains(t, buf.String(), `-> Packaging bundle: ./bundle`)
+
+	before := buf.String()
+	sh.Done()
+	assert.Equal(t, before, buf.String(), "Done should be a no-op in non-interactive mode")
+}
+
+func TestIndeterminateNonInteractive(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewTest(&buf)
 
 	called := false
-	err := w.Spinner("Processing", func() error {
+	err := w.Indeterminate("Processing", func() error {
 		called = true
 		return nil
 	})
@@ -135,12 +147,12 @@ func TestIsInteractive(t *testing.T) {
 	assert.False(t, w.IsInteractive())
 }
 
-func TestSpinnerNonInteractiveError(t *testing.T) {
+func TestIndeterminateNonInteractiveError(t *testing.T) {
 	var buf bytes.Buffer
 	w := NewTest(&buf)
 
 	wantErr := "upload failed"
-	err := w.Spinner("Uploading", func() error {
+	err := w.Indeterminate("Uploading", func() error {
 		return fmt.Errorf("%s", wantErr)
 	})
 
