@@ -48,11 +48,12 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 	mw := output.NewMetroProgressWriter(progress)
 	err = b.runBundle(config.ProjectDir, mw, "npx", args...)
 	mw.Flush()
-	progress.Done("")
 	if err != nil {
+		progress.Cancel()
 		b.out.Info("%s", mw.Buffered())
 		return nil, fmt.Errorf("expo export:embed failed: %w", err)
 	}
+	progress.Done("")
 
 	result := &BundleResult{
 		BundlePath: bundlePath,

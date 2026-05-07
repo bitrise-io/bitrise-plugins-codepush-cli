@@ -167,6 +167,18 @@ func (pb *ProgressBar) Done(sub string) {
 	})
 }
 
+// Cancel terminates the progress indicator line without marking it as OK.
+// Use on error paths instead of Done to avoid a misleading "OK" state.
+// Idempotent. No-op in non-interactive mode.
+func (pb *ProgressBar) Cancel() {
+	if !pb.interactive {
+		return
+	}
+	pb.once.Do(func() {
+		pb.write([]byte("\n"))
+	})
+}
+
 // progressReader wraps an io.Reader and updates a ProgressBar on each read.
 type progressReader struct {
 	r     io.Reader

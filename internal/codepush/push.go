@@ -103,10 +103,11 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 		Body:          pr,
 		ContentLength: zipInfo.Size(),
 	})
-	progress.Done(output.HumanBytes(zipInfo.Size()))
 	if uploadErr != nil {
+		progress.Cancel()
 		return "", 0, fmt.Errorf("uploading update: %w", uploadErr)
 	}
+	progress.Done(output.HumanBytes(zipInfo.Size()))
 
 	return updateID, zipInfo.Size(), nil
 }

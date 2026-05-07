@@ -59,7 +59,7 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 	mw := output.NewMetroProgressWriter(progress)
 	if err := b.runBundle(config.ProjectDir, mw, "npx", args...); err != nil {
 		mw.Flush()
-		progress.Done("")
+		progress.Cancel()
 		b.out.Info("%s", mw.Buffered())
 		return nil, fmt.Errorf("react-native bundle failed: %w", err)
 	}
