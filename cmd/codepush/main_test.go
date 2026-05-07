@@ -20,6 +20,29 @@ func TestVersionCommand(t *testing.T) {
 	assert.Equal(t, "version", versionCmd.Use)
 }
 
+func TestProgressStyleFlag(t *testing.T) {
+	tests := []struct {
+		flag string
+		want output.BarStyle
+	}{
+		{"bar", output.StyleBar},
+		{"spinner", output.StyleSpinner},
+		{"counter", output.StyleCounter},
+		{"", output.StyleBar},
+	}
+	for _, tc := range tests {
+		t.Run(tc.flag, func(t *testing.T) {
+			assert.Equal(t, tc.want, output.ParseBarStyle(tc.flag))
+		})
+	}
+}
+
+func TestProgressStyleFlagHelp(t *testing.T) {
+	f := cmd.RootCmd.PersistentFlags().Lookup("progress-style")
+	assert.NotNil(t, f, "--progress-style flag should be registered on root command")
+	assert.Equal(t, "bar", f.DefValue, "default should be bar")
+}
+
 func TestCommandRegistration(t *testing.T) {
 	commands := cmd.RootCmd.Commands()
 	wantNames := []string{"version", "bundle", "push", "rollback", "promote", "integrate", "auth"}
