@@ -22,7 +22,7 @@ type Writer struct {
 	w           io.Writer
 	interactive bool     // terminal AND not CI
 	color       bool     // terminal AND not NO_COLOR
-	barStyle    BarStyle // default StyleGradient (zero value)
+	barStyle    BarStyle // default StyleBar (zero value)
 }
 
 // KeyValue is a key-value pair for Result output.
@@ -231,7 +231,7 @@ func (w *Writer) Println(format string, args ...any) {
 }
 
 // SetBarStyle configures the visual style used by all progress and indeterminate
-// bars created from this Writer. The default is StyleGradient.
+// bars created from this Writer. The default is StyleBar.
 func (w *Writer) SetBarStyle(s BarStyle) {
 	w.barStyle = s
 }
