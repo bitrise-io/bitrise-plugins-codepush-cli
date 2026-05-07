@@ -53,5 +53,5 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&AppID, "app-id", "", "release management app UUID (env: CODEPUSH_APP_ID)")
 	RootCmd.PersistentFlags().BoolVarP(&JSONOutput, "json", "j", false, "output results as JSON to stdout")
 	RootCmd.PersistentFlags().StringVar(&ServerURL, "server-url", "", "API server base URL (env: CODEPUSH_SERVER_URL)")
-	RootCmd.PersistentFlags().StringVar(&progressStyle, "progress-style", "gradient", "progress bar style: gradient, classic, block")
+	RootCmd.PersistentFlags().StringVar(&progressStyle, "progress-style", "bar", "progress indicator style: bar, spinner, counter")
 }

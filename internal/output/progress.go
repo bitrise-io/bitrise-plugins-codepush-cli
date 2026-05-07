@@ -13,30 +13,31 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// BarStyle selects the visual appearance of progress and indeterminate bars.
+// BarStyle selects the type of progress indicator used by progress and
+// indeterminate bars.
 type BarStyle int
 
 const (
-	// StyleGradient renders background-colored spaces with an indigo-to-pink
-	// gradient. This is the default.
-	StyleGradient BarStyle = iota
-	// StyleClassic renders filled (█) and empty (░) block characters in
-	// lavender. Matches the original single-color design.
-	StyleClassic
-	// StyleBlock renders a bounded bar [███▓░░░] inspired by the mpb library.
-	StyleBlock
+	// StyleBar renders a gradient progress bar (indigo to pink). This is the default.
+	StyleBar BarStyle = iota
+	// StyleSpinner renders an animated braille spinner character (⠋⠙⠹…).
+	StyleSpinner
+	// StyleCounter shows the percentage and sub-label (X/Y or bytes) without a bar.
+	StyleCounter
 )
 
-// ParseBarStyle converts a string name to a BarStyle. Returns StyleGradient
-// for unrecognised values.
+var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+
+// ParseBarStyle converts a string name to a BarStyle. Returns StyleBar for
+// unrecognised values.
 func ParseBarStyle(s string) BarStyle {
 	switch s {
-	case "classic":
-		return StyleClassic
-	case "block":
-		return StyleBlock
+	case "spinner":
+		return StyleSpinner
+	case "counter":
+		return StyleCounter
 	default:
-		return StyleGradient
+		return StyleBar
 	}
 }
 
@@ -70,6 +71,7 @@ type ProgressBar struct {
 	barStyle    BarStyle
 	label       string
 	width       int // default 30 track chars
+	frame       int // spinner frame index, incremented on each Update
 }
 
 // NewProgress creates a ProgressBar for the given label. In interactive mode
@@ -93,7 +95,7 @@ func (w *Writer) NewProgress(label string) *ProgressBar {
 	return pb
 }
 
-// Update renders the progress bar at the given percentage with an optional sub-label.
+// Update renders the progress indicator at the given percentage with an optional sub-label.
 // Overwrites the current line (which NewProgress left without a newline) in-place.
 // In non-interactive mode this is a no-op.
 func (pb *ProgressBar) Update(pct float64, sub string) {
@@ -101,50 +103,66 @@ func (pb *ProgressBar) Update(pct float64, sub string) {
 		return
 	}
 
-	filled := max(min(int(math.Round(float64(pb.width)*pct/100)), pb.width), 0)
-	empty := pb.width - filled
-	bar := renderBar(filled, empty, pb.barStyle, pb.color)
-
-	var pctStr string
-	if pb.color {
-		pctColor := "#cba6f7"
-		if pct >= 100 {
-			pctColor = "#a6e3a1"
-		}
-		pctStr = lipgloss.NewStyle().Foreground(lipgloss.Color(pctColor)).Render(fmt.Sprintf("%3.0f%%", pct))
-	} else {
-		pctStr = fmt.Sprintf("%3.0f%%", pct)
-	}
-
+	pctStr := renderPct(pct, pb.color)
 	arrow := renderArrow(pb.color)
-	if sub != "" {
-		pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s", arrow, pb.label, bar, pctStr, sub))
-	} else {
-		pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, pb.label, bar, pctStr))
+
+	switch pb.barStyle {
+	case StyleSpinner:
+		ch := spinnerFrames[pb.frame%len(spinnerFrames)]
+		pb.frame++
+		if pb.color {
+			ch = lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7")).Render(ch)
+		}
+		if sub != "" {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s", arrow, pb.label, ch, pctStr, sub))
+		} else {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, pb.label, ch, pctStr))
+		}
+	case StyleCounter:
+		if sub != "" {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, pb.label, pctStr, sub))
+		} else {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s", arrow, pb.label, pctStr))
+		}
+	default: // StyleBar
+		filled := max(min(int(math.Round(float64(pb.width)*pct/100)), pb.width), 0)
+		bar := renderGradientBar(filled, pb.width-filled, pb.color)
+		if sub != "" {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s", arrow, pb.label, bar, pctStr, sub))
+		} else {
+			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, pb.label, bar, pctStr))
+		}
 	}
 }
 
-// Done finalises the progress bar. In interactive mode it overwrites the
-// current line with "OK label  bar  100%  sub\n". Idempotent.
-// No-op in non-interactive mode.
+// Done finalises the progress indicator. Overwrites the current line with
+// "OK label …\n". Idempotent. No-op in non-interactive mode.
 func (pb *ProgressBar) Done(sub string) {
 	if !pb.interactive {
 		return
 	}
 	pb.once.Do(func() {
-		bar := renderBar(pb.width, 0, pb.barStyle, pb.color)
-		var pctStr, ok string
+		pctStr := renderPct(100, pb.color)
+		var ok string
 		if pb.color {
-			pctStr = lipgloss.NewStyle().Foreground(lipgloss.Color("#a6e3a1")).Render("100%")
 			ok = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
 		} else {
-			pctStr = "100%"
 			ok = "OK"
 		}
-		if sub != "" {
-			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s\n", ok, pb.label, bar, pctStr, sub))
-		} else {
-			pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s\n", ok, pb.label, bar, pctStr))
+		switch pb.barStyle {
+		case StyleSpinner, StyleCounter:
+			if sub != "" {
+				pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s\n", ok, pb.label, pctStr, sub))
+			} else {
+				pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s\n", ok, pb.label, pctStr))
+			}
+		default: // StyleBar
+			bar := renderGradientBar(pb.width, 0, pb.color)
+			if sub != "" {
+				pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s  %s\n", ok, pb.label, bar, pctStr, sub))
+			} else {
+				pb.write(fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s\n", ok, pb.label, bar, pctStr))
+			}
 		}
 	})
 }
@@ -318,17 +336,27 @@ func (ib *IndeterminateBar) Stop() {
 	})
 }
 
+func (ib *IndeterminateBar) sweepMaxPosition() int {
+	switch ib.barStyle {
+	case StyleSpinner:
+		return len(spinnerFrames)
+	case StyleCounter:
+		return 3 // animates "." / ".." / "..."
+	default:
+		return ib.width
+	}
+}
+
 func (ib *IndeterminateBar) sweep() {
 	ticker := time.NewTicker(sweepInterval)
 	defer ticker.Stop()
 
-	maxPosition := ib.width
+	maxPosition := ib.sweepMaxPosition()
 	position := 0
 
 	for {
 		select {
 		case <-ib.stop:
-			// write final frame before signalling done
 			ib.write(ib.renderFrame(position))
 			close(ib.done)
 			return
@@ -340,34 +368,29 @@ func (ib *IndeterminateBar) sweep() {
 }
 
 func (ib *IndeterminateBar) renderFrame(pos int) []byte {
-	const (
-		filledChar = "█"
-		emptyChar  = "░"
-	)
-	filledRune := []rune(filledChar)[0]
-	runes := []rune(strings.Repeat(emptyChar, ib.width))
+	switch ib.barStyle {
+	case StyleSpinner:
+		return ib.renderSpinnerFrame(pos)
+	case StyleCounter:
+		return ib.renderCounterFrame(pos)
+	default:
+		return ib.renderSweepBarFrame(pos)
+	}
+}
+
+func (ib *IndeterminateBar) renderSweepBarFrame(pos int) []byte {
+	filledRune := '█'
+	runes := []rune(strings.Repeat("░", ib.width))
 	for i := range sweepWindowSize {
 		runes[(pos+i)%ib.width] = filledRune
 	}
-
+	bar := ib.renderGradientSweep(runes, filledRune)
 	arrow := renderArrow(ib.color)
-	bar := ib.renderSweepBar(runes, filledRune)
 	dots := ib.renderDots()
 	return fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, ib.label, bar, dots)
 }
 
-func (ib *IndeterminateBar) renderSweepBar(runes []rune, filledRune rune) string {
-	switch ib.barStyle {
-	case StyleClassic:
-		return ib.renderClassicSweepBar(runes, filledRune)
-	case StyleBlock:
-		return ib.renderBlockSweepBar(runes, filledRune)
-	default:
-		return ib.renderGradientSweepBar(runes, filledRune)
-	}
-}
-
-func (ib *IndeterminateBar) renderGradientSweepBar(runes []rune, filledRune rune) string {
+func (ib *IndeterminateBar) renderGradientSweep(runes []rune, filledRune rune) string {
 	if !ib.color {
 		return string(runes)
 	}
@@ -384,100 +407,36 @@ func (ib *IndeterminateBar) renderGradientSweepBar(runes []rune, filledRune rune
 	return sb.String()
 }
 
-func (ib *IndeterminateBar) renderClassicSweepBar(runes []rune, filledRune rune) string {
-	if !ib.color {
-		return string(runes)
-	}
-	fillStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
-	emptyStyle := lipgloss.NewStyle().Faint(true)
-	var sb strings.Builder
-	for _, r := range runes {
-		if r == filledRune {
-			sb.WriteString(fillStyle.Render("█"))
-		} else {
-			sb.WriteString(emptyStyle.Render("░"))
-		}
-	}
-	return sb.String()
-}
-
-func (ib *IndeterminateBar) renderBlockSweepBar(runes []rune, filledRune rune) string {
-	identity := func(s string) string { return s }
-	bound, fillFn, emptyFn := identity, identity, identity
+func (ib *IndeterminateBar) renderSpinnerFrame(pos int) []byte {
+	ch := spinnerFrames[pos]
 	if ib.color {
-		dim := lipgloss.NewStyle().Faint(true)
-		fill := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
-		bound = func(s string) string { return dim.Render(s) }
-		fillFn = func(s string) string { return fill.Render(s) }
-		emptyFn = bound
+		ch = lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7")).Render(ch)
 	}
-
-	var sb strings.Builder
-	sb.WriteString(bound("["))
-	for _, r := range runes {
-		if r == filledRune {
-			sb.WriteString(fillFn("█"))
-		} else {
-			sb.WriteString(emptyFn(" "))
-		}
-	}
-	sb.WriteString(bound("]"))
-	return sb.String()
+	arrow := renderArrow(ib.color)
+	dots := ib.renderDots()
+	return fmt.Appendf(nil, "\r\033[2K%s %-20s  %s  %s", arrow, ib.label, ch, dots)
 }
 
-// renderBar dispatches to the correct bar renderer based on the active style.
-func renderBar(filled, empty int, style BarStyle, color bool) string {
-	switch style {
-	case StyleClassic:
-		return renderClassicBar(filled, empty, color)
-	case StyleBlock:
-		return renderBlockBar(filled, empty, color)
-	default:
-		return renderGradientBar(filled, empty, color)
+func (ib *IndeterminateBar) renderCounterFrame(pos int) []byte {
+	dotsFrames := []string{".", "..", "..."}
+	d := dotsFrames[pos]
+	if ib.color {
+		d = lipgloss.NewStyle().Faint(true).Render(d)
 	}
+	arrow := renderArrow(ib.color)
+	return fmt.Appendf(nil, "\r\033[2K%s %-20s  %s", arrow, ib.label, d)
 }
 
-// renderClassicBar renders filled (█) and empty (░) block characters. The
-// filled portion is coloured lavender (#cba6f7) in colour mode.
-func renderClassicBar(filled, empty int, color bool) string {
+// renderPct formats a percentage value with color: lavender normally, green at 100%.
+func renderPct(pct float64, color bool) string {
 	if !color {
-		return strings.Repeat("█", filled) + strings.Repeat("░", empty)
+		return fmt.Sprintf("%3.0f%%", pct)
 	}
-	var sb strings.Builder
-	if filled > 0 {
-		sb.WriteString(lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7")).Render(strings.Repeat("█", filled)))
+	c := "#cba6f7"
+	if pct >= 100 {
+		c = "#a6e3a1"
 	}
-	if empty > 0 {
-		sb.WriteString(lipgloss.NewStyle().Faint(true).Render(strings.Repeat("░", empty)))
-	}
-	return sb.String()
-}
-
-// renderBlockBar renders a bounded [███▓░░░] bar inspired by the mpb library.
-// A tip character (▓) marks the leading edge when the bar is not full.
-func renderBlockBar(filled, empty int, color bool) string {
-	identity := func(s string) string { return s }
-	bound, fillFn, emptyFn := identity, identity, identity
-	if color {
-		dim := lipgloss.NewStyle().Faint(true)
-		fill := lipgloss.NewStyle().Foreground(lipgloss.Color("#cba6f7"))
-		bound = func(s string) string { return dim.Render(s) }
-		fillFn = func(s string) string { return fill.Render(s) }
-		emptyFn = bound
-	}
-
-	var sb strings.Builder
-	sb.WriteString(bound("["))
-	for i := range filled {
-		if i == filled-1 && empty > 0 {
-			sb.WriteString(fillFn("▓"))
-		} else {
-			sb.WriteString(fillFn("█"))
-		}
-	}
-	sb.WriteString(emptyFn(strings.Repeat("░", empty)))
-	sb.WriteString(bound("]"))
-	return sb.String()
+	return lipgloss.NewStyle().Foreground(lipgloss.Color(c)).Render(fmt.Sprintf("%3.0f%%", pct))
 }
 
 // renderArrow returns the styled "->" prefix used on progress bar lines.
