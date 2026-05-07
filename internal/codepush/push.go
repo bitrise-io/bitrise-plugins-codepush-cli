@@ -158,6 +158,7 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 	step := out.StartStep("Resolving deployment %q", deploymentNameOrID)
 	deployments, err := client.ListDeployments(ctx, appID)
 	if err != nil {
+		step.Cancel()
 		return "", fmt.Errorf("listing deployments: %w", err)
 	}
 
