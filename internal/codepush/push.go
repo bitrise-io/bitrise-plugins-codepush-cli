@@ -67,6 +67,7 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 
 	zipInfo, err := os.Stat(zipPath)
 	if err != nil {
+		step.Cancel()
 		return "", 0, fmt.Errorf("reading zip file info: %w", err)
 	}
 	step.Done()
