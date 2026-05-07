@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/lipgloss/table"
@@ -17,6 +18,7 @@ import (
 // Writer provides styled terminal output. Create one with New() for
 // production use or NewTest() for tests.
 type Writer struct {
+	mu          sync.Mutex
 	w           io.Writer
 	interactive bool // terminal AND not CI
 	color       bool // terminal AND not NO_COLOR
@@ -60,6 +62,13 @@ func NewTest(w io.Writer) *Writer {
 	}
 }
 
+// write acquires the mutex and writes b to the underlying writer.
+func (w *Writer) write(b []byte) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	_, _ = w.w.Write(b)
+}
+
 // IsInteractive returns true if the writer targets an interactive terminal
 // (not CI, not piped).
 func (w *Writer) IsInteractive() bool {
@@ -72,9 +81,9 @@ func (w *Writer) Step(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		arrow := lipgloss.NewStyle().Foreground(lipgloss.Color("6")).Render("->")
-		_, _ = fmt.Fprintf(w.w, "%s %s\n", arrow, msg)
+		w.write([]byte(fmt.Sprintf("%s %s\n", arrow, msg)))
 	} else {
-		_, _ = fmt.Fprintf(w.w, "-> %s\n", msg)
+		w.write([]byte(fmt.Sprintf("-> %s\n", msg)))
 	}
 }
 
@@ -84,9 +93,9 @@ func (w *Writer) Success(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2")).Render("OK")
-		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
 	} else {
-		_, _ = fmt.Fprintf(w.w, "OK %s\n", msg)
+		w.write([]byte(fmt.Sprintf("OK %s\n", msg)))
 	}
 }
 
@@ -96,9 +105,9 @@ func (w *Writer) Error(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("1")).Render("ERROR")
-		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
 	} else {
-		_, _ = fmt.Fprintf(w.w, "ERROR %s\n", msg)
+		w.write([]byte(fmt.Sprintf("ERROR %s\n", msg)))
 	}
 }
 
@@ -108,9 +117,9 @@ func (w *Writer) Warning(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		prefix := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")).Render("WARNING")
-		_, _ = fmt.Fprintf(w.w, "%s %s\n", prefix, msg)
+		w.write([]byte(fmt.Sprintf("%s %s\n", prefix, msg)))
 	} else {
-		_, _ = fmt.Fprintf(w.w, "WARNING %s\n", msg)
+		w.write([]byte(fmt.Sprintf("WARNING %s\n", msg)))
 	}
 }
 
@@ -120,9 +129,9 @@ func (w *Writer) Info(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	if w.color {
 		dim := lipgloss.NewStyle().Faint(true)
-		_, _ = fmt.Fprintf(w.w, "   %s\n", dim.Render(msg))
+		w.write([]byte(fmt.Sprintf("   %s\n", dim.Render(msg))))
 	} else {
-		_, _ = fmt.Fprintf(w.w, "   %s\n", msg)
+		w.write([]byte(fmt.Sprintf("   %s\n", msg)))
 	}
 }
 
@@ -139,14 +148,14 @@ func (w *Writer) Result(pairs []KeyValue) {
 		}
 	}
 
-	_, _ = fmt.Fprintln(w.w)
+	w.write([]byte("\n"))
 	for _, p := range pairs {
 		padding := strings.Repeat(" ", maxKeyLen-len(p.Key))
 		if w.color {
 			key := lipgloss.NewStyle().Bold(true).Render(p.Key)
-			_, _ = fmt.Fprintf(w.w, "  %s%s  %s\n", key, padding, p.Value)
+			w.write([]byte(fmt.Sprintf("  %s%s  %s\n", key, padding, p.Value)))
 		} else {
-			_, _ = fmt.Fprintf(w.w, "  %s%s  %s\n", p.Key, padding, p.Value)
+			w.write([]byte(fmt.Sprintf("  %s%s  %s\n", p.Key, padding, p.Value)))
 		}
 	}
 }
@@ -175,10 +184,10 @@ func (w *Writer) Table(headers []string, rows [][]string) {
 		return cellStyle
 	})
 
-	_, _ = fmt.Fprintln(w.w, t.Render())
+	w.write([]byte(t.Render() + "\n"))
 }
 
 // Println prints a plain line with no prefix or styling.
 func (w *Writer) Println(format string, args ...any) {
-	_, _ = fmt.Fprintf(w.w, format+"\n", args...)
+	w.write([]byte(fmt.Sprintf(format+"\n", args...)))
 }
