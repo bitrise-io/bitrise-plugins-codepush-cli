@@ -153,6 +153,8 @@ var metroProgressRe = regexp.MustCompile(`(\d+\.?\d*)%.*?\((\d+)/(\d+)[^)]*\)`)
 
 // MetroProgressWriter buffers Metro bundler stderr output into a 20-line ring
 // for error display. pb may be nil (progress updates are skipped when nil).
+// Write is not safe for concurrent use; callers must serialize writes (Metro
+// output arrives on a single io.Copy goroutine, so this holds in practice).
 type MetroProgressWriter struct {
 	pb   *ProgressBar
 	buf  []byte
@@ -186,8 +188,7 @@ func (w *MetroProgressWriter) Write(p []byte) (int, error) {
 		if len(rest) > 0 && w.buf[idx] == '\r' && rest[0] == '\n' {
 			rest = rest[1:]
 		}
-		w.buf = make([]byte, len(rest))
-		copy(w.buf, rest)
+		w.buf = append(w.buf[:0], rest...)
 
 		w.processLine(line)
 	}
