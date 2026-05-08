@@ -121,6 +121,40 @@ func TestSave(t *testing.T) {
 	})
 }
 
+func TestProgressStyleRoundTrip(t *testing.T) {
+	t.Run("saves and loads progress_style", func(t *testing.T) {
+		dir := setupTestDir(t)
+
+		want := &ProjectConfig{AppID: "my-app", ProgressStyle: "spinner"}
+		require.NoError(t, Save(dir, want))
+
+		got, err := Load()
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		assert.Equal(t, "spinner", got.ProgressStyle)
+	})
+
+	t.Run("omits progress_style when empty", func(t *testing.T) {
+		dir := setupTestDir(t)
+
+		require.NoError(t, Save(dir, &ProjectConfig{AppID: "my-app"}))
+
+		data, err := os.ReadFile(filepath.Join(dir, FileName))
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), "progress_style")
+	})
+
+	t.Run("loads unknown progress_style without error", func(t *testing.T) {
+		dir := setupTestDir(t)
+		os.WriteFile(filepath.Join(dir, FileName), []byte(`{"app_id":"x","progress_style":"rainbow"}`), 0o644)
+
+		cfg, err := Load()
+		require.NoError(t, err)
+		require.NotNil(t, cfg)
+		assert.Equal(t, "rainbow", cfg.ProgressStyle)
+	})
+}
+
 func TestFilePath(t *testing.T) {
 	dir := setupTestDir(t)
 

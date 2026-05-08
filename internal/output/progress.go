@@ -28,17 +28,25 @@ const (
 
 var spinnerFrames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 
+var barStyleNames = map[string]BarStyle{
+	"bar":     StyleBar,
+	"spinner": StyleSpinner,
+	"counter": StyleCounter,
+}
+
 // ParseBarStyle converts a string name to a BarStyle. Returns StyleBar for
 // unrecognised values.
 func ParseBarStyle(s string) BarStyle {
-	switch s {
-	case "spinner":
-		return StyleSpinner
-	case "counter":
-		return StyleCounter
-	default:
-		return StyleBar
+	if bs, ok := barStyleNames[s]; ok {
+		return bs
 	}
+	return StyleBar
+}
+
+// IsValidBarStyle reports whether s is a recognised BarStyle name.
+func IsValidBarStyle(s string) bool {
+	_, ok := barStyleNames[s]
+	return ok
 }
 
 // HumanBytes formats a byte count into a human-readable string using binary SI units.

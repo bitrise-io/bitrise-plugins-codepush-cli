@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/config"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
@@ -43,8 +44,20 @@ and helps integrate the Bitrise CodePush SDK into your projects.
 Use as a standalone CLI or as a Bitrise plugin (bitrise :codepush).`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-		Out.SetBarStyle(output.ParseBarStyle(progressStyle))
+	PersistentPreRunE: func(c *cobra.Command, _ []string) error {
+		style := progressStyle
+		if !c.Root().PersistentFlags().Changed("progress-style") {
+			if cfg, err := config.Load(); err != nil {
+				Out.Warning("reading %s: %s", config.FileName, err)
+			} else if cfg != nil && cfg.ProgressStyle != "" {
+				if !output.IsValidBarStyle(cfg.ProgressStyle) {
+					Out.Warning("unknown progress_style %q in %s, using default", cfg.ProgressStyle, config.FileName)
+				} else {
+					style = cfg.ProgressStyle
+				}
+			}
+		}
+		Out.SetBarStyle(output.ParseBarStyle(style))
 		return nil
 	},
 }

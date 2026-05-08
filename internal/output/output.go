@@ -84,6 +84,11 @@ func (w *Writer) IsInteractive() bool {
 	return w.interactive
 }
 
+// BarStyle returns the currently configured bar style.
+func (w *Writer) BarStyle() BarStyle {
+	return w.barStyle
+}
+
 // StartStep prints a progress step and returns a StepHandle. In interactive
 // mode, calling Done on the handle replaces the "->" line with "OK" using
 // cursor-up. In non-interactive mode Done is a no-op.
