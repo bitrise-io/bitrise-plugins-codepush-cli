@@ -1,8 +1,8 @@
 package bundler
 
 import (
+	"bytes"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 
@@ -37,7 +37,11 @@ func installDependencies(projectDir string, executor CommandExecutor, out *outpu
 	name, cmd := detectPackageManager(projectDir)
 
 	return out.Indeterminate(fmt.Sprintf("Installing dependencies (%s)", name), func() error {
-		if err := executor.Run(projectDir, io.Discard, io.Discard, cmd, "install"); err != nil {
+		var stderr bytes.Buffer
+		if err := executor.Run(projectDir, &bytes.Buffer{}, &stderr, cmd, "install"); err != nil {
+			if s := stderr.String(); s != "" {
+				out.Info("%s", s)
+			}
 			return fmt.Errorf("installing dependencies with %s failed: %w", name, err)
 		}
 		return nil
