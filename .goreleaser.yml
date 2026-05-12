@@ -46,13 +46,7 @@ snapshot:
   name_template: "{{ incpatch .Version }}-next"
 
 changelog:
-  sort: asc
-  filters:
-    exclude:
-      - '^docs:'
-      - '^test:'
-      - '^chore:'
-      - '^ci:'
+  use: github-native
 
 release:
   github:
