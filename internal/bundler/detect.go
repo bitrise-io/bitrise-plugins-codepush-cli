@@ -389,23 +389,25 @@ func findHermesc(projectDir string) (string, error) {
 	osName := runtime.GOOS
 	archName := runtime.GOARCH
 
-	// Map Go OS/arch names to hermesc directory conventions
+	// Map Go OS/arch names to hermesc directory and binary name conventions.
 	var osTriplet string
+	binaryName := "hermesc"
 	switch {
-	case osName == "darwin" && archName == "arm64":
-		osTriplet = "osx-bin"
-	case osName == "darwin" && archName == "amd64":
+	case osName == "darwin":
 		osTriplet = "osx-bin"
 	case osName == "linux" && archName == "amd64":
 		osTriplet = "linux64-bin"
+	case osName == "windows":
+		osTriplet = "windows-bin"
+		binaryName = "hermesc.exe"
 	default:
 		osTriplet = osName + "-bin"
 	}
 
-	// Check known hermesc locations in order of preference
+	// Check known hermesc locations in order of preference.
 	candidates := []string{
-		filepath.Join(projectDir, "node_modules", "hermes-engine", osTriplet, "hermesc"),
-		filepath.Join(projectDir, "node_modules", "react-native", "sdks", "hermesc", osTriplet, "hermesc"),
+		filepath.Join(projectDir, "node_modules", "hermes-engine", osTriplet, binaryName),
+		filepath.Join(projectDir, "node_modules", "react-native", "sdks", "hermesc", osTriplet, binaryName),
 	}
 
 	for _, candidate := range candidates {

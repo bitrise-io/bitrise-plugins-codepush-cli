@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -89,6 +90,10 @@ func runDebugAndroid(ctx context.Context, out *output.Writer) error {
 }
 
 func runDebugIOS(ctx context.Context, out *output.Writer) error {
+	if runtime.GOOS == "windows" {
+		return errors.New("debug ios is not supported on Windows: iOS simulator log streaming requires xcrun, which is only available on macOS")
+	}
+
 	if _, err := exec.LookPath("xcrun"); err != nil {
 		return errors.New("xcrun not found on PATH: install Xcode command-line tools")
 	}
