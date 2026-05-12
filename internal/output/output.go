@@ -55,17 +55,21 @@ func New() *Writer {
 // is detected via Fd() if the writer supports it.
 func NewWriter(w io.Writer) *Writer {
 	isTerm := false
+	var termFD uintptr
 	if f, ok := w.(interface{ Fd() uintptr }); ok {
-		isTerm = term.IsTerminal(int(f.Fd()))
+		termFD = f.Fd()
+		isTerm = term.IsTerminal(int(termFD))
 	}
 
 	isCI := os.Getenv("CI") != "" || os.Getenv("BITRISE_BUILD_NUMBER") != ""
 	noColor := os.Getenv("NO_COLOR") != ""
 
+	vtOK := !isTerm || enableVTProcessing(termFD)
+
 	return &Writer{
 		w:           w,
-		interactive: isTerm && !isCI,
-		color:       isTerm && !noColor,
+		interactive: isTerm && !isCI && vtOK,
+		color:       isTerm && !noColor && vtOK,
 	}
 }
 
