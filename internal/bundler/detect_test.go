@@ -11,16 +11,26 @@ import (
 )
 
 // testOSTriplet returns the hermesc directory name for the current OS/arch,
-// matching the logic in findHermesc.
+// matching the logic in findHermesc. Must be kept in sync with that function.
 func testOSTriplet() string {
 	switch {
 	case runtime.GOOS == "darwin":
 		return "osx-bin"
 	case runtime.GOOS == "linux" && runtime.GOARCH == "amd64":
 		return "linux64-bin"
+	case runtime.GOOS == "windows":
+		return "windows-bin"
 	default:
 		return runtime.GOOS + "-bin"
 	}
+}
+
+// testHermescBinaryName returns the hermesc filename for the current OS.
+func testHermescBinaryName() string {
+	if runtime.GOOS == "windows" {
+		return "hermesc.exe"
+	}
+	return "hermesc"
 }
 
 func TestDetectProjectType(t *testing.T) {
@@ -463,13 +473,14 @@ func TestDetectHermesVersionFallback(t *testing.T) {
 
 func TestFindHermesc(t *testing.T) {
 	osTriplet := testOSTriplet()
+	binaryName := testHermescBinaryName()
 
 	t.Run("finds hermesc in hermes-engine", func(t *testing.T) {
 		dir := t.TempDir()
 
 		hermescDir := filepath.Join(dir, "node_modules", "hermes-engine", osTriplet)
 		os.MkdirAll(hermescDir, 0o755)
-		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
+		writeFile(t, filepath.Join(hermescDir, binaryName), "#!/bin/sh")
 
 		path, err := findHermesc(dir)
 		require.NoError(t, err)
@@ -481,7 +492,7 @@ func TestFindHermesc(t *testing.T) {
 
 		hermescDir := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", osTriplet)
 		os.MkdirAll(hermescDir, 0o755)
-		writeFile(t, filepath.Join(hermescDir, "hermesc"), "#!/bin/sh")
+		writeFile(t, filepath.Join(hermescDir, binaryName), "#!/bin/sh")
 
 		path, err := findHermesc(dir)
 		require.NoError(t, err)
@@ -493,11 +504,11 @@ func TestFindHermesc(t *testing.T) {
 
 		loc1 := filepath.Join(dir, "node_modules", "hermes-engine", osTriplet)
 		os.MkdirAll(loc1, 0o755)
-		writeFile(t, filepath.Join(loc1, "hermesc"), "primary")
+		writeFile(t, filepath.Join(loc1, binaryName), "primary")
 
 		loc2 := filepath.Join(dir, "node_modules", "react-native", "sdks", "hermesc", osTriplet)
 		os.MkdirAll(loc2, 0o755)
-		writeFile(t, filepath.Join(loc2, "hermesc"), "secondary")
+		writeFile(t, filepath.Join(loc2, binaryName), "secondary")
 
 		path, err := findHermesc(dir)
 		require.NoError(t, err)
