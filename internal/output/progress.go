@@ -343,7 +343,7 @@ const (
 	sweepInterval   = 80 * time.Millisecond
 )
 
-// Stop finalises the indeterminate bar. Idempotent and safe to call multiple times.
+// Stop finalises the indeterminate bar with a green "OK" line. Idempotent.
 // In non-interactive mode this is a no-op.
 func (ib *IndeterminateBar) Stop() {
 	if !ib.interactive {
@@ -353,6 +353,20 @@ func (ib *IndeterminateBar) Stop() {
 		close(ib.stop)
 		<-ib.done
 		ib.write(ib.doneLine)
+	})
+}
+
+// Cancel terminates the indeterminate bar without showing "OK".
+// Use on error paths to avoid a misleading success indicator. Idempotent.
+// In non-interactive mode this is a no-op.
+func (ib *IndeterminateBar) Cancel() {
+	if !ib.interactive {
+		return
+	}
+	ib.once.Do(func() {
+		close(ib.stop)
+		<-ib.done
+		ib.write([]byte("\r\033[2K\n"))
 	})
 }
 
@@ -513,8 +527,13 @@ func (ib *IndeterminateBar) renderDots() string {
 
 // Indeterminate runs action while displaying a sweeping indeterminate progress
 // bar. It replaces the Spinner method with identical call semantics.
+// Shows "OK" on success and clears the bar without "OK" on error.
 func (w *Writer) Indeterminate(label string, action func() error) error {
 	bar := w.NewIndeterminate(label)
-	defer bar.Stop()
-	return action()
+	if err := action(); err != nil {
+		bar.Cancel()
+		return err
+	}
+	bar.Stop()
+	return nil
 }
