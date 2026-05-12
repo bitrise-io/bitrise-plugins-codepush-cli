@@ -41,7 +41,7 @@ archives:
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "arm64" }}arm64
       {{- end }}
-      {{- .Ext}}
+      {{- if eq .Os "windows" }}.exe{{- end }}
 
 checksum:
   name_template: 'checksums.txt'
