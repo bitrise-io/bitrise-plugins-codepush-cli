@@ -44,11 +44,6 @@ func RunWithExecutor(opts *BundleOptions, executor CommandExecutor, out *output.
 		config.MetroConfig = opts.MetroConfig
 	}
 
-	out.Info("Project type: %s", config.ProjectType)
-	out.Info("Platform: %s", config.Platform)
-	out.Info("Entry file: %s", config.EntryFile)
-	out.Info("Hermes: %v", config.HermesEnabled)
-
 	bundler, err := NewBundler(config.ProjectType, executor, out)
 	if err != nil {
 		return nil, err

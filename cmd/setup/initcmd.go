@@ -57,6 +57,13 @@ func writeProjectConfig(appID string, out *output.Writer) error {
 	if serverURL != cmdutil.DefaultServerURL {
 		cfg.ServerURL = serverURL
 	}
+	if cmd.RootCmd.PersistentFlags().Changed("progress-style") {
+		style, _ := cmd.RootCmd.PersistentFlags().GetString("progress-style")
+		if !output.IsValidBarStyle(style) {
+			return fmt.Errorf("unknown progress-style %q: valid values are bar, spinner, counter", style)
+		}
+		cfg.ProgressStyle = style
+	}
 	if err := config.Save(dir, cfg); err != nil {
 		return err
 	}
@@ -69,6 +76,9 @@ func writeProjectConfig(appID string, out *output.Writer) error {
 	out.Info("App ID: %s", appID)
 	if cfg.ServerURL != "" {
 		out.Info("Server: %s", cfg.ServerURL)
+	}
+	if cfg.ProgressStyle != "" {
+		out.Info("Progress style: %s", cfg.ProgressStyle)
 	}
 	out.Info("Path: %s", cfgPath)
 	return nil

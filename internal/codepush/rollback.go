@@ -31,11 +31,13 @@ func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *ou
 		req.UpdateID = updateID
 	}
 
-	out.Step("Rolling back deployment")
+	step := out.StartStep("Rolling back deployment")
 	pkg, err := client.Rollback(ctx, opts.AppID, deploymentID, req)
 	if err != nil {
+		step.Cancel()
 		return nil, fmt.Errorf("rollback failed: %w", err)
 	}
+	step.Done()
 
 	result := &RollbackResult{
 		UpdateID:     pkg.ID,
@@ -69,18 +71,21 @@ type updateLister interface {
 
 // resolveUpdateLabel finds an update by its label (e.g. "v3") within a deployment.
 func resolveUpdateLabel(ctx context.Context, client updateLister, appID, deploymentID, label string, out *output.Writer) (string, error) {
-	out.Step("Resolving release label %q", label)
+	step := out.StartStep("Resolving release label %q", label)
 	updates, err := client.ListUpdates(ctx, appID, deploymentID)
 	if err != nil {
+		step.Cancel()
 		return "", fmt.Errorf("listing updates: %w", err)
 	}
 
 	for _, u := range updates {
 		if u.Label == label {
+			step.Done()
 			out.Info("Resolved to %s", u.ID)
 			return u.ID, nil
 		}
 	}
 
+	step.Cancel()
 	return "", fmt.Errorf("release label %q not found in deployment: check the label or omit --target-release to rollback to the previous release", label)
 }

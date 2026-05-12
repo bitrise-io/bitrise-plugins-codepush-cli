@@ -147,6 +147,41 @@ The server URL is resolved in this order:
 3. `server_url` field in `.codepush.json`
 4. Default: `https://api.bitrise.io`
 
+### Progress Style
+
+`progress_style` is a per-project preference stored in `.codepush.json`. Committing it applies the same style for the whole team. Omit it to let each developer control their own style via the `--progress-style` flag.
+
+Set it during `init`:
+
+```bash
+bitrise :codepush init --progress-style spinner
+```
+
+Or add it manually to `.codepush.json` (safe to do on an existing file without `--force`):
+
+```json
+{
+  "app_id": "your-app-uuid",
+  "progress_style": "spinner"
+}
+```
+
+Available styles:
+
+| Style | Description |
+|-------|-------------|
+| `bar` | Gradient fill bar with percentage (default) |
+| `spinner` | Animated dots spinner |
+| `counter` | Percentage number, no bar or animation |
+
+Progress indicators appear during `push`, `bundle`, `rollback`, `promote`, `patch`, and `auth` commands. In CI environments (`CI=1` or Bitrise), animations are suppressed and only the step labels are printed to stderr regardless of style.
+
+The progress style is resolved in this order (no environment variable override):
+
+1. `--progress-style` flag (highest priority)
+2. `progress_style` field in `.codepush.json`
+3. Default: `bar`
+
 ## Commands
 
 > Commands are shown without a prefix. Invoke them as `bitrise :codepush <command>` (plugin) or `codepush <command>` (standalone binary).
@@ -158,6 +193,7 @@ The server URL is resolved in this order:
 | `--app-id` | Release management app UUID (env: `CODEPUSH_APP_ID`) |
 | `--json`, `-j` | Output results as JSON to stdout |
 | `--server-url` | API server base URL (env: `CODEPUSH_SERVER_URL`) |
+| `--progress-style` | Progress indicator style: `bar` (default), `spinner`, `counter` |
 
 ### Release Management
 
