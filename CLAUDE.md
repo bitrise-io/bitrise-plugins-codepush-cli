@@ -301,10 +301,9 @@ This walks you through the full flow: version bump, PR creation, tagging, and ve
 
 1. Update version in `cmd/codepush/version.go`
 2. Update `bitrise-plugin.yml` executable URLs with new version
-3. Open a PR, wait for CI to pass, and merge to `main`
-4. Merge the PR. Bitrise `pipeline_main` runs `auto-tag`, which reads the version from `cmd/codepush/version.go` and pushes the git tag automatically if it does not already exist.
-5. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
-6. Verify: `gh release view X.Y.Z`
+3. Open a PR, wait for CI to pass, and merge to `main` — Bitrise `auto-tag` creates the git tag automatically
+4. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
+5. Verify: `gh release view X.Y.Z`
 
 ### Prerequisites
 - A `GITHUB_TOKEN` Bitrise Secret with `repo` scope (or fine-grained `contents: write`)
