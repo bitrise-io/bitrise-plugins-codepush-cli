@@ -301,15 +301,9 @@ This walks you through the full flow: version bump, PR creation, tagging, and ve
 
 1. Update version in `cmd/codepush/version.go`
 2. Update `bitrise-plugin.yml` executable URLs with new version
-3. Open a PR, wait for CI to pass, and merge to `main`
-4. Create and push the tag:
-   ```bash
-   git pull origin main
-   git tag -a X.Y.Z -m "Release X.Y.Z"
-   git push origin X.Y.Z
-   ```
-5. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
-6. Verify: `gh release view X.Y.Z`
+3. Open a PR, wait for CI to pass, and merge to `main` — Bitrise `auto-tag` creates the git tag automatically
+4. Bitrise `pipeline_release` triggers automatically and runs GoReleaser
+5. Verify: `gh release view X.Y.Z`
 
 ### Prerequisites
 - A `GITHUB_TOKEN` Bitrise Secret with `repo` scope (or fine-grained `contents: write`)
@@ -324,6 +318,23 @@ This walks you through the full flow: version bump, PR creation, tagging, and ve
 | `codepush-Darwin-x86_64` | macOS Intel binary |
 | `codepush-Linux-x86_64` | Linux x86_64 binary |
 | `checksums.txt` | SHA256 checksums |
+
+### PR Labels
+
+Apply labels when opening PRs. Labels drive changelog categories in the GitHub Release notes.
+
+| Label | When to use | Changelog category |
+|-------|-------------|-------------------|
+| `enhancement` or `feature` | New user-facing features | New features |
+| `bug` or `fix` | Bug fixes | Bug fixes |
+| `chore` | Maintenance, refactoring, CI/CD changes | Maintenance |
+| `dependencies` | Dependency updates | Maintenance |
+| `documentation` | Docs-only changes | Maintenance |
+| `skip-changelog` | Exclude PR from release notes entirely | (excluded) |
+
+PRs without matching labels appear in "Other changes". Feature and fix PRs accumulate in the changelog window between releases: their titles appear in the next GitHub Release when the version-bump PR is merged and the tag is created.
+
+**Automated tagging (Bitrise `auto-tag` workflow):** Every push to `main` runs the `auto-tag` Bitrise workflow. It reads the version from `cmd/codepush/version.go` and creates a git tag only if that version does not already exist. No manual `git tag` step is needed — merge a version-bump PR and Bitrise handles the rest.
 
 ## Common Development Tasks
 
