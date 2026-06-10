@@ -11,8 +11,8 @@ import (
 )
 
 func TestAPIURL(t *testing.T) {
-	assert.Equal(t, "https://api.bitrise.io/release-management/v1", APIURL("https://api.bitrise.io"))
-	assert.Equal(t, "https://api.staging.bitrise.io/release-management/v1", APIURL("https://api.staging.bitrise.io"))
+	assert.Equal(t, "https://api.bitrise.io/release-management/v2/code-push/v1", APIURL("https://api.bitrise.io"))
+	assert.Equal(t, "https://api.staging.bitrise.io/release-management/v2/code-push/v1", APIURL("https://api.staging.bitrise.io"))
 }
 
 func TestResolveServerURL(t *testing.T) {

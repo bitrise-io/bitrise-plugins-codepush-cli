@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/bitrise"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
@@ -32,19 +33,25 @@ func Promote(ctx context.Context, client Client, opts *PromoteOptions, out *outp
 		Description:        opts.Description,
 		Mandatory:          opts.Mandatory,
 		Disabled:           opts.Disabled,
-		Rollout:            opts.Rollout,
+	}
+	if opts.Rollout != "" {
+		v, err := strconv.ParseFloat(opts.Rollout, 64)
+		if err != nil || v < 0 || v > 100 {
+			return nil, fmt.Errorf("rollout must be between 0 and 100, got %q", opts.Rollout)
+		}
+		req.Rollout = opts.Rollout
 	}
 
 	if opts.Label != "" {
-		updateID, err := resolveUpdateLabel(ctx, client, opts.AppID, sourceDeploymentID, opts.Label, out)
+		updateID, err := resolveUpdateLabel(ctx, client, sourceDeploymentID, opts.Label, out)
 		if err != nil {
 			return nil, err
 		}
-		req.UpdateID = updateID
+		req.PackageID = updateID
 	}
 
 	step := out.StartStep("Promoting from %s to %s", opts.SourceDeploymentID, opts.DestDeploymentID)
-	pkg, err := client.Promote(ctx, opts.AppID, sourceDeploymentID, req)
+	pkg, err := client.Promote(ctx, sourceDeploymentID, req)
 	if err != nil {
 		step.Cancel()
 		return nil, fmt.Errorf("promote failed: %w", err)

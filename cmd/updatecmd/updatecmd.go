@@ -52,12 +52,12 @@ By default shows the latest update. Use --label to specify a version.`,
 			return err
 		}
 
-		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
+		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		pkg, err := client.GetUpdate(c.Context(), appID, deploymentID, updateID)
+		pkg, err := client.GetUpdate(c.Context(), updateID)
 		if err != nil {
 			return fmt.Errorf("getting update: %w", err)
 		}
@@ -72,7 +72,7 @@ By default shows the latest update. Use --label to specify a version.`,
 			{Key: "App version", Value: pkg.AppVersion},
 			{Key: "Mandatory", Value: strconv.FormatBool(pkg.Mandatory)},
 			{Key: "Disabled", Value: strconv.FormatBool(pkg.Disabled)},
-			{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", pkg.Rollout)},
+			{Key: "Rollout", Value: fmt.Sprintf("%g%%", pkg.Rollout)},
 		}
 		if pkg.Description != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Description", Value: pkg.Description})
@@ -120,12 +120,12 @@ By default shows the latest update. Use --label to specify a version.`,
 			return err
 		}
 
-		updateID, updLabel, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
+		updateID, updLabel, err := codepush.ResolveUpdateForPatch(c.Context(), client, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		status, err := client.GetUpdateStatus(c.Context(), appID, deploymentID, updateID)
+		status, err := client.GetUpdateStatus(c.Context(), updateID)
 		if err != nil {
 			return fmt.Errorf("getting update status: %w", err)
 		}
@@ -184,12 +184,12 @@ Requires --label to identify the update and --yes to confirm deletion.`,
 			return err
 		}
 
-		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, appID, deploymentID, updateLabel, out)
+		updateID, _, err := codepush.ResolveUpdateForPatch(c.Context(), client, deploymentID, updateLabel, out)
 		if err != nil {
 			return err
 		}
 
-		if err := client.DeleteUpdate(c.Context(), appID, deploymentID, updateID); err != nil {
+		if err := client.DeleteUpdate(c.Context(), updateID); err != nil {
 			return fmt.Errorf("deleting update: %w", err)
 		}
 

@@ -18,7 +18,7 @@ import (
 // DefaultServerURL is the default Bitrise API server base URL.
 const DefaultServerURL = "https://api.bitrise.io"
 
-const codePushAPIPath = "/release-management/v1"
+const codePushAPIPath = "/release-management/v2/code-push/v1"
 
 // APIURL returns the full CodePush API base URL for the given server.
 func APIURL(serverURL string) string {

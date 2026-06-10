@@ -44,9 +44,21 @@ func NewHTTPClient(baseURL, token, version string) *HTTPClient {
 	}
 }
 
-// ListDeployments returns all deployments for the release management app.
+// buildURL assembles a relative URL from a path and optional query parameters.
+// Path parameters must be escaped with url.PathEscape before being interpolated
+// into path. Query values are safely encoded by url.Values.Encode.
+func buildURL(path string, params url.Values) string {
+	if len(params) == 0 {
+		return path
+	}
+	return path + "?" + params.Encode()
+}
+
+// ListDeployments returns all deployments for the given app.
 func (c *HTTPClient) ListDeployments(ctx context.Context, appID string) ([]Deployment, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments", appID)
+	params := url.Values{}
+	params.Set("app_id", appID)
+	path := buildURL("/deployments", params)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -62,10 +74,8 @@ func (c *HTTPClient) ListDeployments(ctx context.Context, appID string) ([]Deplo
 }
 
 // CreateDeployment creates a new deployment.
-func (c *HTTPClient) CreateDeployment(ctx context.Context, appID string, req CreateDeploymentRequest) (*Deployment, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments", appID)
-
-	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
+func (c *HTTPClient) CreateDeployment(ctx context.Context, req CreateDeploymentRequest) (*Deployment, error) {
+	resp, err := c.doJSONRequest(ctx, http.MethodPost, "/deployments", req)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +89,8 @@ func (c *HTTPClient) CreateDeployment(ctx context.Context, appID string, req Cre
 }
 
 // GetDeployment returns a single deployment by ID.
-func (c *HTTPClient) GetDeployment(ctx context.Context, appID, deploymentID string) (*Deployment, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+func (c *HTTPClient) GetDeployment(ctx context.Context, deploymentID string) (*Deployment, error) {
+	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -96,8 +106,8 @@ func (c *HTTPClient) GetDeployment(ctx context.Context, appID, deploymentID stri
 }
 
 // RenameDeployment renames an existing deployment.
-func (c *HTTPClient) RenameDeployment(ctx context.Context, appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+func (c *HTTPClient) RenameDeployment(ctx context.Context, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
+	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPatch, path, req)
 	if err != nil {
@@ -113,8 +123,8 @@ func (c *HTTPClient) RenameDeployment(ctx context.Context, appID, deploymentID s
 }
 
 // DeleteDeployment deletes a deployment.
-func (c *HTTPClient) DeleteDeployment(ctx context.Context, appID, deploymentID string) error {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s", appID, deploymentID)
+func (c *HTTPClient) DeleteDeployment(ctx context.Context, deploymentID string) error {
+	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
 
 	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
@@ -129,11 +139,11 @@ func (c *HTTPClient) DeleteDeployment(ctx context.Context, appID, deploymentID s
 }
 
 // GetUploadURL requests a signed upload URL for a new update.
-func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/upload-url",
-		appID, deploymentID, updateID)
+func (c *HTTPClient) GetUploadURL(ctx context.Context, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+	path := fmt.Sprintf("/updates/%s/upload-url", url.PathEscape(updateID))
 
 	params := url.Values{}
+	params.Set("deployment_id", deploymentID)
 	params.Set("app_version", req.AppVersion)
 	params.Set("file_name", req.FileName)
 	params.Set("file_size_bytes", strconv.FormatInt(req.FileSizeBytes, 10))
@@ -146,13 +156,11 @@ func (c *HTTPClient) GetUploadURL(ctx context.Context, appID, deploymentID, upda
 	if req.Disabled {
 		params.Set("disabled", "true")
 	}
-	if req.Rollout >= 0 && req.Rollout <= 100 {
-		params.Set("rollout", strconv.Itoa(req.Rollout))
+	if req.Rollout != nil {
+		params.Set("rollout", strconv.FormatFloat(*req.Rollout, 'f', -1, 64))
 	}
 
-	fullPath := path + "?" + params.Encode()
-
-	resp, err := c.doRequest(ctx, http.MethodGet, fullPath)
+	resp, err := c.doRequest(ctx, http.MethodGet, buildURL(path, params))
 	if err != nil {
 		return nil, err
 	}
@@ -194,9 +202,8 @@ func (c *HTTPClient) UploadFile(ctx context.Context, ufr UploadFileRequest) erro
 }
 
 // GetUpdateStatus polls the status of an update.
-func (c *HTTPClient) GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s/status",
-		appID, deploymentID, updateID)
+func (c *HTTPClient) GetUpdateStatus(ctx context.Context, updateID string) (*UpdateStatus, error) {
+	path := fmt.Sprintf("/updates/%s/status", url.PathEscape(updateID))
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -212,8 +219,10 @@ func (c *HTTPClient) GetUpdateStatus(ctx context.Context, appID, deploymentID, u
 }
 
 // ListUpdates returns all updates for a deployment.
-func (c *HTTPClient) ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages", appID, deploymentID)
+func (c *HTTPClient) ListUpdates(ctx context.Context, deploymentID string) ([]Update, error) {
+	params := url.Values{}
+	params.Set("deployment_id", deploymentID)
+	path := buildURL("/updates", params)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -229,9 +238,8 @@ func (c *HTTPClient) ListUpdates(ctx context.Context, appID, deploymentID string
 }
 
 // GetUpdate returns a single update by ID.
-func (c *HTTPClient) GetUpdate(ctx context.Context, appID, deploymentID, updateID string) (*Update, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, updateID)
+func (c *HTTPClient) GetUpdate(ctx context.Context, updateID string) (*Update, error) {
+	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -247,9 +255,8 @@ func (c *HTTPClient) GetUpdate(ctx context.Context, appID, deploymentID, updateI
 }
 
 // PatchUpdate updates metadata on an existing update.
-func (c *HTTPClient) PatchUpdate(ctx context.Context, appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, updateID)
+func (c *HTTPClient) PatchUpdate(ctx context.Context, updateID string, req PatchRequest) (*Update, error) {
+	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPatch, path, req)
 	if err != nil {
@@ -264,10 +271,9 @@ func (c *HTTPClient) PatchUpdate(ctx context.Context, appID, deploymentID, updat
 	return &result, nil
 }
 
-// DeleteUpdate deletes an update from a deployment.
-func (c *HTTPClient) DeleteUpdate(ctx context.Context, appID, deploymentID, updateID string) error {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/packages/%s",
-		appID, deploymentID, updateID)
+// DeleteUpdate deletes an update.
+func (c *HTTPClient) DeleteUpdate(ctx context.Context, updateID string) error {
+	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
 
 	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
@@ -282,8 +288,8 @@ func (c *HTTPClient) DeleteUpdate(ctx context.Context, appID, deploymentID, upda
 }
 
 // Rollback sends a rollback request for a deployment.
-func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Update, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/rollback", appID, deploymentID)
+func (c *HTTPClient) Rollback(ctx context.Context, deploymentID string, req RollbackRequest) (*Update, error) {
+	path := fmt.Sprintf("/deployments/%s/rollback", url.PathEscape(deploymentID))
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
 	if err != nil {
@@ -301,8 +307,8 @@ func (c *HTTPClient) Rollback(ctx context.Context, appID, deploymentID string, r
 // Promote sends a promote request for a deployment.
 // Returns ErrDuplicateRelease (wrapped) when the server rejects the request
 // because the target deployment already contains identical content.
-func (c *HTTPClient) Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error) {
-	path := fmt.Sprintf("/connected-apps/%s/code-push/deployments/%s/promote", appID, deploymentID)
+func (c *HTTPClient) Promote(ctx context.Context, deploymentID string, req PromoteRequest) (*Update, error) {
+	path := fmt.Sprintf("/deployments/%s/promote", url.PathEscape(deploymentID))
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPost, path, req)
 	if err != nil {

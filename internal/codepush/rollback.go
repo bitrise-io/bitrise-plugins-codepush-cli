@@ -24,15 +24,15 @@ func Rollback(ctx context.Context, client Client, opts *RollbackOptions, out *ou
 	req := RollbackRequest{}
 
 	if opts.TargetLabel != "" {
-		updateID, err := resolveUpdateLabel(ctx, client, opts.AppID, deploymentID, opts.TargetLabel, out)
+		updateID, err := resolveUpdateLabel(ctx, client, deploymentID, opts.TargetLabel, out)
 		if err != nil {
 			return nil, err
 		}
-		req.UpdateID = updateID
+		req.PackageID = updateID
 	}
 
 	step := out.StartStep("Rolling back deployment")
-	pkg, err := client.Rollback(ctx, opts.AppID, deploymentID, req)
+	pkg, err := client.Rollback(ctx, deploymentID, req)
 	if err != nil {
 		step.Cancel()
 		return nil, fmt.Errorf("rollback failed: %w", err)
@@ -66,13 +66,13 @@ func validateRollbackOptions(opts *RollbackOptions) error {
 
 // updateLister is the subset of Client needed by resolveUpdateLabel.
 type updateLister interface {
-	ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error)
+	ListUpdates(ctx context.Context, deploymentID string) ([]Update, error)
 }
 
 // resolveUpdateLabel finds an update by its label (e.g. "v3") within a deployment.
-func resolveUpdateLabel(ctx context.Context, client updateLister, appID, deploymentID, label string, out *output.Writer) (string, error) {
+func resolveUpdateLabel(ctx context.Context, client updateLister, deploymentID, label string, out *output.Writer) (string, error) {
 	step := out.StartStep("Resolving release label %q", label)
-	updates, err := client.ListUpdates(ctx, appID, deploymentID)
+	updates, err := client.ListUpdates(ctx, deploymentID)
 	if err != nil {
 		step.Cancel()
 		return "", fmt.Errorf("listing updates: %w", err)

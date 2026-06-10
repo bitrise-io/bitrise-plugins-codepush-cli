@@ -14,11 +14,11 @@ import (
 func TestRollback(t *testing.T) {
 	t.Run("successful rollback without target release", func(t *testing.T) {
 		var capturedReq RollbackRequest
+		var capturedDeploymentID string
 		client := &mockClient{
-			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Update, error) {
+			rollbackFunc: func(deploymentID string, req RollbackRequest) (*Update, error) {
 				capturedReq = req
-				assert.Equal(t, "app-123", appID)
-				assert.Equal(t, "00000000-0000-0000-0000-000000000001", deploymentID)
+				capturedDeploymentID = deploymentID
 				return &Update{
 					ID:         "pkg-rolled-back",
 					Label:      "v5",
@@ -38,20 +38,21 @@ func TestRollback(t *testing.T) {
 
 		assert.Equal(t, "pkg-rolled-back", result.UpdateID)
 		assert.Equal(t, "v5", result.Label)
-		assert.Empty(t, capturedReq.UpdateID)
+		assert.Equal(t, "00000000-0000-0000-0000-000000000001", capturedDeploymentID)
+		assert.Empty(t, capturedReq.PackageID)
 	})
 
 	t.Run("rollback with target release label", func(t *testing.T) {
 		var capturedReq RollbackRequest
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
 					{ID: "pkg-3", Label: "v3"},
 				}, nil
 			},
-			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Update, error) {
+			rollbackFunc: func(deploymentID string, req RollbackRequest) (*Update, error) {
 				capturedReq = req
 				return &Update{ID: "pkg-new", Label: "v4", AppVersion: "1.0.0"}, nil
 			},
@@ -67,12 +68,12 @@ func TestRollback(t *testing.T) {
 		_, err := Rollback(context.Background(), client, opts, testOut)
 		require.NoError(t, err)
 
-		assert.Equal(t, "pkg-2", capturedReq.UpdateID)
+		assert.Equal(t, "pkg-2", capturedReq.PackageID)
 	})
 
 	t.Run("target release label not found", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 				}, nil
@@ -100,7 +101,7 @@ func TestRollback(t *testing.T) {
 					{ID: "dep-bbb", Name: "Production"},
 				}, nil
 			},
-			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Update, error) {
+			rollbackFunc: func(deploymentID string, req RollbackRequest) (*Update, error) {
 				resolvedID = deploymentID
 				return &Update{ID: "pkg-new", Label: "v2"}, nil
 			},
@@ -119,7 +120,7 @@ func TestRollback(t *testing.T) {
 
 	t.Run("API error", func(t *testing.T) {
 		client := &mockClient{
-			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Update, error) {
+			rollbackFunc: func(deploymentID string, req RollbackRequest) (*Update, error) {
 				return nil, errors.New("API returned HTTP 404: deployment not found")
 			},
 		}
@@ -141,7 +142,7 @@ func TestRollback(t *testing.T) {
 		t.Setenv("BITRISE_BUILD_NUMBER", "42")
 
 		client := &mockClient{
-			rollbackFunc: func(appID, deploymentID string, req RollbackRequest) (*Update, error) {
+			rollbackFunc: func(deploymentID string, req RollbackRequest) (*Update, error) {
 				return &Update{ID: "pkg-rb", Label: "v5", AppVersion: "1.0.0"}, nil
 			},
 		}
@@ -199,7 +200,7 @@ func TestValidateRollbackOptions(t *testing.T) {
 func TestResolveUpdateLabel(t *testing.T) {
 	t.Run("finds matching label", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
@@ -207,31 +208,31 @@ func TestResolveUpdateLabel(t *testing.T) {
 			},
 		}
 
-		id, err := resolveUpdateLabel(context.Background(), client, "app-123", "dep-456", "v2", testOut)
+		id, err := resolveUpdateLabel(context.Background(), client, "dep-456", "v2", testOut)
 		require.NoError(t, err)
 		assert.Equal(t, "pkg-2", id)
 	})
 
 	t.Run("label not found", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{{ID: "pkg-1", Label: "v1"}}, nil
 			},
 		}
 
-		_, err := resolveUpdateLabel(context.Background(), client, "app-123", "dep-456", "v99", testOut)
+		_, err := resolveUpdateLabel(context.Background(), client, "dep-456", "v99", testOut)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "v99")
 	})
 
 	t.Run("list updates error", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return nil, errors.New("network error")
 			},
 		}
 
-		_, err := resolveUpdateLabel(context.Background(), client, "app-123", "dep-456", "v1", testOut)
+		_, err := resolveUpdateLabel(context.Background(), client, "dep-456", "v1", testOut)
 		require.Error(t, err)
 	})
 }

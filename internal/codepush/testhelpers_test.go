@@ -10,19 +10,19 @@ import (
 
 type mockClient struct {
 	listDeploymentsFunc  func(appID string) ([]Deployment, error)
-	createDeploymentFunc func(appID string, req CreateDeploymentRequest) (*Deployment, error)
-	getDeploymentFunc    func(appID, deploymentID string) (*Deployment, error)
-	renameDeploymentFunc func(appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
-	deleteDeploymentFunc func(appID, deploymentID string) error
-	getUploadURLFunc     func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error)
+	createDeploymentFunc func(req CreateDeploymentRequest) (*Deployment, error)
+	getDeploymentFunc    func(deploymentID string) (*Deployment, error)
+	renameDeploymentFunc func(deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	deleteDeploymentFunc func(deploymentID string) error
+	getUploadURLFunc     func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error)
 	uploadFileFunc       func(req UploadFileRequest) error
-	getUpdateStatusFunc  func(appID, deploymentID, updateID string) (*UpdateStatus, error)
-	listUpdatesFunc      func(appID, deploymentID string) ([]Update, error)
-	getUpdateFunc        func(appID, deploymentID, updateID string) (*Update, error)
-	patchUpdateFunc      func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error)
-	deleteUpdateFunc     func(appID, deploymentID, updateID string) error
-	rollbackFunc         func(appID, deploymentID string, req RollbackRequest) (*Update, error)
-	promoteFunc          func(appID, deploymentID string, req PromoteRequest) (*Update, error)
+	getUpdateStatusFunc  func(updateID string) (*UpdateStatus, error)
+	listUpdatesFunc      func(deploymentID string) ([]Update, error)
+	getUpdateFunc        func(updateID string) (*Update, error)
+	patchUpdateFunc      func(updateID string, req PatchRequest) (*Update, error)
+	deleteUpdateFunc     func(updateID string) error
+	rollbackFunc         func(deploymentID string, req RollbackRequest) (*Update, error)
+	promoteFunc          func(deploymentID string, req PromoteRequest) (*Update, error)
 }
 
 func (m *mockClient) ListDeployments(_ context.Context, appID string) ([]Deployment, error) {
@@ -32,37 +32,37 @@ func (m *mockClient) ListDeployments(_ context.Context, appID string) ([]Deploym
 	return nil, nil
 }
 
-func (m *mockClient) CreateDeployment(_ context.Context, appID string, req CreateDeploymentRequest) (*Deployment, error) {
+func (m *mockClient) CreateDeployment(_ context.Context, req CreateDeploymentRequest) (*Deployment, error) {
 	if m.createDeploymentFunc != nil {
-		return m.createDeploymentFunc(appID, req)
+		return m.createDeploymentFunc(req)
 	}
 	return &Deployment{ID: "dep-new", Name: req.Name}, nil
 }
 
-func (m *mockClient) GetDeployment(_ context.Context, appID, deploymentID string) (*Deployment, error) {
+func (m *mockClient) GetDeployment(_ context.Context, deploymentID string) (*Deployment, error) {
 	if m.getDeploymentFunc != nil {
-		return m.getDeploymentFunc(appID, deploymentID)
+		return m.getDeploymentFunc(deploymentID)
 	}
 	return &Deployment{ID: deploymentID, Name: "Test"}, nil
 }
 
-func (m *mockClient) RenameDeployment(_ context.Context, appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
+func (m *mockClient) RenameDeployment(_ context.Context, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
 	if m.renameDeploymentFunc != nil {
-		return m.renameDeploymentFunc(appID, deploymentID, req)
+		return m.renameDeploymentFunc(deploymentID, req)
 	}
 	return &Deployment{ID: deploymentID, Name: req.Name}, nil
 }
 
-func (m *mockClient) DeleteDeployment(_ context.Context, appID, deploymentID string) error {
+func (m *mockClient) DeleteDeployment(_ context.Context, deploymentID string) error {
 	if m.deleteDeploymentFunc != nil {
-		return m.deleteDeploymentFunc(appID, deploymentID)
+		return m.deleteDeploymentFunc(deploymentID)
 	}
 	return nil
 }
 
-func (m *mockClient) GetUploadURL(_ context.Context, appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+func (m *mockClient) GetUploadURL(_ context.Context, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 	if m.getUploadURLFunc != nil {
-		return m.getUploadURLFunc(appID, deploymentID, updateID, req)
+		return m.getUploadURLFunc(deploymentID, updateID, req)
 	}
 	return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
 }
@@ -74,51 +74,51 @@ func (m *mockClient) UploadFile(_ context.Context, req UploadFileRequest) error 
 	return nil
 }
 
-func (m *mockClient) GetUpdateStatus(_ context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error) {
+func (m *mockClient) GetUpdateStatus(_ context.Context, updateID string) (*UpdateStatus, error) {
 	if m.getUpdateStatusFunc != nil {
-		return m.getUpdateStatusFunc(appID, deploymentID, updateID)
+		return m.getUpdateStatusFunc(updateID)
 	}
 	return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
 }
 
-func (m *mockClient) ListUpdates(_ context.Context, appID, deploymentID string) ([]Update, error) {
+func (m *mockClient) ListUpdates(_ context.Context, deploymentID string) ([]Update, error) {
 	if m.listUpdatesFunc != nil {
-		return m.listUpdatesFunc(appID, deploymentID)
+		return m.listUpdatesFunc(deploymentID)
 	}
 	return nil, nil
 }
 
-func (m *mockClient) GetUpdate(_ context.Context, appID, deploymentID, updateID string) (*Update, error) {
+func (m *mockClient) GetUpdate(_ context.Context, updateID string) (*Update, error) {
 	if m.getUpdateFunc != nil {
-		return m.getUpdateFunc(appID, deploymentID, updateID)
+		return m.getUpdateFunc(updateID)
 	}
 	return &Update{ID: updateID, Label: "v1"}, nil
 }
 
-func (m *mockClient) PatchUpdate(_ context.Context, appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+func (m *mockClient) PatchUpdate(_ context.Context, updateID string, req PatchRequest) (*Update, error) {
 	if m.patchUpdateFunc != nil {
-		return m.patchUpdateFunc(appID, deploymentID, updateID, req)
+		return m.patchUpdateFunc(updateID, req)
 	}
 	return &Update{ID: updateID, Label: "v1"}, nil
 }
 
-func (m *mockClient) DeleteUpdate(_ context.Context, appID, deploymentID, updateID string) error {
+func (m *mockClient) DeleteUpdate(_ context.Context, updateID string) error {
 	if m.deleteUpdateFunc != nil {
-		return m.deleteUpdateFunc(appID, deploymentID, updateID)
+		return m.deleteUpdateFunc(updateID)
 	}
 	return nil
 }
 
-func (m *mockClient) Rollback(_ context.Context, appID, deploymentID string, req RollbackRequest) (*Update, error) {
+func (m *mockClient) Rollback(_ context.Context, deploymentID string, req RollbackRequest) (*Update, error) {
 	if m.rollbackFunc != nil {
-		return m.rollbackFunc(appID, deploymentID, req)
+		return m.rollbackFunc(deploymentID, req)
 	}
 	return &Update{ID: "pkg-new", Label: "v2"}, nil
 }
 
-func (m *mockClient) Promote(_ context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error) {
+func (m *mockClient) Promote(_ context.Context, deploymentID string, req PromoteRequest) (*Update, error) {
 	if m.promoteFunc != nil {
-		return m.promoteFunc(appID, deploymentID, req)
+		return m.promoteFunc(deploymentID, req)
 	}
 	return &Update{ID: "pkg-new", Label: "v1"}, nil
 }

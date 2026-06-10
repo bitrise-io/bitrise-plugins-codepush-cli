@@ -21,7 +21,7 @@ var (
 	pushAppVersion  string
 	pushDescription string
 	pushMandatory   bool
-	pushRollout     int
+	pushRollout     float64
 	pushDisabled    bool
 )
 
@@ -120,7 +120,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			{Key: "Status", Value: result.Status},
 		}
 		if result.Rollout < 100 {
-			kvs = append(kvs, output.KeyValue{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)})
+			kvs = append(kvs, output.KeyValue{Key: "Rollout", Value: fmt.Sprintf("%g%%", result.Rollout)})
 		}
 		out.Result(kvs)
 
@@ -143,7 +143,7 @@ func init() {
 	pushCmd.Flags().StringVarP(&pushAppVersion, "app-version", "t", "", "target app version (e.g. 1.0.0)")
 	pushCmd.Flags().StringVar(&pushDescription, "description", "", "update description")
 	pushCmd.Flags().BoolVarP(&pushMandatory, "mandatory", "m", false, "mark update as mandatory")
-	pushCmd.Flags().IntVarP(&pushRollout, "rollout", "r", 100, "rollout percentage (0-100)")
+	pushCmd.Flags().Float64VarP(&pushRollout, "rollout", "r", 100, "rollout percentage (0-100)")
 	pushCmd.Flags().BoolVarP(&pushDisabled, "disabled", "x", false, "disable update after upload")
 	cmd.RootCmd.AddCommand(pushCmd)
 }

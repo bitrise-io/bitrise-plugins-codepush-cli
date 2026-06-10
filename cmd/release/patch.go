@@ -14,13 +14,11 @@ import (
 )
 
 var (
-	patchDeployment  string
-	patchLabel       string
-	patchRollout     string
-	patchMandatory   string
-	patchDisabled    string
-	patchDescription string
-	patchAppVersion  string
+	patchDeployment string
+	patchLabel      string
+	patchRollout    string
+	patchMandatory  string
+	patchDisabled   string
 )
 
 var patchCmd = &cobra.Command{
@@ -28,8 +26,7 @@ var patchCmd = &cobra.Command{
 	Short: "Update metadata on an existing release",
 	Long: `Update metadata on an existing release without re-deploying.
 
-Adjust rollout percentage, toggle mandatory/disabled flags, update the
-description, or change the target app version on a live release.
+Adjust rollout percentage or toggle mandatory/disabled flags on a live release.
 
 By default, patches the latest release. Use --label to target a specific version.
 
@@ -61,8 +58,6 @@ Examples:
 			Rollout:      patchRollout,
 			Mandatory:    patchMandatory,
 			Disabled:     patchDisabled,
-			Description:  patchDescription,
-			AppVersion:   patchAppVersion,
 		}
 
 		result, err := codepush.Patch(c.Context(), client, opts, out)
@@ -79,7 +74,7 @@ Examples:
 			{Key: "Update ID", Value: result.UpdateID},
 			{Key: "Label", Value: result.Label},
 			{Key: "App version", Value: result.AppVersion},
-			{Key: "Rollout", Value: fmt.Sprintf("%d%%", result.Rollout)},
+			{Key: "Rollout", Value: fmt.Sprintf("%g%%", result.Rollout)},
 			{Key: "Mandatory", Value: strconv.FormatBool(result.Mandatory)},
 			{Key: "Disabled", Value: strconv.FormatBool(result.Disabled)},
 		})
@@ -103,7 +98,5 @@ func init() {
 	patchCmd.Flags().StringVarP(&patchRollout, "rollout", "r", "", "rollout percentage (0-100)")
 	patchCmd.Flags().StringVarP(&patchMandatory, "mandatory", "m", "", "mark update as mandatory (true/false)")
 	patchCmd.Flags().StringVarP(&patchDisabled, "disabled", "x", "", "disable update (true/false)")
-	patchCmd.Flags().StringVar(&patchDescription, "description", "", "update description")
-	patchCmd.Flags().StringVarP(&patchAppVersion, "app-version", "t", "", "target app version")
 	cmd.RootCmd.AddCommand(patchCmd)
 }

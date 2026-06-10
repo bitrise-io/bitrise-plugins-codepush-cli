@@ -16,21 +16,20 @@ func TestPatch(t *testing.T) {
 		var capturedReq PatchRequest
 		var capturedUpdateID string
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
 				}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				capturedReq = req
 				capturedUpdateID = updateID
 				return &Update{
-					ID:         updateID,
-					Label:      "v2",
-					AppVersion: "1.0.0",
-					Mandatory:  true,
-					Rollout:    50,
+					ID:        updateID,
+					Label:     "v2",
+					Mandatory: true,
+					Rollout:   50,
 				}, nil
 			},
 		}
@@ -49,27 +48,26 @@ func TestPatch(t *testing.T) {
 
 		assert.Equal(t, "pkg-2", capturedUpdateID)
 		assert.Equal(t, "v2", result.Label)
-		assert.Equal(t, 50, *capturedReq.Rollout)
-		assert.True(t, *capturedReq.Mandatory)
+		assert.InDelta(t, 50.0, *capturedReq.Rollout, 0.001)
+		assert.Equal(t, "true", capturedReq.Mandatory)
 	})
 
 	t.Run("successful patch defaults to latest", func(t *testing.T) {
 		var capturedUpdateID string
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
 					{ID: "pkg-3", Label: "v3"},
 				}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				capturedUpdateID = updateID
 				return &Update{
-					ID:         updateID,
-					Label:      "v3",
-					AppVersion: "2.0.0",
-					Rollout:    100,
+					ID:      updateID,
+					Label:   "v3",
+					Rollout: 100,
 				}, nil
 			},
 		}
@@ -88,22 +86,20 @@ func TestPatch(t *testing.T) {
 		assert.Equal(t, "v3", result.Label)
 	})
 
-	t.Run("patch with all fields", func(t *testing.T) {
+	t.Run("patch with rollout and mandatory", func(t *testing.T) {
 		var capturedReq PatchRequest
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{{ID: "pkg-1", Label: "v1"}}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				capturedReq = req
 				return &Update{
-					ID:          updateID,
-					Label:       "v1",
-					AppVersion:  "3.0.0",
-					Mandatory:   true,
-					Disabled:    false,
-					Rollout:     75,
-					Description: "hotfix",
+					ID:        updateID,
+					Label:     "v1",
+					Mandatory: true,
+					Disabled:  false,
+					Rollout:   75,
 				}, nil
 			},
 		}
@@ -115,24 +111,20 @@ func TestPatch(t *testing.T) {
 			Rollout:      "75",
 			Mandatory:    "true",
 			Disabled:     "false",
-			Description:  "hotfix",
-			AppVersion:   "3.0.0",
 		}
 
 		result, err := Patch(context.Background(), client, opts, testOut)
 		require.NoError(t, err)
 
-		assert.Equal(t, 75, *capturedReq.Rollout)
-		assert.True(t, *capturedReq.Mandatory)
-		assert.False(t, *capturedReq.Disabled)
-		assert.Equal(t, "hotfix", *capturedReq.Description)
-		assert.Equal(t, "3.0.0", *capturedReq.AppVersion)
-		assert.Equal(t, "hotfix", result.Description)
+		assert.InDelta(t, 75.0, *capturedReq.Rollout, 0.001)
+		assert.Equal(t, "true", capturedReq.Mandatory)
+		assert.Equal(t, "false", capturedReq.Disabled)
+		assert.InDelta(t, 75.0, result.Rollout, 0.001)
 	})
 
 	t.Run("no releases in deployment", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{}, nil
 			},
 		}
@@ -151,7 +143,7 @@ func TestPatch(t *testing.T) {
 
 	t.Run("label not found", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{{ID: "pkg-1", Label: "v1"}}, nil
 			},
 		}
@@ -178,11 +170,11 @@ func TestPatch(t *testing.T) {
 					{ID: "dep-bbb", Name: "Production"},
 				}, nil
 			},
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				resolvedDeploymentID = deploymentID
 				return []Update{{ID: "pkg-1", Label: "v1"}}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				return &Update{ID: updateID, Label: "v1", Rollout: 50}, nil
 			},
 		}
@@ -202,10 +194,10 @@ func TestPatch(t *testing.T) {
 
 	t.Run("API error", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{{ID: "pkg-1", Label: "v1"}}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				return nil, errors.New("API returned HTTP 500: internal error")
 			},
 		}
@@ -228,10 +220,10 @@ func TestPatch(t *testing.T) {
 		t.Setenv("BITRISE_BUILD_NUMBER", "42")
 
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{{ID: "pkg-1", Label: "v1", AppVersion: "1.0.0"}}, nil
 			},
-			patchUpdateFunc: func(appID, deploymentID, updateID string, req PatchRequest) (*Update, error) {
+			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
 				return &Update{
 					ID:         updateID,
 					Label:      "v1",
@@ -307,23 +299,15 @@ func TestBuildPatchRequest(t *testing.T) {
 			Rollout:      "75",
 			Mandatory:    "true",
 			Disabled:     "false",
-			Description:  "updated",
-			AppVersion:   "2.0.0",
 		}
 
 		req, err := buildPatchRequest(opts)
 		require.NoError(t, err)
 
 		require.NotNil(t, req.Rollout)
-		assert.Equal(t, 75, *req.Rollout)
-		require.NotNil(t, req.Mandatory)
-		assert.True(t, *req.Mandatory)
-		require.NotNil(t, req.Disabled)
-		assert.False(t, *req.Disabled)
-		require.NotNil(t, req.Description)
-		assert.Equal(t, "updated", *req.Description)
-		require.NotNil(t, req.AppVersion)
-		assert.Equal(t, "2.0.0", *req.AppVersion)
+		assert.InDelta(t, 75.0, *req.Rollout, 0.001)
+		assert.Equal(t, "true", req.Mandatory)
+		assert.Equal(t, "false", req.Disabled)
 	})
 
 	t.Run("only rollout", func(t *testing.T) {
@@ -338,11 +322,9 @@ func TestBuildPatchRequest(t *testing.T) {
 		require.NoError(t, err)
 
 		require.NotNil(t, req.Rollout)
-		assert.Equal(t, 50, *req.Rollout)
-		assert.Nil(t, req.Mandatory)
-		assert.Nil(t, req.Disabled)
-		assert.Nil(t, req.Description)
-		assert.Nil(t, req.AppVersion)
+		assert.InDelta(t, 50.0, *req.Rollout, 0.001)
+		assert.Empty(t, req.Mandatory)
+		assert.Empty(t, req.Disabled)
 	})
 
 	t.Run("rollout zero is valid", func(t *testing.T) {
@@ -350,7 +332,7 @@ func TestBuildPatchRequest(t *testing.T) {
 		req, err := buildPatchRequest(opts)
 		require.NoError(t, err)
 		require.NotNil(t, req.Rollout)
-		assert.Equal(t, 0, *req.Rollout)
+		assert.InDelta(t, 0.0, *req.Rollout, 0.001)
 	})
 
 	t.Run("invalid rollout too low", func(t *testing.T) {
@@ -374,6 +356,16 @@ func TestBuildPatchRequest(t *testing.T) {
 		assert.ErrorContains(t, err, "rollout must be between")
 	})
 
+	t.Run("normalizes non-canonical bool aliases to true/false", func(t *testing.T) {
+		for _, alias := range []string{"1", "T", "TRUE"} {
+			opts := &PatchOptions{Mandatory: alias, Disabled: "0"}
+			req, err := buildPatchRequest(opts)
+			require.NoError(t, err, "alias=%s", alias)
+			assert.Equal(t, "true", req.Mandatory, "alias=%s", alias)
+			assert.Equal(t, "false", req.Disabled, "alias=%s", alias)
+		}
+	})
+
 	t.Run("invalid mandatory", func(t *testing.T) {
 		opts := &PatchOptions{Mandatory: "maybe"}
 		_, err := buildPatchRequest(opts)
@@ -392,7 +384,7 @@ func TestBuildPatchRequest(t *testing.T) {
 func TestResolveUpdateForPatch(t *testing.T) {
 	t.Run("resolves by label", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
@@ -400,7 +392,7 @@ func TestResolveUpdateForPatch(t *testing.T) {
 			},
 		}
 
-		id, label, err := ResolveUpdateForPatch(context.Background(), client, "app-123", "dep-456", "v2", testOut)
+		id, label, err := ResolveUpdateForPatch(context.Background(), client, "dep-456", "v2", testOut)
 		require.NoError(t, err)
 		assert.Equal(t, "pkg-2", id)
 		assert.Equal(t, "v2", label)
@@ -408,7 +400,7 @@ func TestResolveUpdateForPatch(t *testing.T) {
 
 	t.Run("resolves latest when no label", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{
 					{ID: "pkg-1", Label: "v1"},
 					{ID: "pkg-2", Label: "v2"},
@@ -417,7 +409,7 @@ func TestResolveUpdateForPatch(t *testing.T) {
 			},
 		}
 
-		id, label, err := ResolveUpdateForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
+		id, label, err := ResolveUpdateForPatch(context.Background(), client, "dep-456", "", testOut)
 		require.NoError(t, err)
 		assert.Equal(t, "pkg-3", id)
 		assert.Equal(t, "v3", label)
@@ -425,24 +417,24 @@ func TestResolveUpdateForPatch(t *testing.T) {
 
 	t.Run("empty deployment", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return []Update{}, nil
 			},
 		}
 
-		_, _, err := ResolveUpdateForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
+		_, _, err := ResolveUpdateForPatch(context.Background(), client, "dep-456", "", testOut)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "no releases found")
 	})
 
 	t.Run("list updates error", func(t *testing.T) {
 		client := &mockClient{
-			listUpdatesFunc: func(appID, deploymentID string) ([]Update, error) {
+			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
 				return nil, errors.New("network error")
 			},
 		}
 
-		_, _, err := ResolveUpdateForPatch(context.Background(), client, "app-123", "dep-456", "", testOut)
+		_, _, err := ResolveUpdateForPatch(context.Background(), client, "dep-456", "", testOut)
 		require.Error(t, err)
 	})
 }
