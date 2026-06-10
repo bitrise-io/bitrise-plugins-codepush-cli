@@ -3,7 +3,6 @@ package codepush
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -27,7 +26,7 @@ func TestBuildURL(t *testing.T) {
 		{"single param", "/deployments", url.Values{"app_id": {"abc-123"}}, "/deployments?app_id=abc-123"},
 		{"multiple params sorted", "/updates", url.Values{"deployment_id": {"dep-1"}, "limit": {"10"}}, "/updates?deployment_id=dep-1&limit=10"},
 		{"value needs encoding", "/updates", url.Values{"q": {"hello world"}}, "/updates?q=hello+world"},
-		{"path with escaped segment", fmt.Sprintf("/deployments/%s", url.PathEscape("id/with/slashes")), nil, "/deployments/id%2Fwith%2Fslashes"},
+		{"path with escaped segment", "/deployments/" + url.PathEscape("id/with/slashes"), nil, "/deployments/id%2Fwith%2Fslashes"},
 	}
 
 	for _, tt := range tests {
@@ -42,7 +41,7 @@ func TestPathEscapePreventsTraveral(t *testing.T) {
 	// becomes a single literal path segment — the unescaped slashes that would allow
 	// directory traversal are removed, confining the value to one segment.
 	malicious := "../../../etc/passwd"
-	path := fmt.Sprintf("/deployments/%s", url.PathEscape(malicious))
+	path := "/deployments/" + url.PathEscape(malicious)
 	assert.Equal(t, "/deployments/..%2F..%2F..%2Fetc%2Fpasswd", path)
 	assert.NotContains(t, path, "../")
 }

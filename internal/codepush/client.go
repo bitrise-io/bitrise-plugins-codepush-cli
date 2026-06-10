@@ -90,7 +90,7 @@ func (c *HTTPClient) CreateDeployment(ctx context.Context, req CreateDeploymentR
 
 // GetDeployment returns a single deployment by ID.
 func (c *HTTPClient) GetDeployment(ctx context.Context, deploymentID string) (*Deployment, error) {
-	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
+	path := "/deployments/" + url.PathEscape(deploymentID)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -107,7 +107,7 @@ func (c *HTTPClient) GetDeployment(ctx context.Context, deploymentID string) (*D
 
 // RenameDeployment renames an existing deployment.
 func (c *HTTPClient) RenameDeployment(ctx context.Context, deploymentID string, req RenameDeploymentRequest) (*Deployment, error) {
-	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
+	path := "/deployments/" + url.PathEscape(deploymentID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPatch, path, req)
 	if err != nil {
@@ -124,7 +124,7 @@ func (c *HTTPClient) RenameDeployment(ctx context.Context, deploymentID string, 
 
 // DeleteDeployment deletes a deployment.
 func (c *HTTPClient) DeleteDeployment(ctx context.Context, deploymentID string) error {
-	path := fmt.Sprintf("/deployments/%s", url.PathEscape(deploymentID))
+	path := "/deployments/" + url.PathEscape(deploymentID)
 
 	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {
@@ -239,7 +239,7 @@ func (c *HTTPClient) ListUpdates(ctx context.Context, deploymentID string) ([]Up
 
 // GetUpdate returns a single update by ID.
 func (c *HTTPClient) GetUpdate(ctx context.Context, updateID string) (*Update, error) {
-	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
+	path := "/updates/" + url.PathEscape(updateID)
 
 	resp, err := c.doRequest(ctx, http.MethodGet, path)
 	if err != nil {
@@ -256,7 +256,7 @@ func (c *HTTPClient) GetUpdate(ctx context.Context, updateID string) (*Update, e
 
 // PatchUpdate updates metadata on an existing update.
 func (c *HTTPClient) PatchUpdate(ctx context.Context, updateID string, req PatchRequest) (*Update, error) {
-	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
+	path := "/updates/" + url.PathEscape(updateID)
 
 	resp, err := c.doJSONRequest(ctx, http.MethodPatch, path, req)
 	if err != nil {
@@ -273,7 +273,7 @@ func (c *HTTPClient) PatchUpdate(ctx context.Context, updateID string, req Patch
 
 // DeleteUpdate deletes an update.
 func (c *HTTPClient) DeleteUpdate(ctx context.Context, updateID string) error {
-	path := fmt.Sprintf("/updates/%s", url.PathEscape(updateID))
+	path := "/updates/" + url.PathEscape(updateID)
 
 	resp, err := c.doRequest(ctx, http.MethodDelete, path)
 	if err != nil {

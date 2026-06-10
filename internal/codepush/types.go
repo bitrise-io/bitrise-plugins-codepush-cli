@@ -88,7 +88,6 @@ type UploadFileRequest struct {
 	ContentLength int64
 }
 
-
 // UpdateStatus is returned by the GET status endpoint.
 type UpdateStatus struct {
 	UpdateID     string `json:"update_id"`
