@@ -95,7 +95,7 @@ var addCmd = &cobra.Command{
 		}
 
 		client := codepush.NewHTTPClient(cmdutil.APIURL(cmdutil.ResolveServerURL(cmd.ServerURL, out)), token, cmd.Version)
-		dep, err := client.CreateDeployment(c.Context(), appID, codepush.CreateDeploymentRequest{Name: name, Key: addKey})
+		dep, err := client.CreateDeployment(c.Context(), codepush.CreateDeploymentRequest{Name: name, Key: addKey, AppID: appID})
 		if err != nil {
 			return fmt.Errorf("creating deployment: %w", err)
 		}
@@ -133,7 +133,7 @@ var infoCmd = &cobra.Command{
 			return err
 		}
 
-		dep, err := client.GetDeployment(c.Context(), appID, deploymentID)
+		dep, err := client.GetDeployment(c.Context(), deploymentID)
 		if err != nil {
 			return fmt.Errorf("getting deployment: %w", err)
 		}
@@ -160,7 +160,7 @@ var infoCmd = &cobra.Command{
 				{Key: "Label", Value: dep.LatestUpdate.Label},
 				{Key: "App version", Value: dep.LatestUpdate.AppVersion},
 				{Key: "Mandatory", Value: strconv.FormatBool(dep.LatestUpdate.Mandatory)},
-				{Key: "Rollout", Value: fmt.Sprintf("%.0f%%", dep.LatestUpdate.Rollout)},
+				{Key: "Rollout", Value: fmt.Sprintf("%g%%", dep.LatestUpdate.Rollout)},
 			})
 		} else {
 			out.Info("No releases.")
@@ -199,7 +199,7 @@ var renameCmd = &cobra.Command{
 			return err
 		}
 
-		dep, err := client.RenameDeployment(c.Context(), appID, deploymentID, codepush.RenameDeploymentRequest{Name: newName})
+		dep, err := client.RenameDeployment(c.Context(), deploymentID, codepush.RenameDeploymentRequest{Name: newName})
 		if err != nil {
 			return fmt.Errorf("renaming deployment: %w", err)
 		}
@@ -249,7 +249,7 @@ var removeCmd = &cobra.Command{
 			return err
 		}
 
-		if err := client.DeleteDeployment(c.Context(), appID, deploymentID); err != nil {
+		if err := client.DeleteDeployment(c.Context(), deploymentID); err != nil {
 			return fmt.Errorf("deleting deployment: %w", err)
 		}
 
@@ -288,7 +288,7 @@ var historyCmd = &cobra.Command{
 			return err
 		}
 
-		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
+		updates, err := client.ListUpdates(c.Context(), deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing updates: %w", err)
 		}
@@ -314,7 +314,7 @@ var historyCmd = &cobra.Command{
 		for i, u := range updates {
 			row := []string{
 				u.Label, u.AppVersion, strconv.FormatBool(u.Mandatory),
-				fmt.Sprintf("%.0f%%", u.Rollout), strconv.FormatBool(u.Disabled),
+				fmt.Sprintf("%g%%", u.Rollout), strconv.FormatBool(u.Disabled),
 				cmdutil.Truncate(u.Description, 30), u.CreatedAt,
 			}
 			if historyDisplayAuthor {
@@ -375,7 +375,7 @@ Requires --yes to confirm.`,
 			return err
 		}
 
-		updates, err := client.ListUpdates(c.Context(), appID, deploymentID)
+		updates, err := client.ListUpdates(c.Context(), deploymentID)
 		if err != nil {
 			return fmt.Errorf("listing updates: %w", err)
 		}
@@ -387,7 +387,7 @@ Requires --yes to confirm.`,
 
 		deleted := 0
 		for _, u := range updates {
-			if err := client.DeleteUpdate(c.Context(), appID, deploymentID, u.ID); err != nil {
+			if err := client.DeleteUpdate(c.Context(), u.ID); err != nil {
 				return fmt.Errorf("deleting update %s: %w", u.Label, err)
 			}
 			deleted++

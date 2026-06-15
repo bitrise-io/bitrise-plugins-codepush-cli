@@ -17,11 +17,12 @@ type PushOptions struct {
 	Description  string
 	Mandatory    bool
 	Disabled     bool
-	Rollout      int
+	Rollout      float64
 	BundlePath   string
 }
 
 // UploadURLRequest represents the query parameters for requesting an upload URL.
+// Rollout uses a pointer to distinguish "not set" (nil, param omitted) from zero (0% rollout sent explicitly).
 type UploadURLRequest struct {
 	AppVersion    string
 	FileName      string
@@ -29,7 +30,7 @@ type UploadURLRequest struct {
 	Description   string
 	Mandatory     bool
 	Disabled      bool
-	Rollout       int
+	Rollout       *float64
 }
 
 // HeaderMap is a map[string]string that can unmarshal from either a JSON object
@@ -87,33 +88,29 @@ type UploadFileRequest struct {
 	ContentLength int64
 }
 
-// UpdateRef identifies a specific update within a deployment.
-type UpdateRef struct {
-	AppID        string
-	DeploymentID string
-	UpdateID     string
-}
-
 // UpdateStatus is returned by the GET status endpoint.
 type UpdateStatus struct {
-	UpdateID     string `json:"package_id"`
+	UpdateID     string `json:"update_id"`
 	Status       string `json:"status"`
 	StatusReason string `json:"status_reason"`
 }
 
 // Deployment represents a CodePush deployment.
 type Deployment struct {
-	ID           string  `json:"id"`
-	Name         string  `json:"name"`
-	CreatedAt    string  `json:"created_at,omitempty"`
-	Key          string  `json:"key,omitempty"`
-	LatestUpdate *Update `json:"latest_package,omitempty"`
+	ID              string  `json:"id"`
+	Name            string  `json:"name"`
+	CreatedAt       string  `json:"created_at,omitempty"`
+	UpdatedAt       string  `json:"updated_at,omitempty"`
+	Key             string  `json:"key,omitempty"`
+	NumberOfUpdates int     `json:"number_of_updates,omitempty"`
+	LatestUpdate    *Update `json:"update,omitempty"`
 }
 
 // CreateDeploymentRequest is the JSON body for creating a deployment.
 type CreateDeploymentRequest struct {
-	Name string `json:"name"`
-	Key  string `json:"key,omitempty"`
+	Name  string `json:"name"`
+	Key   string `json:"key,omitempty"`
+	AppID string `json:"app_id"`
 }
 
 // RenameDeploymentRequest is the JSON body for renaming a deployment.
@@ -128,13 +125,13 @@ type DeploymentListResponse struct {
 
 // PushResult is the output of a successful push.
 type PushResult struct {
-	UpdateID      string `json:"package_id"`
-	AppID         string `json:"app_id"`
-	DeploymentID  string `json:"deployment_id"`
-	AppVersion    string `json:"app_version"`
-	Status        string `json:"status"`
-	FileSizeBytes int64  `json:"file_size_bytes"`
-	Rollout       int    `json:"rollout"`
+	UpdateID      string  `json:"package_id"`
+	AppID         string  `json:"app_id"`
+	DeploymentID  string  `json:"deployment_id"`
+	AppVersion    string  `json:"app_version"`
+	Status        string  `json:"status"`
+	FileSizeBytes int64   `json:"file_size_bytes"`
+	Rollout       float64 `json:"rollout"`
 }
 
 // PollConfig controls the polling behavior when waiting for update processing.
@@ -174,12 +171,16 @@ type Update struct {
 	Mandatory     bool           `json:"mandatory"`
 	Disabled      bool           `json:"disabled"`
 	Rollout       float64        `json:"rollout"`
-	DeploymentID  string         `json:"deployment_id"`
+	Signed        bool           `json:"signed,omitempty"`
+	UpdateVersion string         `json:"update_version,omitempty"`
+	DeploymentID  string         `json:"deployment_id,omitempty"`
 	FileSizeBytes int64          `json:"file_size_bytes"`
 	CreatedAt     string         `json:"created_at,omitempty"`
+	UpdatedAt     string         `json:"updated_at,omitempty"`
 	Hash          string         `json:"hash,omitempty"`
 	FileName      string         `json:"file_name,omitempty"`
 	CreatedBy     *UpdateCreator `json:"created_by,omitempty"`
+	UpdatedBy     *UpdateCreator `json:"updated_by,omitempty"`
 }
 
 // UpdateListResponse wraps the list updates API response.
@@ -197,7 +198,7 @@ type RollbackOptions struct {
 
 // RollbackRequest is the JSON body sent to the rollback API endpoint.
 type RollbackRequest struct {
-	UpdateID string `json:"package_id,omitempty"`
+	PackageID string `json:"package_id,omitempty"`
 }
 
 // RollbackResult is the output of a successful rollback.
@@ -226,7 +227,7 @@ type PromoteOptions struct {
 // PromoteRequest is the JSON body sent to the promote API endpoint.
 type PromoteRequest struct {
 	TargetDeploymentID string `json:"target_deployment_id"`
-	UpdateID           string `json:"package_id,omitempty"`
+	PackageID          string `json:"package_id,omitempty"`
 	AppVersion         string `json:"app_version,omitempty"`
 	Description        string `json:"description,omitempty"`
 	Disabled           string `json:"disabled,omitempty"`
@@ -254,47 +255,43 @@ type PatchOptions struct {
 	Rollout      string // optional: "0"-"100"
 	Mandatory    string // optional: "true"/"false"
 	Disabled     string // optional: "true"/"false"
-	Description  string // optional
-	AppVersion   string // optional
 }
 
 // PatchRequest is the JSON body sent to the PATCH update API endpoint.
-// Pointer fields allow distinguishing "not set" from zero values.
+// Rollout uses a pointer to distinguish "not set" from zero; Mandatory and Disabled use omitempty strings.
 type PatchRequest struct {
-	Rollout     *int    `json:"rollout,omitempty"`
-	Mandatory   *bool   `json:"mandatory,omitempty"`
-	Disabled    *bool   `json:"disabled,omitempty"`
-	Description *string `json:"description,omitempty"`
-	AppVersion  *string `json:"app_version,omitempty"`
+	Rollout   *float64 `json:"rollout,omitempty"`
+	Mandatory string   `json:"mandatory,omitempty"`
+	Disabled  string   `json:"disabled,omitempty"`
 }
 
 // PatchResult is the output of a successful patch.
 type PatchResult struct {
-	UpdateID     string `json:"package_id"`
-	AppID        string `json:"app_id"`
-	DeploymentID string `json:"deployment_id"`
-	Label        string `json:"label"`
-	AppVersion   string `json:"app_version"`
-	Mandatory    bool   `json:"mandatory"`
-	Disabled     bool   `json:"disabled"`
-	Rollout      int    `json:"rollout"`
-	Description  string `json:"description"`
+	UpdateID     string  `json:"package_id"`
+	AppID        string  `json:"app_id"`
+	DeploymentID string  `json:"deployment_id"`
+	Label        string  `json:"label"`
+	AppVersion   string  `json:"app_version"`
+	Mandatory    bool    `json:"mandatory"`
+	Disabled     bool    `json:"disabled"`
+	Rollout      float64 `json:"rollout"`
+	Description  string  `json:"description"`
 }
 
 // Client defines the CodePush API operations.
 type Client interface {
 	ListDeployments(ctx context.Context, appID string) ([]Deployment, error)
-	CreateDeployment(ctx context.Context, appID string, req CreateDeploymentRequest) (*Deployment, error)
-	GetDeployment(ctx context.Context, appID, deploymentID string) (*Deployment, error)
-	RenameDeployment(ctx context.Context, appID, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
-	DeleteDeployment(ctx context.Context, appID, deploymentID string) error
-	GetUploadURL(ctx context.Context, appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error)
+	CreateDeployment(ctx context.Context, req CreateDeploymentRequest) (*Deployment, error)
+	GetDeployment(ctx context.Context, deploymentID string) (*Deployment, error)
+	RenameDeployment(ctx context.Context, deploymentID string, req RenameDeploymentRequest) (*Deployment, error)
+	DeleteDeployment(ctx context.Context, deploymentID string) error
+	GetUploadURL(ctx context.Context, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error)
 	UploadFile(ctx context.Context, req UploadFileRequest) error
-	GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error)
-	ListUpdates(ctx context.Context, appID, deploymentID string) ([]Update, error)
-	GetUpdate(ctx context.Context, appID, deploymentID, updateID string) (*Update, error)
-	PatchUpdate(ctx context.Context, appID, deploymentID, updateID string, req PatchRequest) (*Update, error)
-	DeleteUpdate(ctx context.Context, appID, deploymentID, updateID string) error
-	Rollback(ctx context.Context, appID, deploymentID string, req RollbackRequest) (*Update, error)
-	Promote(ctx context.Context, appID, deploymentID string, req PromoteRequest) (*Update, error)
+	GetUpdateStatus(ctx context.Context, updateID string) (*UpdateStatus, error)
+	ListUpdates(ctx context.Context, deploymentID string) ([]Update, error)
+	GetUpdate(ctx context.Context, updateID string) (*Update, error)
+	PatchUpdate(ctx context.Context, updateID string, req PatchRequest) (*Update, error)
+	DeleteUpdate(ctx context.Context, updateID string) error
+	Rollback(ctx context.Context, deploymentID string, req RollbackRequest) (*Update, error)
+	Promote(ctx context.Context, deploymentID string, req PromoteRequest) (*Update, error)
 }

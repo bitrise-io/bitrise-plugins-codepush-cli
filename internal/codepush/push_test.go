@@ -20,9 +20,8 @@ func TestPush(t *testing.T) {
 		var capturedUploadBody []byte
 
 		client := &mockClient{
-			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				capturedReq = req
-				assert.Equal(t, "app-123", appID)
 				return &UploadURLResponse{
 					URL:     "https://storage.example.com/upload",
 					Method:  "PUT",
@@ -35,7 +34,7 @@ func TestPush(t *testing.T) {
 				capturedUploadBody, _ = io.ReadAll(req.Body)
 				return nil
 			},
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
 			},
 		}
@@ -58,11 +57,12 @@ func TestPush(t *testing.T) {
 		assert.Equal(t, StatusProcessedValid, result.Status)
 		assert.NotEmpty(t, result.UpdateID)
 		assert.NotZero(t, result.FileSizeBytes)
-		assert.Equal(t, 100, result.Rollout)
+		assert.InDelta(t, 100.0, result.Rollout, 0.001)
 
 		assert.Equal(t, "1.0.0", capturedReq.AppVersion)
 		assert.True(t, capturedReq.Mandatory)
-		assert.Equal(t, 100, capturedReq.Rollout)
+		require.NotNil(t, capturedReq.Rollout)
+		assert.InDelta(t, 100.0, *capturedReq.Rollout, 0.001)
 		assert.NotEmpty(t, capturedUploadBody)
 	})
 
@@ -77,7 +77,7 @@ func TestPush(t *testing.T) {
 					{ID: "dep-bbb", Name: "Production"},
 				}, nil
 			},
-			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				resolvedDeploymentID = deploymentID
 				return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
 			},
@@ -153,7 +153,7 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				return nil, errors.New("API returned HTTP 500: internal error")
 			},
 		}
@@ -199,7 +199,7 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{
 					UpdateID:     updateID,
 					Status:       StatusProcessedError,
@@ -226,7 +226,7 @@ func TestPush(t *testing.T) {
 		bundleDir := createTestBundleDir(t)
 
 		client := &mockClient{
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
 			},
 		}
@@ -250,12 +250,12 @@ func TestPush(t *testing.T) {
 		var capturedReq UploadURLRequest
 
 		client := &mockClient{
-			getUploadURLFunc: func(appID, deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+			getUploadURLFunc: func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
 				capturedReq = req
 				return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
 			},
 			uploadFileFunc: func(req UploadFileRequest) error { return nil },
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
 			},
 		}
@@ -272,8 +272,41 @@ func TestPush(t *testing.T) {
 		result, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
 		require.NoError(t, err)
 
-		assert.Equal(t, 50, result.Rollout)
-		assert.Equal(t, 50, capturedReq.Rollout)
+		assert.InDelta(t, 50.0, result.Rollout, 0.001)
+		require.NotNil(t, capturedReq.Rollout)
+		assert.InDelta(t, 50.0, *capturedReq.Rollout, 0.001)
+	})
+
+	t.Run("rollout zero is sent to server not dropped", func(t *testing.T) {
+		bundleDir := createTestBundleDir(t)
+		var capturedReq UploadURLRequest
+
+		client := &mockClient{
+			getUploadURLFunc: func(deploymentID, updateID string, req UploadURLRequest) (*UploadURLResponse, error) {
+				capturedReq = req
+				return &UploadURLResponse{URL: "https://example.com/upload", Method: "PUT"}, nil
+			},
+			uploadFileFunc: func(req UploadFileRequest) error { return nil },
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
+				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedValid}, nil
+			},
+		}
+
+		opts := &PushOptions{
+			AppID:        "app-123",
+			DeploymentID: "00000000-0000-0000-0000-000000000001",
+			Token:        "tok",
+			AppVersion:   "1.0.0",
+			Rollout:      0,
+			BundlePath:   bundleDir,
+		}
+
+		result, err := PushWithConfig(context.Background(), client, opts, fastPollConfig, testOut)
+		require.NoError(t, err)
+
+		assert.InDelta(t, 0.0, result.Rollout, 0.001)
+		require.NotNil(t, capturedReq.Rollout)
+		assert.InDelta(t, 0.0, *capturedReq.Rollout, 0.001)
 	})
 
 	t.Run("does not export bitrise summary", func(t *testing.T) {
@@ -418,7 +451,7 @@ func TestPollStatus(t *testing.T) {
 	t.Run("returns on done", func(t *testing.T) {
 		callCount := 0
 		client := &mockClient{
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				callCount++
 				if callCount < 3 {
 					return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
@@ -427,8 +460,7 @@ func TestPollStatus(t *testing.T) {
 			},
 		}
 
-		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
-		status, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
+		status, err := pollStatus(context.Background(), client, "pkg", PollConfig{MaxAttempts: 5, Interval: 1 * time.Millisecond})
 		require.NoError(t, err)
 		assert.Equal(t, StatusProcessedValid, status.Status)
 		assert.Equal(t, 3, callCount)
@@ -436,26 +468,24 @@ func TestPollStatus(t *testing.T) {
 
 	t.Run("returns error on failed", func(t *testing.T) {
 		client := &mockClient{
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{UpdateID: updateID, Status: StatusProcessedError, StatusReason: "bad format"}, nil
 			},
 		}
 
-		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
-		_, err := pollStatus(context.Background(), client, ref, fastPollConfig)
+		_, err := pollStatus(context.Background(), client, "pkg", fastPollConfig)
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "bad format")
 	})
 
 	t.Run("times out", func(t *testing.T) {
 		client := &mockClient{
-			getUpdateStatusFunc: func(appID, deploymentID, updateID string) (*UpdateStatus, error) {
+			getUpdateStatusFunc: func(updateID string) (*UpdateStatus, error) {
 				return &UpdateStatus{UpdateID: updateID, Status: StatusUploaded}, nil
 			},
 		}
 
-		ref := UpdateRef{AppID: "app", DeploymentID: "dep", UpdateID: "pkg"}
-		_, err := pollStatus(context.Background(), client, ref, PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
+		_, err := pollStatus(context.Background(), client, "pkg", PollConfig{MaxAttempts: 2, Interval: 1 * time.Millisecond})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "timed out")
 	})

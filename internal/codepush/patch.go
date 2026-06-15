@@ -22,7 +22,7 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		return nil, err
 	}
 
-	updateID, updateLabel, err := ResolveUpdateForPatch(ctx, client, opts.AppID, deploymentID, opts.Label, out)
+	updateID, updateLabel, err := ResolveUpdateForPatch(ctx, client, deploymentID, opts.Label, out)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 	}
 
 	step := out.StartStep("Patching release %s", updateLabel)
-	pkg, err := client.PatchUpdate(ctx, opts.AppID, deploymentID, updateID, req)
+	pkg, err := client.PatchUpdate(ctx, updateID, req)
 	if err != nil {
 		step.Cancel()
 		return nil, fmt.Errorf("patch failed: %w", err)
@@ -48,7 +48,7 @@ func Patch(ctx context.Context, client Client, opts *PatchOptions, out *output.W
 		AppVersion:   pkg.AppVersion,
 		Mandatory:    pkg.Mandatory,
 		Disabled:     pkg.Disabled,
-		Rollout:      int(pkg.Rollout),
+		Rollout:      pkg.Rollout,
 		Description:  pkg.Description,
 	}
 
@@ -66,17 +66,17 @@ func validatePatchOptions(opts *PatchOptions) error {
 	if opts.DeploymentID == "" {
 		return errors.New("deployment is required: set --deployment or CODEPUSH_DEPLOYMENT")
 	}
-	if opts.Rollout == "" && opts.Mandatory == "" && opts.Disabled == "" && opts.Description == "" && opts.AppVersion == "" {
-		return errors.New("at least one change is required: set --rollout, --mandatory, --disabled, --description, or --app-version")
+	if opts.Rollout == "" && opts.Mandatory == "" && opts.Disabled == "" {
+		return errors.New("at least one change is required: set --rollout, --mandatory, or --disabled")
 	}
 	return nil
 }
 
 // ResolveUpdateForPatch resolves an update by label or finds the latest update.
 // Returns the update ID and label.
-func ResolveUpdateForPatch(ctx context.Context, client updateLister, appID, deploymentID, label string, out *output.Writer) (string, string, error) {
+func ResolveUpdateForPatch(ctx context.Context, client updateLister, deploymentID, label string, out *output.Writer) (string, string, error) {
 	if label != "" {
-		id, err := resolveUpdateLabel(ctx, client, appID, deploymentID, label, out)
+		id, err := resolveUpdateLabel(ctx, client, deploymentID, label, out)
 		if err != nil {
 			return "", "", err
 		}
@@ -84,7 +84,7 @@ func ResolveUpdateForPatch(ctx context.Context, client updateLister, appID, depl
 	}
 
 	step := out.StartStep("Resolving latest release")
-	updates, err := client.ListUpdates(ctx, appID, deploymentID)
+	updates, err := client.ListUpdates(ctx, deploymentID)
 	if err != nil {
 		step.Cancel()
 		return "", "", fmt.Errorf("listing updates: %w", err)
@@ -105,7 +105,7 @@ func buildPatchRequest(opts *PatchOptions) (PatchRequest, error) {
 	var req PatchRequest
 
 	if opts.Rollout != "" {
-		v, err := strconv.Atoi(opts.Rollout)
+		v, err := strconv.ParseFloat(opts.Rollout, 64)
 		if err != nil || v < 0 || v > 100 {
 			return req, fmt.Errorf("rollout must be between 0 and 100, got %q", opts.Rollout)
 		}
@@ -113,27 +113,19 @@ func buildPatchRequest(opts *PatchOptions) (PatchRequest, error) {
 	}
 
 	if opts.Mandatory != "" {
-		v, err := strconv.ParseBool(opts.Mandatory)
+		b, err := strconv.ParseBool(opts.Mandatory)
 		if err != nil {
 			return req, fmt.Errorf("mandatory must be true or false, got %q", opts.Mandatory)
 		}
-		req.Mandatory = &v
+		req.Mandatory = strconv.FormatBool(b)
 	}
 
 	if opts.Disabled != "" {
-		v, err := strconv.ParseBool(opts.Disabled)
+		b, err := strconv.ParseBool(opts.Disabled)
 		if err != nil {
 			return req, fmt.Errorf("disabled must be true or false, got %q", opts.Disabled)
 		}
-		req.Disabled = &v
-	}
-
-	if opts.Description != "" {
-		req.Description = &opts.Description
-	}
-
-	if opts.AppVersion != "" {
-		req.AppVersion = &opts.AppVersion
+		req.Disabled = strconv.FormatBool(b)
 	}
 
 	return req, nil

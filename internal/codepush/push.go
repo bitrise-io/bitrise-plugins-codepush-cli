@@ -38,7 +38,7 @@ func PushWithConfig(ctx context.Context, client Client, opts *PushOptions, pollC
 	var status *UpdateStatus
 	err = out.Indeterminate("Processing update", func() error {
 		var pollErr error
-		status, pollErr = pollStatus(ctx, client, UpdateRef{AppID: opts.AppID, DeploymentID: deploymentID, UpdateID: updateID}, pollCfg)
+		status, pollErr = pollStatus(ctx, client, updateID, pollCfg)
 		return pollErr
 	})
 	if err != nil {
@@ -76,14 +76,14 @@ func uploadBundle(ctx context.Context, client Client, opts *PushOptions, deploym
 	updateID := uuid.New().String()
 
 	stepURL := out.StartStep("Requesting upload URL")
-	uploadResp, err := client.GetUploadURL(ctx, opts.AppID, deploymentID, updateID, UploadURLRequest{
+	uploadResp, err := client.GetUploadURL(ctx, deploymentID, updateID, UploadURLRequest{
 		AppVersion:    opts.AppVersion,
 		FileName:      filepath.Base(zipPath),
 		FileSizeBytes: zipInfo.Size(),
 		Description:   opts.Description,
 		Mandatory:     opts.Mandatory,
 		Disabled:      opts.Disabled,
-		Rollout:       opts.Rollout,
+		Rollout:       &opts.Rollout,
 	})
 	if err != nil {
 		stepURL.Cancel()
@@ -129,7 +129,7 @@ func validatePushOptions(opts *PushOptions) error {
 		return errors.New("bundle path is required: provide as argument or use --bundle")
 	}
 	if opts.Rollout < 0 || opts.Rollout > 100 {
-		return fmt.Errorf("rollout must be between 0 and 100, got %d", opts.Rollout)
+		return fmt.Errorf("rollout must be between 0 and 100, got %g", opts.Rollout)
 	}
 
 	info, err := os.Stat(opts.BundlePath)
@@ -177,12 +177,12 @@ func ResolveDeployment(ctx context.Context, client deploymentLister, appID, depl
 
 // statusChecker is the subset of Client needed by pollStatus.
 type statusChecker interface {
-	GetUpdateStatus(ctx context.Context, appID, deploymentID, updateID string) (*UpdateStatus, error)
+	GetUpdateStatus(ctx context.Context, updateID string) (*UpdateStatus, error)
 }
 
-func pollStatus(ctx context.Context, client statusChecker, ref UpdateRef, cfg PollConfig) (*UpdateStatus, error) {
+func pollStatus(ctx context.Context, client statusChecker, updateID string, cfg PollConfig) (*UpdateStatus, error) {
 	for attempt := range cfg.MaxAttempts {
-		status, err := client.GetUpdateStatus(ctx, ref.AppID, ref.DeploymentID, ref.UpdateID)
+		status, err := client.GetUpdateStatus(ctx, updateID)
 		if err != nil {
 			return nil, fmt.Errorf("checking update status: %w", err)
 		}

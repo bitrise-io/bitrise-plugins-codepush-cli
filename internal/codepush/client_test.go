@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 
@@ -13,10 +14,43 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestBuildURL(t *testing.T) {
+	tests := []struct {
+		name   string
+		path   string
+		params url.Values
+		want   string
+	}{
+		{"no params nil", "/deployments", nil, "/deployments"},
+		{"no params empty", "/deployments", url.Values{}, "/deployments"},
+		{"single param", "/deployments", url.Values{"app_id": {"abc-123"}}, "/deployments?app_id=abc-123"},
+		{"multiple params sorted", "/updates", url.Values{"deployment_id": {"dep-1"}, "limit": {"10"}}, "/updates?deployment_id=dep-1&limit=10"},
+		{"value needs encoding", "/updates", url.Values{"q": {"hello world"}}, "/updates?q=hello+world"},
+		{"path with escaped segment", "/deployments/" + url.PathEscape("id/with/slashes"), nil, "/deployments/id%2Fwith%2Fslashes"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, buildURL(tt.path, tt.params))
+		})
+	}
+}
+
+func TestPathEscapePreventsTraveral(t *testing.T) {
+	// url.PathEscape encodes "/" as "%2F", so a traversal input like "../../../etc/passwd"
+	// becomes a single literal path segment — the unescaped slashes that would allow
+	// directory traversal are removed, confining the value to one segment.
+	malicious := "../../../etc/passwd"
+	path := "/deployments/" + url.PathEscape(malicious)
+	assert.Equal(t, "/deployments/..%2F..%2F..%2Fetc%2Fpasswd", path)
+	assert.NotContains(t, path, "../")
+}
+
 func TestHTTPClientListDeployments(t *testing.T) {
 	t.Run("returns deployments", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments", r.URL.Path)
+			assert.Equal(t, "/deployments", r.URL.Path)
+			assert.Equal(t, "app-123", r.URL.Query().Get("app_id"))
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
 
 			w.Header().Set("Content-Type", "application/json")
@@ -63,15 +97,16 @@ func TestHTTPClientListDeployments(t *testing.T) {
 }
 
 func TestHTTPClientCreateDeployment(t *testing.T) {
-	t.Run("creates deployment", func(t *testing.T) {
+	t.Run("creates deployment with app_id in body", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments", r.URL.Path)
+			assert.Equal(t, "/deployments", r.URL.Path)
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var body CreateDeploymentRequest
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.Equal(t, "QA", body.Name)
+			assert.Equal(t, "app-123", body.AppID)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"id":"dep-new","name":"QA"}`))
@@ -79,7 +114,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		dep, err := client.CreateDeployment(context.Background(), "app-123", CreateDeploymentRequest{Name: "QA"})
+		dep, err := client.CreateDeployment(context.Background(), CreateDeploymentRequest{Name: "QA", AppID: "app-123"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "dep-new", dep.ID)
@@ -94,7 +129,7 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.CreateDeployment(context.Background(), "app-123", CreateDeploymentRequest{Name: "QA"})
+		_, err := client.CreateDeployment(context.Background(), CreateDeploymentRequest{Name: "QA", AppID: "app-123"})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "409")
 	})
@@ -103,16 +138,16 @@ func TestHTTPClientCreateDeployment(t *testing.T) {
 func TestHTTPClientGetDeployment(t *testing.T) {
 	t.Run("returns deployment", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456", r.URL.Path)
+			assert.Equal(t, "/deployments/dep-456", r.URL.Path)
 			assert.Equal(t, http.MethodGet, r.Method)
 
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123","latest_package":{"id":"pkg-1","label":"v3","app_version":"1.0.0"}}`))
+			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123","update":{"id":"pkg-1","label":"v3","app_version":"1.0.0"}}`))
 		}))
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		dep, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
+		dep, err := client.GetDeployment(context.Background(), "dep-456")
 		require.NoError(t, err)
 
 		assert.Equal(t, "dep-456", dep.ID)
@@ -124,7 +159,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		assert.Equal(t, "1.0.0", dep.LatestUpdate.AppVersion)
 	})
 
-	t.Run("returns deployment without latest package", func(t *testing.T) {
+	t.Run("returns deployment without latest update", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"id":"dep-456","name":"Staging","created_at":"2025-01-01T00:00:00Z","key":"abc123"}`))
@@ -132,7 +167,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		dep, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
+		dep, err := client.GetDeployment(context.Background(), "dep-456")
 		require.NoError(t, err)
 
 		assert.Equal(t, "dep-456", dep.ID)
@@ -147,7 +182,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetDeployment(context.Background(), "app-123", "dep-456")
+		_, err := client.GetDeployment(context.Background(), "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -156,7 +191,7 @@ func TestHTTPClientGetDeployment(t *testing.T) {
 func TestHTTPClientRenameDeployment(t *testing.T) {
 	t.Run("renames deployment", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456", r.URL.Path)
+			assert.Equal(t, "/deployments/dep-456", r.URL.Path)
 			assert.Equal(t, http.MethodPatch, r.Method)
 
 			var body RenameDeploymentRequest
@@ -169,7 +204,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		dep, err := client.RenameDeployment(context.Background(), "app-123", "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
+		dep, err := client.RenameDeployment(context.Background(), "dep-456", RenameDeploymentRequest{Name: "Pre-Production"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "Pre-Production", dep.Name)
@@ -183,7 +218,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.RenameDeployment(context.Background(), "app-123", "dep-456", RenameDeploymentRequest{Name: ""})
+		_, err := client.RenameDeployment(context.Background(), "dep-456", RenameDeploymentRequest{Name: ""})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "400")
 	})
@@ -192,7 +227,7 @@ func TestHTTPClientRenameDeployment(t *testing.T) {
 func TestHTTPClientDeleteDeployment(t *testing.T) {
 	t.Run("deletes deployment", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456", r.URL.Path)
+			assert.Equal(t, "/deployments/dep-456", r.URL.Path)
 			assert.Equal(t, http.MethodDelete, r.Method)
 
 			w.WriteHeader(http.StatusNoContent)
@@ -200,7 +235,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		err := client.DeleteDeployment(context.Background(), "app-123", "dep-456")
+		err := client.DeleteDeployment(context.Background(), "dep-456")
 		require.NoError(t, err)
 	})
 
@@ -212,7 +247,7 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		err := client.DeleteDeployment(context.Background(), "app-123", "dep-456")
+		err := client.DeleteDeployment(context.Background(), "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -221,15 +256,16 @@ func TestHTTPClientDeleteDeployment(t *testing.T) {
 func TestHTTPClientGetUploadURL(t *testing.T) {
 	t.Run("constructs correct request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expectedPath := "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789/upload-url"
-			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "/updates/pkg-789/upload-url", r.URL.Path)
 
 			query := r.URL.Query()
+			assert.Equal(t, "dep-456", query.Get("deployment_id"))
 			assert.Equal(t, "1.0.0", query.Get("app_version"))
 			assert.Equal(t, "bundle.zip", query.Get("file_name"))
 			assert.Equal(t, "1024", query.Get("file_size_bytes"))
 			assert.Equal(t, "true", query.Get("mandatory"))
 			assert.Equal(t, "test update", query.Get("description"))
+			assert.Empty(t, query.Get("rollout"))
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"url":"https://storage.example.com/upload","method":"PUT","headers":{"content_type":"application/zip"}}`))
@@ -237,7 +273,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		resp, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
+		resp, err := client.GetUploadURL(context.Background(), "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 1024,
@@ -262,12 +298,13 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
+		rollout := 100.0
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(), "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
-			Rollout:       100,
+			Rollout:       &rollout,
 		})
 		require.NoError(t, err)
 	})
@@ -281,12 +318,33 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		}))
 		defer server.Close()
 
+		rollout := 25.0
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(), "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
-			Rollout:       25,
+			Rollout:       &rollout,
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("sends rollout=0 for 0% rollout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, "0", r.URL.Query().Get("rollout"))
+
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"url":"https://example.com/upload","method":"PUT","headers":{}}`))
+		}))
+		defer server.Close()
+
+		rollout := 0.0
+		client := NewHTTPClient(server.URL, "test-token", "test")
+		_, err := client.GetUploadURL(context.Background(), "dep-456", "pkg-789", UploadURLRequest{
+			AppVersion:    "1.0.0",
+			FileName:      "bundle.zip",
+			FileSizeBytes: 512,
+			Rollout:       &rollout,
 		})
 		require.NoError(t, err)
 	})
@@ -299,7 +357,7 @@ func TestHTTPClientGetUploadURL(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetUploadURL(context.Background(), "app-123", "dep-456", "pkg-789", UploadURLRequest{
+		_, err := client.GetUploadURL(context.Background(), "dep-456", "pkg-789", UploadURLRequest{
 			AppVersion:    "1.0.0",
 			FileName:      "bundle.zip",
 			FileSizeBytes: 512,
@@ -356,16 +414,15 @@ func TestHTTPClientUploadFile(t *testing.T) {
 func TestHTTPClientGetUpdateStatus(t *testing.T) {
 	t.Run("returns status", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expectedPath := "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789/status"
-			assert.Equal(t, expectedPath, r.URL.Path)
+			assert.Equal(t, "/updates/pkg-789/status", r.URL.Path)
 
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"package_id":"pkg-789","status":"done","status_reason":""}`))
+			w.Write([]byte(`{"update_id":"pkg-789","status":"done","status_reason":""}`))
 		}))
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		status, err := client.GetUpdateStatus(context.Background(), "pkg-789")
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-789", status.UpdateID)
@@ -375,12 +432,12 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 	t.Run("returns failed status with reason", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"package_id":"pkg-789","status":"failed","status_reason":"invalid bundle format"}`))
+			w.Write([]byte(`{"update_id":"pkg-789","status":"failed","status_reason":"invalid bundle format"}`))
 		}))
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		status, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		status, err := client.GetUpdateStatus(context.Background(), "pkg-789")
 		require.NoError(t, err)
 
 		assert.Equal(t, "failed", status.Status)
@@ -395,7 +452,7 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetUpdateStatus(context.Background(), "app-123", "dep-456", "pkg-789")
+		_, err := client.GetUpdateStatus(context.Background(), "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "500")
 	})
@@ -404,7 +461,8 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 func TestHTTPClientListUpdates(t *testing.T) {
 	t.Run("returns updates", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages", r.URL.Path)
+			assert.Equal(t, "/updates", r.URL.Path)
+			assert.Equal(t, "dep-456", r.URL.Query().Get("deployment_id"))
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
 
 			w.Header().Set("Content-Type", "application/json")
@@ -413,7 +471,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
+		updates, err := client.ListUpdates(context.Background(), "dep-456")
 		require.NoError(t, err)
 
 		require.Len(t, updates, 2)
@@ -429,7 +487,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		updates, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
+		updates, err := client.ListUpdates(context.Background(), "dep-456")
 		require.NoError(t, err)
 		assert.Empty(t, updates)
 	})
@@ -442,7 +500,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.ListUpdates(context.Background(), "app-123", "dep-456")
+		_, err := client.ListUpdates(context.Background(), "dep-456")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -451,7 +509,7 @@ func TestHTTPClientListUpdates(t *testing.T) {
 func TestHTTPClientGetUpdate(t *testing.T) {
 	t.Run("returns update", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
+			assert.Equal(t, "/updates/pkg-789", r.URL.Path)
 			assert.Equal(t, http.MethodGet, r.Method)
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
 
@@ -461,13 +519,13 @@ func TestHTTPClientGetUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		pkg, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
+		pkg, err := client.GetUpdate(context.Background(), "pkg-789")
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-789", pkg.ID)
 		assert.Equal(t, "v3", pkg.Label)
 		assert.True(t, pkg.Mandatory)
-		assert.InEpsilon(t, float64(50), pkg.Rollout, 0.0001)
+		assert.InDelta(t, 50.0, pkg.Rollout, 0.001)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {
@@ -478,7 +536,7 @@ func TestHTTPClientGetUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.GetUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
+		_, err := client.GetUpdate(context.Background(), "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -487,34 +545,33 @@ func TestHTTPClientGetUpdate(t *testing.T) {
 func TestHTTPClientPatchUpdate(t *testing.T) {
 	t.Run("sends correct PATCH request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
+			assert.Equal(t, "/updates/pkg-789", r.URL.Path)
 			assert.Equal(t, http.MethodPatch, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
 			var body map[string]any
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 			assert.InEpsilon(t, float64(50), body["rollout"], 0.0001)
-			assert.Equal(t, true, body["mandatory"])
+			assert.Equal(t, "true", body["mandatory"])
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"id":"pkg-789","label":"v3","app_version":"1.0.0","mandatory":true,"rollout":50}`))
 		}))
 		defer server.Close()
 
-		rollout := 50
-		mandatory := true
+		rollout := 50.0
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		pkg, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		pkg, err := client.PatchUpdate(context.Background(), "pkg-789", PatchRequest{
 			Rollout:   &rollout,
-			Mandatory: &mandatory,
+			Mandatory: "true",
 		})
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-789", pkg.ID)
-		assert.InEpsilon(t, float64(50), pkg.Rollout, 0.0001)
+		assert.InDelta(t, 50.0, pkg.Rollout, 0.001)
 	})
 
-	t.Run("omits nil fields", func(t *testing.T) {
+	t.Run("omits empty fields", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, _ := io.ReadAll(r.Body)
 			bodyStr := string(body)
@@ -527,9 +584,9 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		rollout := 50
+		rollout := 50.0
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchUpdate(context.Background(), "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		require.NoError(t, err)
@@ -542,9 +599,9 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 		}))
 		defer server.Close()
 
-		rollout := 50
+		rollout := 50.0
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.PatchUpdate(context.Background(), "app-123", "dep-456", "pkg-789", PatchRequest{
+		_, err := client.PatchUpdate(context.Background(), "pkg-789", PatchRequest{
 			Rollout: &rollout,
 		})
 		require.Error(t, err)
@@ -555,7 +612,7 @@ func TestHTTPClientPatchUpdate(t *testing.T) {
 func TestHTTPClientDeleteUpdate(t *testing.T) {
 	t.Run("deletes update", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/packages/pkg-789", r.URL.Path)
+			assert.Equal(t, "/updates/pkg-789", r.URL.Path)
 			assert.Equal(t, http.MethodDelete, r.Method)
 
 			w.WriteHeader(http.StatusNoContent)
@@ -563,7 +620,7 @@ func TestHTTPClientDeleteUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
+		err := client.DeleteUpdate(context.Background(), "pkg-789")
 		require.NoError(t, err)
 	})
 
@@ -575,7 +632,7 @@ func TestHTTPClientDeleteUpdate(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		err := client.DeleteUpdate(context.Background(), "app-123", "dep-456", "pkg-789")
+		err := client.DeleteUpdate(context.Background(), "pkg-789")
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -584,14 +641,14 @@ func TestHTTPClientDeleteUpdate(t *testing.T) {
 func TestHTTPClientRollback(t *testing.T) {
 	t.Run("sends correct request", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-456/rollback", r.URL.Path)
+			assert.Equal(t, "/deployments/dep-456/rollback", r.URL.Path)
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 			assert.Equal(t, "test-token", r.Header.Get("Authorization"))
 
 			var body RollbackRequest
 			assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
-			assert.Equal(t, "pkg-target", body.UpdateID)
+			assert.Equal(t, "pkg-target", body.PackageID)
 
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"id":"pkg-new","label":"v4","app_version":"1.0.0"}`))
@@ -599,7 +656,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		pkg, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{UpdateID: "pkg-target"})
+		pkg, err := client.Rollback(context.Background(), "dep-456", RollbackRequest{PackageID: "pkg-target"})
 		require.NoError(t, err)
 
 		assert.Equal(t, "pkg-new", pkg.ID)
@@ -617,7 +674,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{})
+		_, err := client.Rollback(context.Background(), "dep-456", RollbackRequest{})
 		require.NoError(t, err)
 	})
 
@@ -629,7 +686,7 @@ func TestHTTPClientRollback(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.Rollback(context.Background(), "app-123", "dep-456", RollbackRequest{})
+		_, err := client.Rollback(context.Background(), "dep-456", RollbackRequest{})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "404")
 	})
@@ -638,7 +695,7 @@ func TestHTTPClientRollback(t *testing.T) {
 func TestHTTPClientPromote(t *testing.T) {
 	t.Run("sends correct request with all fields", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, "/connected-apps/app-123/code-push/deployments/dep-src/promote", r.URL.Path)
+			assert.Equal(t, "/deployments/dep-src/promote", r.URL.Path)
 			assert.Equal(t, http.MethodPost, r.Method)
 			assert.Equal(t, "application/json", r.Header.Get("Content-Type"))
 
@@ -655,7 +712,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		pkg, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{
+		pkg, err := client.Promote(context.Background(), "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 			AppVersion:         "3.0.0",
 			Mandatory:          "true",
@@ -680,7 +737,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{
+		_, err := client.Promote(context.Background(), "dep-src", PromoteRequest{
 			TargetDeploymentID: "dep-dst",
 		})
 		require.NoError(t, err)
@@ -694,7 +751,7 @@ func TestHTTPClientPromote(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "test-token", "test")
-		_, err := client.Promote(context.Background(), "app-123", "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
+		_, err := client.Promote(context.Background(), "dep-src", PromoteRequest{TargetDeploymentID: "dep-dst"})
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "409")
 	})
@@ -725,7 +782,7 @@ func TestHTTPClientSetsUserAgent(t *testing.T) {
 		defer server.Close()
 
 		client := NewHTTPClient(server.URL, "token", "1.2.3")
-		_, err := client.CreateDeployment(context.Background(), "app-1", CreateDeploymentRequest{Name: "QA"})
+		_, err := client.CreateDeployment(context.Background(), CreateDeploymentRequest{Name: "QA", AppID: "app-1"})
 		require.NoError(t, err)
 	})
 
