@@ -30,7 +30,11 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 		return nil, fmt.Errorf("resolving output directory: %w", err)
 	}
 
-	assetsDir := filepath.Join(outputDir, "assets")
+	// The Metro bundler copies assets into an "assets" subdirectory of --assets-dest,
+	// so the destination is the output directory itself (yielding <outputDir>/assets/...).
+	// Passing <outputDir>/assets here would nest them one level too deep. This matches
+	// the Expo bundler and the layout the CodePush SDK expects.
+	assetsDir := outputDir
 	if err := ensureDir(assetsDir); err != nil {
 		return nil, err
 	}

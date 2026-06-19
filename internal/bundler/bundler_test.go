@@ -182,6 +182,10 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		assertContainsArgs(t, cmd.args, "--platform", "ios")
 		assertContainsArgs(t, cmd.args, "--dev", "false")
 		assertContainsArgs(t, cmd.args, "--sourcemap-output", result.BundlePath+".map")
+		// --assets-dest is the output dir itself: Metro writes assets into an "assets"
+		// subdirectory of it, matching the Expo bundler and the CodePush SDK layout.
+		assertContainsArgs(t, cmd.args, "--assets-dest", outputDir)
+		assert.Equal(t, outputDir, result.AssetsDir)
 	})
 
 	t.Run("Android bundle with custom name", func(t *testing.T) {

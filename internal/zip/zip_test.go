@@ -27,11 +27,10 @@ func TestDirectory(t *testing.T) {
 		assert.Equal(t, srcDir+".zip", zipPath)
 
 		entries := readZipEntries(t, zipPath)
-		require.Len(t, entries, 2)
-
 		sort.Strings(entries)
-		assert.Equal(t, "main.jsbundle", entries[0])
-		assert.Equal(t, "main.jsbundle.map", entries[1])
+
+		// The source directory name ("bundle") becomes the top-level entry.
+		assert.Equal(t, []string{"bundle/", "bundle/main.jsbundle", "bundle/main.jsbundle.map"}, entries)
 	})
 
 	t.Run("preserves nested directory structure", func(t *testing.T) {
@@ -49,7 +48,7 @@ func TestDirectory(t *testing.T) {
 		entries := readZipEntries(t, zipPath)
 		sort.Strings(entries)
 
-		expected := []string{"assets/", "assets/images/", "assets/images/logo.png", "index.js"}
+		expected := []string{"bundle/", "bundle/assets/", "bundle/assets/images/", "bundle/assets/images/logo.png", "bundle/index.js"}
 		assert.Equal(t, expected, entries)
 	})
 
@@ -70,7 +69,7 @@ func TestDirectory(t *testing.T) {
 		defer r.Close()
 
 		for _, f := range r.File {
-			if f.Name == "app.js" {
+			if f.Name == "bundle/app.js" {
 				rc, err := f.Open()
 				require.NoError(t, err)
 				defer rc.Close()
@@ -108,7 +107,8 @@ func TestDirectory(t *testing.T) {
 		defer os.Remove(zipPath)
 
 		entries := readZipEntries(t, zipPath)
-		assert.Empty(t, entries)
+		// The (empty) source directory itself is still recorded as a top-level entry.
+		assert.Equal(t, []string{"empty/"}, entries)
 	})
 }
 
