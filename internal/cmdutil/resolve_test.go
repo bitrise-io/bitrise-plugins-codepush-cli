@@ -19,19 +19,19 @@ func TestResolveServerURL(t *testing.T) {
 	out := output.NewTest(io.Discard)
 
 	t.Run("flag value takes priority", func(t *testing.T) {
-		t.Setenv("CODEPUSH_SERVER_URL", "https://from-env")
+		t.Setenv("CODEPUSH_SERVICE_URL", "https://from-env")
 		got := ResolveServerURL("https://from-flag", out)
 		assert.Equal(t, "https://from-flag", got)
 	})
 
 	t.Run("falls back to env var", func(t *testing.T) {
-		t.Setenv("CODEPUSH_SERVER_URL", "https://from-env")
+		t.Setenv("CODEPUSH_SERVICE_URL", "https://from-env")
 		got := ResolveServerURL("", out)
 		assert.Equal(t, "https://from-env", got)
 	})
 
 	t.Run("returns default when nothing set", func(t *testing.T) {
-		t.Setenv("CODEPUSH_SERVER_URL", "")
+		t.Setenv("CODEPUSH_SERVICE_URL", "")
 		got := ResolveServerURL("", out)
 		assert.Equal(t, DefaultServerURL, got)
 	})
@@ -42,7 +42,7 @@ func TestResolveServerURL(t *testing.T) {
 	})
 
 	t.Run("strips trailing slash from env var", func(t *testing.T) {
-		t.Setenv("CODEPUSH_SERVER_URL", "https://api.staging.bitrise.io/")
+		t.Setenv("CODEPUSH_SERVICE_URL", "https://api.staging.bitrise.io/")
 		got := ResolveServerURL("", out)
 		assert.Equal(t, "https://api.staging.bitrise.io", got)
 	})

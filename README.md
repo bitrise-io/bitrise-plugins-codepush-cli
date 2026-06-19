@@ -134,7 +134,7 @@ To target a different environment (e.g. staging), set the server base URL:
 bitrise :codepush push --server-url https://api.staging.bitrise.io
 
 # Via environment variable
-export CODEPUSH_SERVER_URL=https://api.staging.bitrise.io
+export CODEPUSH_SERVICE_URL=https://api.staging.bitrise.io
 
 # Via .codepush.json (saved during init)
 bitrise :codepush init --server-url https://api.staging.bitrise.io
@@ -143,7 +143,7 @@ bitrise :codepush init --server-url https://api.staging.bitrise.io
 The server URL is resolved in this order:
 
 1. `--server-url` flag (highest priority)
-2. `CODEPUSH_SERVER_URL` environment variable
+2. `CODEPUSH_SERVICE_URL` environment variable
 3. `server_url` field in `.codepush.json`
 4. Default: `https://api.bitrise.io`
 
@@ -192,7 +192,7 @@ The progress style is resolved in this order (no environment variable override):
 |------|-------------|
 | `--app-id` | Release management app UUID (env: `CODEPUSH_APP_ID`) |
 | `--json`, `-j` | Output results as JSON to stdout |
-| `--server-url` | API server base URL (env: `CODEPUSH_SERVER_URL`) |
+| `--server-url` | API server base URL (env: `CODEPUSH_SERVICE_URL`) |
 | `--progress-style` | Progress indicator style: `bar` (default), `spinner`, `counter` |
 
 ### Release Management
@@ -650,7 +650,7 @@ A non-zero exit code from any command means the operation failed. Check stderr f
 | `BITRISE_API_TOKEN` | API token for authentication |
 | `CODEPUSH_APP_ID` | Default release management app UUID (used when `--app-id` is not set) |
 | `CODEPUSH_DEPLOYMENT` | Default deployment name or UUID (used when `--deployment` is not set) |
-| `CODEPUSH_SERVER_URL` | API server base URL (used when `--server-url` is not set) |
+| `CODEPUSH_SERVICE_URL` | API server base URL (used when `--server-url` is not set) |
 | `NO_COLOR` | Disable colored terminal output |
 
 ### Bitrise CI Variables (read automatically)

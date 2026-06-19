@@ -27,14 +27,14 @@ func APIURL(serverURL string) string {
 
 // ResolveServerURL returns the server base URL using the priority:
 // 1. flagValue (--server-url)
-// 2. CODEPUSH_SERVER_URL environment variable
+// 2. CODEPUSH_SERVICE_URL environment variable
 // 3. server_url in .codepush.json
 // 4. DefaultServerURL
 func ResolveServerURL(flagValue string, out *output.Writer) string {
 	if flagValue != "" {
 		return strings.TrimRight(flagValue, "/")
 	}
-	if envValue := os.Getenv("CODEPUSH_SERVER_URL"); envValue != "" {
+	if envValue := os.Getenv("CODEPUSH_SERVICE_URL"); envValue != "" {
 		return strings.TrimRight(envValue, "/")
 	}
 	cfg, err := config.Load()
