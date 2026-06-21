@@ -75,7 +75,12 @@ func Directory(srcDir string) (string, error) {
 	w := zip.NewWriter(f)
 	defer func() { _ = w.Close() }()
 
-	err = filepath.Walk(absDir, addFileToZip(w, absDir))
+	// Walk relative to the parent so the source directory's own name becomes the
+	// top-level entry in the archive (e.g. "CodePush/index.android.bundle"). The
+	// react-native-code-push SDK extracts the package and expects the bundle under
+	// that named subdirectory, and computes the content hash with the same prefix.
+	parentDir := filepath.Dir(absDir)
+	err = filepath.Walk(absDir, addFileToZip(w, parentDir))
 	if err != nil {
 		return "", fmt.Errorf("adding files to zip: %w", err)
 	}
