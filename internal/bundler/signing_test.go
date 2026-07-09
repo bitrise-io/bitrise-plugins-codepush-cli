@@ -1,14 +1,18 @@
 package bundler
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
@@ -93,6 +97,80 @@ func TestComputePackageHash(t *testing.T) {
 
 		assert.NotEqual(t, hashA, hashB)
 	})
+
+	t.Run("matches device hash for paths with HTML-special characters", func(t *testing.T) {
+		// The mobile SDK recomputes this hash on-device without HTML escaping. A file path
+		// containing '&', '<', or '>' must hash to that un-escaped value, not the value Go's
+		// default json.Marshal (which escapes them) would produce, or the contentHash claim
+		// devices can never reproduce.
+		for _, name := range []string{"L&G.png", "a<b.png", "c>d.png"} {
+			t.Run(name, func(t *testing.T) {
+				dir := filepath.Join(t.TempDir(), "CodePush")
+				require.NoError(t, os.Mkdir(dir, 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "index.js"), []byte("bundle"), 0o644))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("asset"), 0o644))
+
+				got, err := ComputePackageHash(dir)
+				require.NoError(t, err)
+
+				assert.Equal(t, clientPackageHash(t, dir, name), got,
+					"hash must match the SDK's un-escaped serialization")
+				assert.NotEqual(t, htmlEscapedPackageHash(t, dir, name), got,
+					"hash must differ from the buggy HTML-escaped serialization")
+			})
+		}
+	})
+}
+
+// clientPackageHash independently recomputes the package hash the way the on-device SDK does:
+// sorted "CodePush/relpath:sha256hex" entries serialized without HTML escaping, then SHA256'd.
+// It does not call ComputePackageHash, so the test fails if that serialization ever diverges
+// from the client's. The directory holds exactly index.js and one extra asset named assetName.
+func clientPackageHash(t *testing.T, dir, assetName string) string {
+	t.Helper()
+	return manifestHash(t, dir, assetName, false)
+}
+
+// htmlEscapedPackageHash recomputes the hash with Go's default HTML-escaping json.Marshal,
+// reproducing the old (buggy) behavior. Used only to prove the fix changes the result for
+// paths containing '&', '<', or '>'.
+func htmlEscapedPackageHash(t *testing.T, dir, assetName string) string {
+	t.Helper()
+	return manifestHash(t, dir, assetName, true)
+}
+
+func manifestHash(t *testing.T, dir, assetName string, escapeHTML bool) string {
+	t.Helper()
+
+	entries := []string{
+		"CodePush/index.js:" + sha256Content(t, filepath.Join(dir, "index.js")),
+		"CodePush/" + assetName + ":" + sha256Content(t, filepath.Join(dir, assetName)),
+	}
+	sort.Strings(entries)
+
+	var serialized []byte
+	if escapeHTML {
+		var err error
+		serialized, err = json.Marshal(entries)
+		require.NoError(t, err)
+	} else {
+		var buf bytes.Buffer
+		enc := json.NewEncoder(&buf)
+		enc.SetEscapeHTML(false)
+		require.NoError(t, enc.Encode(entries))
+		serialized = bytes.TrimRight(buf.Bytes(), "\n")
+	}
+
+	sum := sha256.Sum256(serialized)
+	return hex.EncodeToString(sum[:])
+}
+
+func sha256Content(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path) //nolint:gosec // path is built from t.TempDir(), not user input
+	require.NoError(t, err)
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:])
 }
 
 func TestSignBundle(t *testing.T) {
