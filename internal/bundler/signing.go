@@ -1,6 +1,7 @@
 package bundler
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -26,7 +27,7 @@ import (
 //   - Build []string entries of "relpath:hexhash" using filepath.Dir(dir) as
 //     basePath, so paths include the directory name (e.g. "CodePush/index.bundle")
 //   - Sort entries alphabetically
-//   - json.Marshal to a JSON array of strings
+//   - Serialize to a JSON array of strings without HTML escaping (see marshalManifest)
 //   - Return hex(SHA256(jsonBytes))
 func ComputePackageHash(dir string) (string, error) {
 	absDir, err := filepath.Abs(dir)
@@ -71,13 +72,33 @@ func ComputePackageHash(dir string) (string, error) {
 
 	sort.Strings(entries)
 
-	manifestJSON, err := json.Marshal(entries)
+	manifestJSON, err := marshalManifest(entries)
 	if err != nil {
 		return "", fmt.Errorf("marshaling manifest: %w", err)
 	}
 
 	sum := sha256.Sum256(manifestJSON)
 	return hex.EncodeToString(sum[:]), nil
+}
+
+// marshalManifest serializes the manifest to the exact bytes the CodePush package hash is
+// computed over. HTML escaping must stay off: the mobile SDK recomputes this hash on-device
+// (NSJSONSerialization on iOS, org.json on Android) and leaves '&', '<', and '>' unescaped,
+// whereas Go's default json.Marshal escapes them to "&", "<", ">". A path with
+// one of those characters would otherwise produce a contentHash no device can reproduce. The
+// encoder's trailing newline is trimmed to keep the hashed bytes identical to the client's.
+func marshalManifest(entries []string) ([]byte, error) {
+	var buf bytes.Buffer
+
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+
+	err := enc.Encode(entries)
+	if err != nil {
+		return nil, err
+	}
+
+	return bytes.TrimRight(buf.Bytes(), "\n"), nil
 }
 
 // claimVersion identifies the schema of this JWT payload. It must only be
