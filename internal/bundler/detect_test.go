@@ -19,7 +19,7 @@ func testOSTriplet() string {
 	case runtime.GOOS == "linux" && runtime.GOARCH == "amd64":
 		return "linux64-bin"
 	case runtime.GOOS == "windows":
-		return "windows-bin"
+		return "win64-bin"
 	default:
 		return runtime.GOOS + "-bin"
 	}
@@ -485,6 +485,34 @@ func TestFindHermesc(t *testing.T) {
 		path, err := findHermesc(dir)
 		require.NoError(t, err)
 		assert.True(t, filepath.IsAbs(path))
+	})
+
+	t.Run("finds hermesc in hermes-compiler", func(t *testing.T) {
+		dir := t.TempDir()
+
+		hermescDir := filepath.Join(dir, "node_modules", "hermes-compiler", "hermesc", osTriplet)
+		os.MkdirAll(hermescDir, 0o755)
+		writeFile(t, filepath.Join(hermescDir, binaryName), "#!/bin/sh")
+
+		path, err := findHermesc(dir)
+		require.NoError(t, err)
+		assert.Contains(t, path, "hermes-compiler")
+	})
+
+	t.Run("prefers hermes-compiler over hermes-engine", func(t *testing.T) {
+		dir := t.TempDir()
+
+		loc1 := filepath.Join(dir, "node_modules", "hermes-compiler", "hermesc", osTriplet)
+		os.MkdirAll(loc1, 0o755)
+		writeFile(t, filepath.Join(loc1, binaryName), "primary")
+
+		loc2 := filepath.Join(dir, "node_modules", "hermes-engine", osTriplet)
+		os.MkdirAll(loc2, 0o755)
+		writeFile(t, filepath.Join(loc2, binaryName), "secondary")
+
+		path, err := findHermesc(dir)
+		require.NoError(t, err)
+		assert.Contains(t, path, "hermes-compiler")
 	})
 
 	t.Run("finds hermesc in react-native sdks", func(t *testing.T) {
