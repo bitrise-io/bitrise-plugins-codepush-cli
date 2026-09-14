@@ -398,14 +398,17 @@ func findHermesc(projectDir string) (string, error) {
 	case osName == "linux" && archName == "amd64":
 		osTriplet = "linux64-bin"
 	case osName == "windows":
-		osTriplet = "windows-bin"
+		osTriplet = "win64-bin"
 		binaryName = "hermesc.exe"
 	default:
 		osTriplet = osName + "-bin"
 	}
 
-	// Check known hermesc locations in order of preference.
+	// Check known hermesc locations in order of preference. hermes-compiler
+	// is the standalone package RN 0.85+ moved the prebuilt hermesc into;
+	// it wins when present since it reflects the newer layout.
 	candidates := []string{
+		filepath.Join(projectDir, "node_modules", "hermes-compiler", "hermesc", osTriplet, binaryName),
 		filepath.Join(projectDir, "node_modules", "hermes-engine", osTriplet, binaryName),
 		filepath.Join(projectDir, "node_modules", "react-native", "sdks", "hermesc", osTriplet, binaryName),
 	}
