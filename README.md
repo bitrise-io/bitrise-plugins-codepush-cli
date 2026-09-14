@@ -340,16 +340,16 @@ Code signing is a security mechanism that adds a digital signature to your CodeP
 
 ### Requirements
 
-- Use the **CodePushNext** fork of `react-native-code-push` for code signing support: [CodePushNext GitHub Repository](https://github.com/CodePushNext/react-native-code-push)
+- Use the **Bitrise** fork of `react-native-code-push` for code signing support: [Bitrise GitHub Repository](https://github.com/bitrise-io/react-native-code-push)
 - Minimum required versions:
 
 | SDK | Version supporting code signing | Platform support | Minimum Bitrise CLI version |
 |-----|--------------------------------|------------------|-----------------------------|
-| `react-native-code-push` (CodePushNext) | 5.1.0+ | Android, iOS, Expo* | 1.0.0+ |
+| `react-native-code-push` (Bitrise) | 5.1.0+ | Android, iOS, Expo* | 1.0.0+ |
 
 *Expo support requires specific config; see [Step 4: Expo Support](#step-4-expo-support).*
 
-- Your mobile app must include the updated CodePushNext SDK (>= 5.1.0) that supports embedding the public key and signature validation.
+- Your mobile app must include the updated Bitrise SDK (>= 5.1.0) that supports embedding the public key and signature validation.
 - You need to regenerate your app binaries (iOS and Android) with the embedded public key.
 
 ### Step 1: Generate an RSA Key Pair
@@ -404,7 +404,7 @@ new CodePushBuilder("deployment-key", getApplicationContext())
     .build();
 ```
 
-For React Native >= 0.61, follow the [CodePushNext Android setup guide](https://github.com/CodePushNext/react-native-code-push/blob/main/docs/setup-android.md).
+For React Native >= 0.61, follow the [Bitrise Android setup guide](https://github.com/bitrise-io/react-native-code-push/blob/main/docs/setup-android.md).
 
 Rebuild your Android app with the updated SDK.
 
@@ -414,7 +414,7 @@ A bare Expo project has the same native structure as vanilla React Native — fo
 
 The CLI detects Expo projects automatically. Note that `--sourcemap-output` is not supported for Expo and should be omitted.
 
-For detailed Expo setup, see the [CodePushNext Expo docs](https://github.com/CodePushNext/react-native-code-push/blob/main/docs/expo.md).
+For detailed Expo setup, see the [Bitrise Expo docs](https://github.com/bitrise-io/react-native-code-push/blob/main/docs/expo.md).
 
 ### Step 5: Code Signing with the Bitrise CodePush CLI
 
