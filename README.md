@@ -18,7 +18,7 @@ This CLI manages the server side of that workflow: bundling your JavaScript code
 ### As a Bitrise Plugin
 
 ```bash
-bitrise plugin install --source https://github.com/bitrise-io/bitrise-plugins-codepush-cli.git
+bitrise plugin install https://github.com/bitrise-io/bitrise-plugins-codepush-cli.git
 ```
 
 Once installed, prefix all commands with `bitrise :codepush`:
@@ -32,7 +32,7 @@ Manage the plugin lifecycle with standard Bitrise CLI commands:
 ```bash
 bitrise plugin list                 # confirm installation
 bitrise plugin update codepush      # upgrade to latest version
-bitrise plugin uninstall codepush   # remove the plugin
+bitrise plugin delete codepush   # remove the plugin
 ```
 
 For standalone use outside Bitrise, see [Using as a Standalone CLI](#using-as-a-standalone-cli).
