@@ -400,7 +400,7 @@ A bare Expo project has the same native structure as vanilla React Native — fo
 
 The CLI detects Expo projects automatically. Note that `--sourcemap-output` is not supported for Expo and should be omitted.
 
-For detailed Expo setup, see the [Bitrise Expo docs](https://github.com/bitrise-io/react-native-code-push/blob/master/docs/expo.md).
+For detailed Expo setup, see the [Expo (CNG) setup guide](https://github.com/bitrise-io/react-native-code-push#for-expo-user-with-cngcontinuous-native-generation).
 
 ### Step 5: Code Signing with the Bitrise CodePush CLI
 
