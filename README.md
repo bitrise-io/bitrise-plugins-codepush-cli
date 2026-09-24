@@ -412,7 +412,7 @@ Rebuild your Android app with the updated SDK.
 
 A bare Expo project has the same native structure as vanilla React Native — follow the iOS and Android steps above directly. For managed workflow, embedding the public key requires [EAS Build](https://docs.expo.dev/build/introduction/) and a custom config plugin.
 
-The CLI detects Expo projects automatically. Note that `--sourcemap-output` is not supported for Expo and should be omitted.
+The CLI detects Expo projects automatically.
 
 For detailed Expo setup, see the [Expo (CNG) setup guide](https://github.com/bitrise-io/react-native-code-push#for-expo-user-with-cngcontinuous-native-generation).
 
