@@ -293,9 +293,7 @@ var historyCmd = &cobra.Command{
 			return fmt.Errorf("listing updates: %w", err)
 		}
 
-		if historyMax > 0 && len(updates) > historyMax {
-			updates = updates[len(updates)-historyMax:]
-		}
+		updates = codepush.NewestUpdates(updates, historyMax)
 
 		if cmd.JSONOutput {
 			return cmdutil.OutputJSON(updates)

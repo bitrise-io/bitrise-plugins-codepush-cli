@@ -95,7 +95,7 @@ func ResolveUpdateForPatch(ctx context.Context, client updateLister, deploymentI
 		return "", "", errors.New("no releases found in deployment: push a release first")
 	}
 
-	latest := updates[len(updates)-1]
+	latest := NewestUpdates(updates, 1)[0]
 	step.Done()
 	out.Info("Resolved latest release: %s (%s)", latest.Label, latest.ID)
 	return latest.ID, latest.Label, nil
