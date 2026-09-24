@@ -101,7 +101,7 @@ func compileWithHermes(config *ProjectConfig, result *BundleResult, extraFlags [
 	}
 
 	compiler := NewHermesCompiler(executor, out)
-	if err := compiler.Compile(config.HermescPath, result.BundlePath, result.SourcemapPath, extraFlags); err != nil {
+	if err := compiler.Compile(config.HermescPath, result.BundlePath, result.SourcemapPath, config.ProjectDir, extraFlags); err != nil {
 		return err
 	}
 	result.HermesApplied = true

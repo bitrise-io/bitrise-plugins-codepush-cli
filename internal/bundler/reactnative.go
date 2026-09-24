@@ -30,6 +30,17 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 		return nil, fmt.Errorf("resolving output directory: %w", err)
 	}
 
+	bundleName := opts.BundleName
+	if bundleName == "" {
+		bundleName = DefaultBundleName(opts.Platform)
+	}
+
+	// Resolve before creating anything, so a conflicting path fails fast.
+	sourcemapPath, err := resolveSourcemapPath(opts, outputDir, bundleName)
+	if err != nil {
+		return nil, err
+	}
+
 	// The Metro bundler copies assets into an "assets" subdirectory of --assets-dest,
 	// so the destination is the output directory itself (yielding <outputDir>/assets/...).
 	// Passing <outputDir>/assets here would nest them one level too deep. This matches
@@ -39,17 +50,7 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 		return nil, err
 	}
 
-	bundleName := opts.BundleName
-	if bundleName == "" {
-		bundleName = DefaultBundleName(opts.Platform)
-	}
-
 	bundlePath := filepath.Join(outputDir, bundleName)
-
-	sourcemapPath, err := resolveSourcemapPath(opts, bundlePath)
-	if err != nil {
-		return nil, err
-	}
 
 	paths := bundlePaths{
 		outputDir:     outputDir,
@@ -138,23 +139,4 @@ func (b *ReactNativeBundler) runBundle(dir string, w io.Writer, name string, arg
 		return runWithPTY(dir, w, name, args...)
 	}
 	return b.executor.Run(dir, io.Discard, w, name, args...)
-}
-
-// resolveSourcemapPath returns the absolute sourcemap path based on bundle options.
-// Returns an empty string when sourcemaps are disabled.
-func resolveSourcemapPath(opts *BundleOptions, bundlePath string) (string, error) {
-	if !opts.Sourcemap {
-		return "", nil
-	}
-	if opts.SourcemapOutput == "" {
-		return bundlePath + ".map", nil
-	}
-	absPath := opts.SourcemapOutput
-	if !filepath.IsAbs(absPath) {
-		absPath = filepath.Join(opts.ProjectDir, absPath)
-	}
-	if err := ensureDir(filepath.Dir(absPath)); err != nil {
-		return "", fmt.Errorf("creating sourcemap output directory: %w", err)
-	}
-	return absPath, nil
 }

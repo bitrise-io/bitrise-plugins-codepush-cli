@@ -270,7 +270,7 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--minify` | `false` | Minify the bundle (Expo only) |
 | `--reset-cache` | `true` | Clear Metro bundler cache before bundling |
 | `--sourcemap` | `true` | Generate source maps |
-| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
+| `--sourcemap-output, -s` | `<output-dir>.sourcemaps/<bundle-name>.map` | Source map path, must be outside the output directory (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
 | `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
@@ -279,6 +279,18 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--gradle-file, -g` | auto-detect | Override `build.gradle` path for Android Hermes detection |
 | `--pod-file` | auto-detect | Override `Podfile` path for iOS Hermes detection |
 | `--private-key-path, -k` | | Sign bundle with RSA private key (PEM); output directory must be named `CodePush` |
+
+### Source Maps
+
+The CLI writes source maps **next to** the output directory, never inside it. Everything in the output directory is zipped into the update and ships to every device, and a Metro source map can contain your app's full original source code.
+
+With the default `./CodePush` output directory, the source map is at `./CodePush.sourcemaps/main.jsbundle.map` (iOS) or `./CodePush.sourcemaps/index.android.bundle.map` (Android). `--json` output reports the path as `sourcemap_path`. Upload this file to your crash reporter to symbolicate stack traces from the update.
+
+- A `--sourcemap-output` path inside the output directory is an error.
+- For Hermes builds, the CLI composes the Metro and Hermes source maps with `react-native/scripts/compose-source-maps.js`. If composition fails, the CLI keeps both maps (`<bundle-name>.map` and `<bundle-name>.hbc.map`) and prints the command to compose them by hand.
+- `push` prints a warning when the directory you push contains `*.map` files.
+
+> Before this change, the CLI wrote source maps to `<output-dir>/<bundle-name>.map`, so they shipped in the update. If your pipeline reads the map from there, use the new path or `sourcemap_path`.
 
 ### Auto-Detection
 
@@ -317,6 +329,8 @@ bitrise :codepush push --bundle --platform ios \
 | `--platform`, `-p` | | Target platform (required with `--bundle`) |
 | `--hermes` | `auto` | Hermes compilation (with `--bundle`) |
 | `--output-dir`, `-o` | `./CodePush` | Bundle output directory (with `--bundle`) |
+| `--sourcemap` | `true` | Generate source maps (with `--bundle`) |
+| `--sourcemap-output, -s` | `<output-dir>.sourcemaps/<bundle-name>.map` | Source map path, outside the output directory (with `--bundle`) |
 | `--private-key-path, -k` | | Sign bundle before uploading |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
 | `--gradle-file`, `-g` | auto-detect | Override `build.gradle` path for Android Hermes detection (with `--bundle`) |

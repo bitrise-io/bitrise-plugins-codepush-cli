@@ -18,8 +18,9 @@ var bundleCmd = &cobra.Command{
 	Long: `Bundle the JavaScript code and assets for a React Native or Expo project.
 
 Auto-detects the project type, entry file, and Hermes configuration.
-Produces a directory containing the bundle, assets, and optional source maps
-ready for use with 'codepush push'.`,
+Produces a directory containing the bundle and assets, ready for use with
+'codepush push'. Source maps are written next to that directory, never inside
+it, because everything in it ships to devices.`,
 	GroupID: cmd.GroupRelease,
 	RunE: func(c *cobra.Command, args []string) error {
 		out := cmd.Out

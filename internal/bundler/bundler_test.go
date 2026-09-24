@@ -146,7 +146,7 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		executor.onRun = func(_ string, _ string, _ ...string) {
 			bundlePath := filepath.Join(outputDir, "main.jsbundle")
 			os.WriteFile(bundlePath, []byte("bundle"), 0o644)
-			mapPath := bundlePath + ".map"
+			mapPath := filepath.Join(outputDir+SourcemapDirSuffix, "main.jsbundle.map")
 			os.WriteFile(mapPath, []byte("sourcemap"), 0o644)
 		}
 
@@ -181,7 +181,11 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		assertContainsArgs(t, cmd.args, "--entry-file", "index.js")
 		assertContainsArgs(t, cmd.args, "--platform", "ios")
 		assertContainsArgs(t, cmd.args, "--dev", "false")
-		assertContainsArgs(t, cmd.args, "--sourcemap-output", result.BundlePath+".map")
+		// The source map goes next to the output directory, never inside it:
+		// the output directory is the update payload.
+		expectedMap := filepath.Join(outputDir+SourcemapDirSuffix, "main.jsbundle.map")
+		assertContainsArgs(t, cmd.args, "--sourcemap-output", expectedMap)
+		assert.Equal(t, expectedMap, result.SourcemapPath)
 		// --assets-dest is the output dir itself: Metro writes assets into an "assets"
 		// subdirectory of it, matching the Expo bundler and the CodePush SDK layout.
 		assertContainsArgs(t, cmd.args, "--assets-dest", outputDir)
@@ -520,7 +524,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 		assert.True(t, result.HermesApplied)
 	})
 
-	t.Run("sourcemap written next to bundle when Sourcemap is true", func(t *testing.T) {
+	t.Run("sourcemap written next to the output directory when Sourcemap is true", func(t *testing.T) {
 		outputDir := t.TempDir()
 		executor := &mockExecutor{}
 
@@ -528,7 +532,9 @@ func TestExpoBundlerBundle(t *testing.T) {
 			for i, arg := range args {
 				if arg == "--bundle-output" && i+1 < len(args) {
 					os.WriteFile(args[i+1], []byte("bundle"), 0o644)
-					os.WriteFile(args[i+1]+".map", []byte("sourcemap"), 0o644)
+				}
+				if arg == "--sourcemap-output" && i+1 < len(args) {
+					os.WriteFile(args[i+1], []byte("sourcemap"), 0o644)
 				}
 			}
 		}
@@ -549,7 +555,7 @@ func TestExpoBundlerBundle(t *testing.T) {
 		result, err := bundler.Bundle(config, opts)
 		require.NoError(t, err)
 
-		expectedMap := filepath.Join(outputDir, "main.jsbundle.map")
+		expectedMap := filepath.Join(outputDir+SourcemapDirSuffix, "main.jsbundle.map")
 		assertContainsArgs(t, executor.commands[0].args, "--sourcemap-output", expectedMap)
 		assert.Equal(t, expectedMap, result.SourcemapPath)
 	})

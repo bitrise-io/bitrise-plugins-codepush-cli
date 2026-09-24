@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 	RunE: func(c *cobra.Command, args []string) error {
 		out := cmd.Out
 
+		var sourcemapPath string
 		if pushAutoBundle {
 			platform, err := cmdutil.ResolvePlatformInteractive(bundlePlatform, out)
 			if err != nil {
@@ -52,6 +54,10 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 			}
 
 			out.Info("Bundle created at: %s", result.OutputDir)
+			sourcemapPath = result.SourcemapPath
+			if sourcemapPath != "" {
+				out.Info("Sourcemap: %s", sourcemapPath)
+			}
 			args = []string{result.OutputDir}
 		}
 
@@ -63,6 +69,8 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		if err != nil {
 			return fmt.Errorf("resolving bundle path: %w", err)
 		}
+
+		warnAboutSourcemaps(bundlePath, out)
 
 		if bundlePrivateKeyPath != "" {
 			stepSign := out.StartStep("Signing bundle")
@@ -108,6 +116,7 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		if err != nil {
 			return fmt.Errorf("push failed: %w", err)
 		}
+		result.SourcemapPath = sourcemapPath
 
 		if cmd.JSONOutput {
 			return cmdutil.OutputJSON(result)
@@ -121,6 +130,9 @@ Use --bundle to automatically generate the JavaScript bundle before pushing.`,
 		}
 		if result.Rollout < 100 {
 			kvs = append(kvs, output.KeyValue{Key: "Rollout", Value: fmt.Sprintf("%g%%", result.Rollout)})
+		}
+		if result.SourcemapPath != "" {
+			kvs = append(kvs, output.KeyValue{Key: "Sourcemap", Value: result.SourcemapPath})
 		}
 		out.Result(kvs)
 
@@ -146,4 +158,18 @@ func init() {
 	pushCmd.Flags().Float64VarP(&pushRollout, "rollout", "r", 100, "rollout percentage (0-100)")
 	pushCmd.Flags().BoolVarP(&pushDisabled, "disabled", "x", false, "disable update after upload")
 	cmd.RootCmd.AddCommand(pushCmd)
+}
+
+// warnAboutSourcemaps warns when the update directory contains source maps.
+// They would ship to every device, and Metro source maps can embed the app's
+// original source code. The files are not removed: the directory is uploaded
+// (and signed) as-is.
+func warnAboutSourcemaps(bundlePath string, out *output.Writer) {
+	maps, err := bundler.FindSourcemaps(bundlePath)
+	if err != nil || len(maps) == 0 {
+		return
+	}
+	out.Warning("the update directory contains source maps, which will ship to devices "+
+		"and can expose your source code: %s. Move them out of %s before pushing",
+		strings.Join(maps, ", "), bundlePath)
 }

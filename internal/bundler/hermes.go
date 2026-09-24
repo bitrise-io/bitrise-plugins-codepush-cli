@@ -22,9 +22,11 @@ func NewHermesCompiler(executor CommandExecutor, out *output.Writer) *HermesComp
 // Compile takes a JS bundle path and compiles it to Hermes bytecode.
 // The compiled bytecode replaces the original bundle file (CodePush clients
 // expect the original filename).
-// If sourcemapPath is non-empty, attempts to compose source maps.
+// If sourcemapPath is non-empty, hermesc runs next to the source map so its own
+// map never lands in the bundle's directory (the update payload), then the two
+// maps are composed using the compose script from projectDir.
 // extraHermesFlags are appended to the hermesc invocation before the input file.
-func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcemapPath string, extraHermesFlags []string) error {
+func (h *HermesCompiler) Compile(hermescPath, bundlePath, sourcemapPath, projectDir string, extraHermesFlags []string) error {
 	if _, err := os.Stat(hermescPath); err != nil {
 		return fmt.Errorf("hermesc binary not found at %s: %w", hermescPath, err)
 	}
@@ -34,6 +36,9 @@ func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcema
 	}
 
 	hbcPath := bundlePath + ".hbc"
+	if sourcemapPath != "" {
+		hbcPath = filepath.Join(filepath.Dir(sourcemapPath), filepath.Base(bundlePath)+".hbc")
+	}
 
 	// Compile JS to Hermes bytecode
 	args := []string{"-emit-binary", "-out", hbcPath}
@@ -52,7 +57,7 @@ func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcema
 	}
 
 	// Replace the original JS bundle with the compiled bytecode
-	if err := os.Rename(hbcPath, bundlePath); err != nil {
+	if err := moveFile(hbcPath, bundlePath); err != nil {
 		return fmt.Errorf("replacing bundle with Hermes bytecode: %w", err)
 	}
 
@@ -60,43 +65,43 @@ func (h *HermesCompiler) Compile(hermescPath string, bundlePath string, sourcema
 	if sourcemapPath != "" {
 		hermesMapPath := hbcPath + ".map"
 		if _, err := os.Stat(hermesMapPath); err == nil {
-			h.composeSourceMaps(bundlePath, sourcemapPath, hermesMapPath)
+			h.composeSourceMaps(projectDir, sourcemapPath, hermesMapPath)
 		}
 	}
 
 	return nil
 }
 
-// composeSourceMaps attempts to compose Metro and Hermes source maps.
-// This is a best-effort operation; failures are logged but not fatal.
-func (h *HermesCompiler) composeSourceMaps(bundlePath string, metroMapPath string, hermesMapPath string) {
-	projectDir := filepath.Dir(bundlePath)
-
-	// Look for the compose-source-maps script
+// composeSourceMaps attempts to compose Metro and Hermes source maps into
+// metroMapPath. This is a best-effort operation: on failure both maps are kept
+// so they can be composed by hand, and a warning is logged.
+func (h *HermesCompiler) composeSourceMaps(projectDir, metroMapPath, hermesMapPath string) {
 	composeScript := filepath.Join(projectDir, "node_modules", "react-native", "scripts", "compose-source-maps.js")
 	if _, err := os.Stat(composeScript); err != nil {
-		h.out.Warning("compose-source-maps.js not found, using Hermes source map only")
-		if err := os.Rename(hermesMapPath, metroMapPath); err != nil {
-			h.out.Warning("could not rename Hermes source map: %v", err)
-		}
+		h.warnUncomposed("compose-source-maps.js not found at "+composeScript, composeScript, metroMapPath, hermesMapPath)
 		return
 	}
 
 	composedPath := metroMapPath + ".composed"
-	err := h.executor.Run("", os.Stderr, os.Stderr, "node", composeScript, metroMapPath, hermesMapPath, "-o", composedPath)
+	err := h.executor.Run(projectDir, os.Stderr, os.Stderr, "node", composeScript, metroMapPath, hermesMapPath, "-o", composedPath)
 	if err != nil {
-		h.out.Warning("source map composition failed, using Hermes source map only")
-		if err := os.Rename(hermesMapPath, metroMapPath); err != nil {
-			h.out.Warning("could not rename Hermes source map: %v", err)
-		}
+		_ = os.Remove(composedPath)
+		h.warnUncomposed("source map composition failed", composeScript, metroMapPath, hermesMapPath)
 		return
 	}
 
 	// Replace original sourcemap with composed one
 	if err := os.Rename(composedPath, metroMapPath); err != nil {
-		h.out.Warning("could not replace source map with composed version: %v", err)
+		h.warnUncomposed(fmt.Sprintf("could not replace source map with composed version: %v", err), composeScript, metroMapPath, hermesMapPath)
+		return
 	}
 	if err := os.Remove(hermesMapPath); err != nil {
 		h.out.Warning("could not clean up Hermes source map: %v", err)
 	}
+}
+
+func (h *HermesCompiler) warnUncomposed(reason, composeScript, metroMapPath, hermesMapPath string) {
+	h.out.Warning("%s. Kept the Metro source map at %s and the Hermes source map at %s; "+
+		"compose them with: node %s %s %s -o <output>",
+		reason, metroMapPath, hermesMapPath, composeScript, metroMapPath, hermesMapPath)
 }

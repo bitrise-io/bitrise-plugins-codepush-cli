@@ -1,8 +1,10 @@
 package release
 
 import (
+	"bytes"
 	"io"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -96,4 +98,35 @@ func TestValidateHermesMode(t *testing.T) {
 			assert.NoError(t, err, "ValidateHermesMode(%q)", tt.mode)
 		}
 	}
+}
+
+func TestWarnAboutSourcemaps(t *testing.T) {
+	t.Run("warns and lists maps in the update directory", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "main.jsbundle"), []byte("bundle"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "main.jsbundle.map"), []byte("{}"), 0o644))
+
+		var buf bytes.Buffer
+		warnAboutSourcemaps(dir, output.NewTest(&buf))
+
+		assert.Contains(t, buf.String(), "WARNING")
+		assert.Contains(t, buf.String(), "main.jsbundle.map")
+		// The map is left in place: the directory is uploaded and signed as-is.
+		assert.FileExists(t, filepath.Join(dir, "main.jsbundle.map"))
+	})
+
+	t.Run("silent without maps", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "main.jsbundle"), []byte("bundle"), 0o644))
+
+		var buf bytes.Buffer
+		warnAboutSourcemaps(dir, output.NewTest(&buf))
+
+		assert.Empty(t, buf.String())
+	})
+}
+
+func TestPushRegistersSourcemapFlags(t *testing.T) {
+	assert.NotNil(t, pushCmd.Flags().Lookup("sourcemap"))
+	assert.NotNil(t, pushCmd.Flags().Lookup("sourcemap-output"))
 }
