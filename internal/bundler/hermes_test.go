@@ -33,7 +33,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, "", dir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, ProjectDir: dir})
 		require.NoError(t, err)
 
 		// Verify the command was called correctly
@@ -69,7 +69,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor.onRun = writeHermesOutputs
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath, dir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, SourcemapPath: sourcemapPath, ProjectDir: dir})
 		require.NoError(t, err)
 
 		cmd := executor.commands[0]
@@ -100,7 +100,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, "", dir, []string{"-O", "-w"})
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, ProjectDir: dir, ExtraFlags: []string{"-O", "-w"}})
 		require.NoError(t, err)
 
 		cmd := executor.commands[0]
@@ -132,7 +132,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile("/nonexistent/hermesc", bundlePath, "", dir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: "/nonexistent/hermesc", BundlePath: bundlePath, ProjectDir: dir})
 		require.Error(t, err)
 	})
 
@@ -144,7 +144,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile(hermescPath, "/nonexistent/bundle.js", "", dir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: "/nonexistent/bundle.js", ProjectDir: dir})
 		require.Error(t, err)
 	})
 
@@ -159,7 +159,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor := &mockExecutor{err: &mockExitError{code: 1}}
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
 
-		err := compiler.Compile(hermescPath, bundlePath, "", dir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, ProjectDir: dir})
 		require.Error(t, err)
 	})
 
@@ -183,7 +183,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		executor.onRun = writeHermesOutputs
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath, projectDir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, SourcemapPath: sourcemapPath, ProjectDir: projectDir})
 		require.NoError(t, err)
 
 		data, err := os.ReadFile(sourcemapPath)
@@ -223,7 +223,7 @@ func TestHermesCompilerCompile(t *testing.T) {
 		}
 
 		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		err := compiler.Compile(hermescPath, bundlePath, sourcemapPath, projectDir, nil)
+		err := compiler.Compile(&CompileOptions{HermescPath: hermescPath, BundlePath: bundlePath, SourcemapPath: sourcemapPath, ProjectDir: projectDir})
 		require.NoError(t, err)
 
 		require.Len(t, executor.commands, 2)
@@ -284,71 +284,95 @@ func assertOnlyFiles(t *testing.T, dir string, names ...string) {
 }
 
 func TestComposeSourceMaps(t *testing.T) {
-	setup := func(t *testing.T, withScript bool) (projectDir, metroMapPath, hermesMapPath string) {
-		t.Helper()
-		projectDir = t.TempDir()
-		mapDir := t.TempDir()
-		metroMapPath = filepath.Join(mapDir, "main.jsbundle.map")
-		hermesMapPath = filepath.Join(mapDir, "main.jsbundle.hbc.map")
-		writeFile(t, metroMapPath, `{"metro":true}`)
-		writeFile(t, hermesMapPath, `{"hermes":true}`)
-		if withScript {
-			scriptDir := filepath.Join(projectDir, "node_modules", "react-native", "scripts")
-			require.NoError(t, os.MkdirAll(scriptDir, 0o755))
-			writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
+	tests := []struct {
+		name        string
+		withScript  bool
+		execErr     error
+		wantMetro   string // content of the metro map path afterwards
+		wantHermes  bool   // hermes map still exists
+		wantWarning string
+	}{
+		{
+			name:        "no compose script keeps both maps",
+			wantMetro:   `{"metro":true}`,
+			wantHermes:  true,
+			wantWarning: "compose-source-maps.js not found",
+		},
+		{
+			name:        "compose script fails keeps both maps",
+			withScript:  true,
+			execErr:     &mockExitError{code: 1},
+			wantMetro:   `{"metro":true}`,
+			wantHermes:  true,
+			wantWarning: "source map composition failed",
+		},
+		{
+			name:       "compose script succeeds",
+			withScript: true,
+			wantMetro:  `{"composed":true}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectDir := t.TempDir()
+			mapDir := t.TempDir()
+			metroMapPath := filepath.Join(mapDir, "main.jsbundle.map")
+			hermesMapPath := filepath.Join(mapDir, "main.jsbundle.hbc.map")
+			writeFile(t, metroMapPath, `{"metro":true}`)
+			writeFile(t, hermesMapPath, `{"hermes":true}`)
+			if tt.withScript {
+				scriptDir := filepath.Join(projectDir, "node_modules", "react-native", "scripts")
+				require.NoError(t, os.MkdirAll(scriptDir, 0o755))
+				writeFile(t, filepath.Join(scriptDir, "compose-source-maps.js"), "")
+			}
+
+			var buf bytes.Buffer
+			executor := &mockExecutor{err: tt.execErr, onRun: writeComposeOutput}
+			compiler := NewHermesCompiler(executor, output.NewTest(&buf))
+			compiler.composeSourceMaps(projectDir, metroMapPath, hermesMapPath)
+
+			data, err := os.ReadFile(metroMapPath)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantMetro, string(data))
+
+			_, err = os.Stat(hermesMapPath)
+			assert.Equal(t, tt.wantHermes, err == nil, "hermes map exists")
+
+			_, err = os.Stat(metroMapPath + ".composed")
+			assert.True(t, os.IsNotExist(err), "no leftover composed map")
+
+			if tt.wantWarning != "" {
+				assert.Contains(t, buf.String(), tt.wantWarning)
+				assert.Contains(t, buf.String(), hermesMapPath, "warning includes the manual compose command")
+			} else {
+				assert.Empty(t, buf.String())
+			}
+			for _, cmd := range executor.commands {
+				assert.Equal(t, projectDir, cmd.dir, "compose runs in the project directory")
+			}
+		})
+	}
+}
+
+func TestHermesWorkPath(t *testing.T) {
+	tests := []struct {
+		sourcemapPath string
+		wantHbc       string
+	}{
+		{"", "/out/main.jsbundle.hbc"},
+		{"/maps/main.jsbundle.map", "/maps/main.jsbundle.hbc"},
+		// Custom names that would collide with a "<bundle>.hbc[.map]" scheme.
+		{"/maps/main.jsbundle.hbc.map", "/maps/main.jsbundle.hbc.hbc"},
+		{"/maps/main.jsbundle.hbc", "/maps/main.jsbundle.hbc.hbc"},
+		{"/maps/app", "/maps/app.hbc"},
+	}
+	for _, tt := range tests {
+		got := hermesWorkPath("/out/main.jsbundle", tt.sourcemapPath)
+		assert.Equal(t, tt.wantHbc, got, tt.sourcemapPath)
+		if tt.sourcemapPath != "" {
+			assert.NotEqual(t, tt.sourcemapPath, got, "bytecode must not overwrite the source map")
+			assert.NotEqual(t, tt.sourcemapPath, got+".map", "hermes map must not overwrite the source map")
 		}
-		return projectDir, metroMapPath, hermesMapPath
 	}
-
-	assertBothMapsKept := func(t *testing.T, metroMapPath, hermesMapPath string) {
-		t.Helper()
-		data, err := os.ReadFile(metroMapPath)
-		require.NoError(t, err)
-		assert.Equal(t, `{"metro":true}`, string(data))
-		data, err = os.ReadFile(hermesMapPath)
-		require.NoError(t, err)
-		assert.Equal(t, `{"hermes":true}`, string(data))
-	}
-
-	t.Run("no compose script keeps both maps", func(t *testing.T) {
-		projectDir, metroMapPath, hermesMapPath := setup(t, false)
-
-		var buf bytes.Buffer
-		compiler := NewHermesCompiler(&mockExecutor{}, output.NewTest(&buf))
-		compiler.composeSourceMaps(projectDir, metroMapPath, hermesMapPath)
-
-		assertBothMapsKept(t, metroMapPath, hermesMapPath)
-		assert.Contains(t, buf.String(), "compose-source-maps.js not found")
-		assert.Contains(t, buf.String(), hermesMapPath)
-	})
-
-	t.Run("compose script exists but execution fails keeps both maps", func(t *testing.T) {
-		projectDir, metroMapPath, hermesMapPath := setup(t, true)
-
-		executor := &mockExecutor{err: &mockExitError{code: 1}}
-		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		compiler.composeSourceMaps(projectDir, metroMapPath, hermesMapPath)
-
-		assertBothMapsKept(t, metroMapPath, hermesMapPath)
-		_, err := os.Stat(metroMapPath + ".composed")
-		assert.True(t, os.IsNotExist(err), "partial composed map should be removed")
-	})
-
-	t.Run("compose script succeeds", func(t *testing.T) {
-		projectDir, metroMapPath, hermesMapPath := setup(t, true)
-
-		executor := &mockExecutor{onRun: writeComposeOutput}
-		compiler := NewHermesCompiler(executor, output.NewTest(io.Discard))
-		compiler.composeSourceMaps(projectDir, metroMapPath, hermesMapPath)
-
-		require.Len(t, executor.commands, 1)
-		assert.Equal(t, projectDir, executor.commands[0].dir)
-
-		data, err := os.ReadFile(metroMapPath)
-		require.NoError(t, err)
-		assert.Equal(t, `{"composed":true}`, string(data))
-
-		_, err = os.Stat(hermesMapPath)
-		assert.Error(t, err, "hermes map should have been removed after composition")
-	})
 }

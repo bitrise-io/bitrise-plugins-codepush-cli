@@ -35,7 +35,8 @@ func (b *ReactNativeBundler) Bundle(config *ProjectConfig, opts *BundleOptions) 
 		bundleName = DefaultBundleName(opts.Platform)
 	}
 
-	// Resolve before creating anything, so a conflicting path fails fast.
+	// Resolve and validate before the output directory is created, so a
+	// conflicting path fails fast.
 	sourcemapPath, err := resolveSourcemapPath(opts, outputDir, bundleName)
 	if err != nil {
 		return nil, err
