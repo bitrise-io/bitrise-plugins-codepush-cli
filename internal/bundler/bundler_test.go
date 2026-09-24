@@ -181,8 +181,6 @@ func TestReactNativeBundlerBundle(t *testing.T) {
 		assertContainsArgs(t, cmd.args, "--entry-file", "index.js")
 		assertContainsArgs(t, cmd.args, "--platform", "ios")
 		assertContainsArgs(t, cmd.args, "--dev", "false")
-		// The source map goes next to the output directory, never inside it:
-		// the output directory is the update payload.
 		expectedMap := filepath.Join(outputDir+SourcemapDirSuffix, "main.jsbundle.map")
 		assertContainsArgs(t, cmd.args, "--sourcemap-output", expectedMap)
 		assert.Equal(t, expectedMap, result.SourcemapPath)

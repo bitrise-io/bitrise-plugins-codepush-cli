@@ -11,15 +11,10 @@ import (
 	"strings"
 )
 
-// SourcemapDirSuffix is appended to the output directory to get the default
-// source map directory. Source maps must stay out of the output directory:
-// everything in it is zipped into the update payload and shipped to devices.
+// SourcemapDirSuffix keeps source maps out of the output directory, which
+// ships to devices as the update payload.
 const SourcemapDirSuffix = ".sourcemaps"
 
-// resolveSourcemapPath returns the absolute source map path, or an empty string
-// when source maps are disabled. The default is
-// <outputDir>.sourcemaps/<bundleName>.map; an explicit SourcemapOutput is
-// resolved against ProjectDir. Either way, the path must be outside outputDir.
 func resolveSourcemapPath(opts *BundleOptions, outputDir, bundleName string) (string, error) {
 	// A pass-through --sourcemap-output comes after the CLI's own flag, so the
 	// bundler would use it instead of the path checked below.
@@ -54,10 +49,8 @@ func resolveSourcemapPath(opts *BundleOptions, outputDir, bundleName string) (st
 	return mapPath, nil
 }
 
-// isWithinDir reports whether path is dir itself or inside it. Symlinks in the
-// existing part of either path are resolved first, and on case-insensitive
-// platforms the comparison ignores case, so neither can hide a path that ends
-// up inside dir.
+// Symlinks and case differences (on case-insensitive filesystems) must not
+// hide a path inside dir.
 func isWithinDir(path, dir string) bool {
 	path, dir = resolveExisting(path), resolveExisting(dir)
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
@@ -70,9 +63,8 @@ func isWithinDir(path, dir string) bool {
 	return rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
-// resolveExisting resolves symlinks in the longest existing prefix of path and
-// appends the rest unchanged. The output directory and the source map path
-// usually do not exist yet when they are checked.
+// Only a prefix of the path can be resolved: the output directory and the
+// source map usually do not exist yet when they are checked.
 func resolveExisting(path string) string {
 	path = filepath.Clean(path)
 	var rest []string
@@ -88,7 +80,6 @@ func resolveExisting(path string) string {
 	}
 }
 
-// FindSourcemaps returns the paths of all *.map files under dir, relative to dir.
 func FindSourcemaps(dir string) ([]string, error) {
 	var found []string
 	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
@@ -108,9 +99,8 @@ func FindSourcemaps(dir string) ([]string, error) {
 	return found, err
 }
 
-// moveFile renames src to dst. When a rename is not possible (for example
-// across filesystems), it copies src to a temporary file next to dst and
-// renames that into place, so dst is never left partially written.
+// Falls back to copying when rename fails (for example across filesystems),
+// through a temporary file so dst is never left partially written.
 func moveFile(src, dst string) error {
 	if err := os.Rename(src, dst); err == nil {
 		return nil

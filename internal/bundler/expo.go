@@ -28,8 +28,6 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 	bundleName := resolveExpoBundleName(config, opts)
 	bundlePath := filepath.Join(outputDir, bundleName)
 
-	// Resolve and validate before the output directory is created, so a
-	// conflicting path fails fast.
 	mapPath, err := resolveSourcemapPath(opts, outputDir, bundleName)
 	if err != nil {
 		return nil, err

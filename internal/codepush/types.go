@@ -132,9 +132,7 @@ type PushResult struct {
 	Status        string  `json:"status"`
 	FileSizeBytes int64   `json:"file_size_bytes"`
 	Rollout       float64 `json:"rollout"`
-	// SourcemapPath is set when push --bundle generated a source map. The map
-	// is not part of the upload.
-	SourcemapPath string `json:"sourcemap_path,omitempty"`
+	SourcemapPath string  `json:"sourcemap_path,omitempty"`
 }
 
 // PollConfig controls the polling behavior when waiting for update processing.

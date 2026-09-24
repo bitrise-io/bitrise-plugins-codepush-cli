@@ -111,7 +111,6 @@ func TestWarnAboutSourcemaps(t *testing.T) {
 
 		assert.Contains(t, buf.String(), "WARNING")
 		assert.Contains(t, buf.String(), "main.jsbundle.map")
-		// The map is left in place: the directory is uploaded and signed as-is.
 		assert.FileExists(t, filepath.Join(dir, "main.jsbundle.map"))
 	})
 

@@ -160,10 +160,7 @@ func init() {
 	cmd.RootCmd.AddCommand(pushCmd)
 }
 
-// warnAboutSourcemaps warns when the update directory contains source maps.
-// They would ship to every device, and Metro source maps can embed the app's
-// original source code. The files are not removed: the directory is uploaded
-// (and signed) as-is.
+// Warns instead of removing the maps: the directory is signed as-is.
 func warnAboutSourcemaps(bundlePath string, out *output.Writer) {
 	maps, err := bundler.FindSourcemaps(bundlePath)
 	if err != nil || len(maps) == 0 {

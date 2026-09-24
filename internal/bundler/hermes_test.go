@@ -240,8 +240,6 @@ func TestHermesCompilerCompile(t *testing.T) {
 	})
 }
 
-// writeHermesOutputs simulates hermesc writing the bytecode to -out, plus the
-// source map next to it when -output-source-map is passed.
 func writeHermesOutputs(_ string, _ string, args ...string) {
 	withMap := false
 	for _, arg := range args {
@@ -259,7 +257,6 @@ func writeHermesOutputs(_ string, _ string, args ...string) {
 	}
 }
 
-// writeComposeOutput simulates compose-source-maps.js writing its -o output.
 func writeComposeOutput(_ string, name string, args ...string) {
 	if name != "node" {
 		return
@@ -271,7 +268,6 @@ func writeComposeOutput(_ string, name string, args ...string) {
 	}
 }
 
-// assertOnlyFiles asserts that dir contains exactly the given file names.
 func assertOnlyFiles(t *testing.T, dir string, names ...string) {
 	t.Helper()
 	entries, err := os.ReadDir(dir)

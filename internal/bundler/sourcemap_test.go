@@ -139,9 +139,7 @@ func TestIsWithinDirResolvesSymlinks(t *testing.T) {
 	link := filepath.Join(dir, "maps")
 	require.NoError(t, os.Symlink(outputDir, link))
 
-	// maps/ points into the output directory, so a map written there ships.
 	assert.True(t, isWithinDir(filepath.Join(link, "main.jsbundle.map"), outputDir))
-	// Same when the output directory is reached through the link.
 	assert.True(t, isWithinDir(filepath.Join(outputDir, "main.jsbundle.map"), link))
 	assert.False(t, isWithinDir(filepath.Join(dir, "CodePush.sourcemaps", "main.jsbundle.map"), link))
 }
