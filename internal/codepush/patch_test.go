@@ -56,10 +56,11 @@ func TestPatch(t *testing.T) {
 		var capturedUpdateID string
 		client := &mockClient{
 			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
+				// Newest first, like the list API.
 				return []Update{
-					{ID: "pkg-1", Label: "v1"},
-					{ID: "pkg-2", Label: "v2"},
-					{ID: "pkg-3", Label: "v3"},
+					{ID: "pkg-3", Label: "v3", CreatedAt: "2026-09-24T10:42:34.000Z"},
+					{ID: "pkg-2", Label: "v2", CreatedAt: "2026-09-24T10:20:18.000Z"},
+					{ID: "pkg-1", Label: "v1", CreatedAt: "2026-07-30T11:45:38.000Z"},
 				}, nil
 			},
 			patchUpdateFunc: func(updateID string, req PatchRequest) (*Update, error) {
@@ -401,10 +402,11 @@ func TestResolveUpdateForPatch(t *testing.T) {
 	t.Run("resolves latest when no label", func(t *testing.T) {
 		client := &mockClient{
 			listUpdatesFunc: func(deploymentID string) ([]Update, error) {
+				// Newest first, like the list API.
 				return []Update{
-					{ID: "pkg-1", Label: "v1"},
-					{ID: "pkg-2", Label: "v2"},
-					{ID: "pkg-3", Label: "v3"},
+					{ID: "pkg-3", Label: "v3", CreatedAt: "2026-09-24T10:42:34.000Z"},
+					{ID: "pkg-2", Label: "v2", CreatedAt: "2026-09-24T10:20:18.000Z"},
+					{ID: "pkg-1", Label: "v1", CreatedAt: "2026-07-30T11:45:38.000Z"},
 				}, nil
 			},
 		}
