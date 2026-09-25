@@ -34,6 +34,9 @@ func init() {
 	cmd.RootCmd.AddGroup(&cobra.Group{ID: cmd.GroupRelease, Title: "Release Management:"})
 }
 
+const sourcemapOutputUsage = "sourcemap output path, must be outside the output directory (default <output-dir>" +
+	bundler.SourcemapDirSuffix + "/<bundle-name>.map; implies --sourcemap)"
+
 // registerBundleFlagsOn registers the full set of bundle flags on a command.
 func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVarP(&bundlePlatform, "platform", "p", "", "target platform: ios or android")
@@ -44,7 +47,7 @@ func registerBundleFlagsOn(c *cobra.Command) {
 	c.Flags().BoolVar(&bundleMinify, "minify", false, "minify the bundle (Expo only)")
 	c.Flags().BoolVar(&bundleResetCache, "reset-cache", true, "clear Metro bundler cache before bundling")
 	c.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
-	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", "override sourcemap output path (implies --sourcemap)")
+	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", sourcemapOutputUsage)
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().StringArrayVar(&bundleExtraBundlerOpts, "extra-bundler-option", nil, "additional flags passed to the bundler (repeatable)")
 	c.Flags().StringArrayVar(&bundleExtraHermesFlags, "extra-hermes-flag", nil, "additional flags passed to hermesc (repeatable; distinct from --extra-bundler-option which targets Metro)")
@@ -63,6 +66,8 @@ func registerPushBundleFlagsOn(c *cobra.Command) {
 	c.Flags().StringVar(&bundleHermes, "hermes", "auto", "Hermes bytecode compilation: auto, on, or off")
 	c.Flags().BoolVar(&bundleMinify, "minify", false, "minify the bundle (Expo only)")
 	c.Flags().BoolVar(&bundleResetCache, "reset-cache", true, "clear Metro bundler cache before bundling")
+	c.Flags().BoolVar(&bundleSourcemap, "sourcemap", true, "generate source maps")
+	c.Flags().StringVarP(&bundleSourcemapOutput, "sourcemap-output", "s", "", sourcemapOutputUsage)
 	c.Flags().StringVar(&bundleProjectDir, "project-dir", "", "project root directory (defaults to current directory)")
 	c.Flags().BoolVar(&bundleSkipInstall, "skip-install", false, "skip running package manager install before bundling")
 	c.Flags().StringVarP(&bundleGradleFile, "gradle-file", "g", "", "override path to build.gradle used for Android Hermes auto-detection")

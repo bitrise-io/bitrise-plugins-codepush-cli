@@ -132,6 +132,7 @@ type PushResult struct {
 	Status        string  `json:"status"`
 	FileSizeBytes int64   `json:"file_size_bytes"`
 	Rollout       float64 `json:"rollout"`
+	SourcemapPath string  `json:"sourcemap_path,omitempty"`
 }
 
 // PollConfig controls the polling behavior when waiting for update processing.

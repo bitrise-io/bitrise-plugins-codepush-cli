@@ -270,7 +270,7 @@ The `bundle` command produces a **directory** (not a zip file). This directory i
 | `--minify` | `false` | Minify the bundle (Expo only) |
 | `--reset-cache` | `true` | Clear Metro bundler cache before bundling |
 | `--sourcemap` | `true` | Generate source maps |
-| `--sourcemap-output, -s` | | Override sourcemap output path (implies `--sourcemap`) |
+| `--sourcemap-output, -s` | `<output-dir>.sourcemaps/<bundle-name>.map` | Source map path, must be outside the output directory (implies `--sourcemap`) |
 | `--hermes` | `auto` | Hermes compilation: `auto`, `on`, `off` |
 | `--extra-bundler-option` | none | Pass-through flags to bundler/Metro (repeatable) |
 | `--extra-hermes-flag` | none | Pass additional flags to `hermesc` (repeatable; no shorthand) |
@@ -317,6 +317,8 @@ bitrise :codepush push --bundle --platform ios \
 | `--platform`, `-p` | | Target platform (required with `--bundle`) |
 | `--hermes` | `auto` | Hermes compilation (with `--bundle`) |
 | `--output-dir`, `-o` | `./CodePush` | Bundle output directory (with `--bundle`) |
+| `--sourcemap` | `true` | Generate source maps (with `--bundle`) |
+| `--sourcemap-output, -s` | `<output-dir>.sourcemaps/<bundle-name>.map` | Source map path, outside the output directory (with `--bundle`) |
 | `--private-key-path, -k` | | Sign bundle before uploading |
 | `--project-dir` | CWD | Project root (with `--bundle`) |
 | `--gradle-file`, `-g` | auto-detect | Override `build.gradle` path for Android Hermes detection (with `--bundle`) |
@@ -398,7 +400,7 @@ Rebuild your Android app with the updated SDK.
 
 A bare Expo project has the same native structure as vanilla React Native — follow the iOS and Android steps above directly. For managed workflow, embedding the public key requires [EAS Build](https://docs.expo.dev/build/introduction/) and a custom config plugin.
 
-The CLI detects Expo projects automatically. Note that `--sourcemap-output` is not supported for Expo and should be omitted.
+The CLI detects Expo projects automatically.
 
 For detailed Expo setup, see the [Expo (CNG) setup guide](https://github.com/bitrise-io/react-native-code-push#for-expo-user-with-cngcontinuous-native-generation).
 

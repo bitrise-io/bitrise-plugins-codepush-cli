@@ -25,21 +25,16 @@ func (b *ExpoBundler) Bundle(config *ProjectConfig, opts *BundleOptions) (*Bundl
 		return nil, fmt.Errorf("resolving output directory: %w", err)
 	}
 
-	if err := ensureDir(outputDir); err != nil {
-		return nil, err
-	}
-
 	bundleName := resolveExpoBundleName(config, opts)
 	bundlePath := filepath.Join(outputDir, bundleName)
 
-	var mapPath string
-	if opts.Sourcemap || opts.SourcemapOutput != "" {
-		mapPath = sourcemapPath(opts, bundlePath)
-		if opts.SourcemapOutput != "" {
-			if err := ensureDir(filepath.Dir(mapPath)); err != nil {
-				return nil, fmt.Errorf("creating sourcemap output directory: %w", err)
-			}
-		}
+	mapPath, err := resolveSourcemapPath(opts, outputDir, bundleName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := ensureDir(outputDir); err != nil {
+		return nil, err
 	}
 
 	args := b.buildArgs(config, opts, outputDir, bundlePath, mapPath)
@@ -123,18 +118,4 @@ func resolveExpoBundleName(config *ProjectConfig, opts *BundleOptions) string {
 		return config.BundleName
 	}
 	return DefaultBundleName(config.Platform)
-}
-
-// sourcemapPath returns the sourcemap output path for expo export:embed.
-// If SourcemapOutput is explicitly set, that path is used (resolved to absolute
-// against ProjectDir if relative); otherwise the map is placed next to the
-// bundle at bundlePath+".map".
-func sourcemapPath(opts *BundleOptions, bundlePath string) string {
-	if opts.SourcemapOutput != "" {
-		if filepath.IsAbs(opts.SourcemapOutput) {
-			return opts.SourcemapOutput
-		}
-		return filepath.Join(opts.ProjectDir, opts.SourcemapOutput)
-	}
-	return bundlePath + ".map"
 }
