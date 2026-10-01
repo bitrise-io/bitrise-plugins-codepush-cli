@@ -7,6 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 func TestOutputJSON(t *testing.T) {
@@ -91,4 +94,51 @@ func TestOutputJSONMarshalError(t *testing.T) {
 
 	_, marshalErr := json.MarshalIndent(data, "", "  ")
 	require.NoError(t, marshalErr)
+}
+
+func TestDiffStatusPairs(t *testing.T) {
+	v2Size := int64(41_000)
+
+	tests := []struct {
+		name   string
+		status *codepush.UpdateStatus
+		want   []output.KeyValue
+	}{
+		{
+			name:   "servers without the field yield nothing",
+			status: &codepush.UpdateStatus{Status: codepush.StatusProcessedValid},
+			want:   nil,
+		},
+		{
+			name:   "pending is a single line",
+			status: &codepush.UpdateStatus{DiffGenerationStatus: codepush.DiffGenerationPending, Diffs: map[string]codepush.DiffInfo{}},
+			want:   []output.KeyValue{{Key: "Diff generation", Value: "pending"}},
+		},
+		{
+			name:   "completed without diffs says the full package is served",
+			status: &codepush.UpdateStatus{DiffGenerationStatus: codepush.DiffGenerationCompleted, Diffs: map[string]codepush.DiffInfo{}},
+			want:   []output.KeyValue{{Key: "Diff generation", Value: "completed (no diffs, clients download the full package)"}},
+		},
+		{
+			name: "completed lists predecessors in hash order with v1 and v2 sizes",
+			status: &codepush.UpdateStatus{
+				DiffGenerationStatus: codepush.DiffGenerationCompleted,
+				Diffs: map[string]codepush.DiffInfo{
+					"b7c8d9e0f1a2b3c4d5e6":     {Size: 98_765},
+					"a3f1c2d4e5b6978081920a1b": {Size: 123_456, V2Size: &v2Size},
+				},
+			},
+			want: []output.KeyValue{
+				{Key: "Diff generation", Value: "completed"},
+				{Key: "Diff from a3f1c2d4e5b6...", Value: "v1 120.6 KB, v2 40.0 KB"},
+				{Key: "Diff from b7c8d9e0f1a2...", Value: "v1 96.5 KB"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, DiffStatusPairs(tc.status))
+		})
+	}
 }

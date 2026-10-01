@@ -90,9 +90,26 @@ type UploadFileRequest struct {
 
 // UpdateStatus is returned by the GET status endpoint.
 type UpdateStatus struct {
-	UpdateID     string `json:"update_id"`
-	Status       string `json:"status"`
-	StatusReason string `json:"status_reason"`
+	UpdateID             string              `json:"update_id"`
+	Status               string              `json:"status"`
+	StatusReason         string              `json:"status_reason"`
+	DiffGenerationStatus string              `json:"diff_generation_status"`
+	Diffs                map[string]DiffInfo `json:"diffs"`
+}
+
+// Values of UpdateStatus.DiffGenerationStatus.
+const (
+	DiffGenerationPending   = "pending"
+	DiffGenerationCompleted = "completed"
+	DiffGenerationSkipped   = "skipped"
+)
+
+// DiffInfo describes the diffs stored for one predecessor, keyed in
+// UpdateStatus.Diffs by that predecessor's package hash. V2Size is nil when
+// only the file-level (v1) diff exists.
+type DiffInfo struct {
+	Size   int64  `json:"size"`
+	V2Size *int64 `json:"v2_size"`
 }
 
 // Deployment represents a CodePush deployment.

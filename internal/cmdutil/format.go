@@ -3,8 +3,13 @@ package cmdutil
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // OutputJSON marshals v as indented JSON to stdout. Used when --json is set.
@@ -40,4 +45,35 @@ func FormatBytes(b int64) string {
 		}
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// DiffStatusPairs renders an update's diff generation state for out.Result:
+// the state itself, then one line per predecessor that has a diff, in hash
+// order. Servers that predate the field yield nothing.
+func DiffStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
+	if status.DiffGenerationStatus == "" {
+		return nil
+	}
+
+	state := status.DiffGenerationStatus
+	if state == codepush.DiffGenerationCompleted && len(status.Diffs) == 0 {
+		state += " (no diffs, clients download the full package)"
+	}
+	pairs := []output.KeyValue{{Key: "Diff generation", Value: state}}
+
+	for _, hash := range slices.Sorted(maps.Keys(status.Diffs)) {
+		pairs = append(pairs, output.KeyValue{
+			Key:   "Diff from " + Truncate(hash, 15),
+			Value: describeDiff(status.Diffs[hash]),
+		})
+	}
+	return pairs
+}
+
+func describeDiff(info codepush.DiffInfo) string {
+	desc := "v1 " + FormatBytes(info.Size)
+	if info.V2Size != nil {
+		desc += ", v2 " + FormatBytes(*info.V2Size)
+	}
+	return desc
 }
