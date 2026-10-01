@@ -104,12 +104,11 @@ const (
 	DiffGenerationSkipped   = "skipped"
 )
 
-// DiffInfo describes the diffs stored for one predecessor, keyed in
-// UpdateStatus.Diffs by that predecessor's package hash. V2Size is nil when
-// only the file-level (v1) diff exists.
+// DiffInfo tells which diffs are stored for one predecessor, keyed in
+// UpdateStatus.Diffs by that predecessor's package hash.
 type DiffInfo struct {
-	Size   int64  `json:"size"`
-	V2Size *int64 `json:"v2_size"`
+	V1 bool `json:"v1"` // file-level diff
+	V2 bool `json:"v2"` // binary-patch diff
 }
 
 // Deployment represents a CodePush deployment.

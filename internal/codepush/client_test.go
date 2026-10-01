@@ -449,7 +449,7 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"update_id":"pkg-789","status":"processed_valid","status_reason":"",` +
 				`"diff_generation_status":"completed",` +
-				`"diffs":{"abc":{"size":123456,"v2_size":41000},"def":{"size":98765,"v2_size":null}}}`))
+				`"diffs":{"abc":{"v1":true,"v2":true},"def":{"v1":true,"v2":false}}}`))
 		}))
 		defer server.Close()
 
@@ -459,11 +459,10 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 
 		assert.Equal(t, DiffGenerationCompleted, status.DiffGenerationStatus)
 		require.Len(t, status.Diffs, 2)
-		assert.Equal(t, int64(123456), status.Diffs["abc"].Size)
-		require.NotNil(t, status.Diffs["abc"].V2Size)
-		assert.Equal(t, int64(41000), *status.Diffs["abc"].V2Size)
-		assert.Equal(t, int64(98765), status.Diffs["def"].Size)
-		assert.Nil(t, status.Diffs["def"].V2Size)
+		assert.True(t, status.Diffs["abc"].V1)
+		assert.True(t, status.Diffs["abc"].V2)
+		assert.True(t, status.Diffs["def"].V1)
+		assert.False(t, status.Diffs["def"].V2)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {

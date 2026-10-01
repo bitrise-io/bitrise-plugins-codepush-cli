@@ -7,6 +7,7 @@ import (
 	"os"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
 	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
@@ -71,9 +72,15 @@ func DiffStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
 }
 
 func describeDiff(info codepush.DiffInfo) string {
-	desc := "v1 " + FormatBytes(info.Size)
-	if info.V2Size != nil {
-		desc += ", v2 " + FormatBytes(*info.V2Size)
+	kinds := make([]string, 0, 2)
+	if info.V1 {
+		kinds = append(kinds, "v1 (file-level)")
 	}
-	return desc
+	if info.V2 {
+		kinds = append(kinds, "v2 (binary)")
+	}
+	if len(kinds) == 0 {
+		return "none"
+	}
+	return strings.Join(kinds, ", ")
 }

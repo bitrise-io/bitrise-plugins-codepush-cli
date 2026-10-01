@@ -97,8 +97,6 @@ func TestOutputJSONMarshalError(t *testing.T) {
 }
 
 func TestDiffStatusPairs(t *testing.T) {
-	v2Size := int64(41_000)
-
 	tests := []struct {
 		name   string
 		status *codepush.UpdateStatus
@@ -120,18 +118,18 @@ func TestDiffStatusPairs(t *testing.T) {
 			want:   []output.KeyValue{{Key: "Diff generation", Value: "completed (no diffs, clients download the full package)"}},
 		},
 		{
-			name: "completed lists predecessors in hash order with v1 and v2 sizes",
+			name: "completed lists predecessors in hash order with their diff kinds",
 			status: &codepush.UpdateStatus{
 				DiffGenerationStatus: codepush.DiffGenerationCompleted,
 				Diffs: map[string]codepush.DiffInfo{
-					"b7c8d9e0f1a2b3c4d5e6":     {Size: 98_765},
-					"a3f1c2d4e5b6978081920a1b": {Size: 123_456, V2Size: &v2Size},
+					"b7c8d9e0f1a2b3c4d5e6":     {V1: true},
+					"a3f1c2d4e5b6978081920a1b": {V1: true, V2: true},
 				},
 			},
 			want: []output.KeyValue{
 				{Key: "Diff generation", Value: "completed"},
-				{Key: "Diff from a3f1c2d4e5b6...", Value: "v1 120.6 KB, v2 40.0 KB"},
-				{Key: "Diff from b7c8d9e0f1a2...", Value: "v1 96.5 KB"},
+				{Key: "Diff from a3f1c2d4e5b6...", Value: "v1 (file-level), v2 (binary)"},
+				{Key: "Diff from b7c8d9e0f1a2...", Value: "v1 (file-level)"},
 			},
 		},
 	}

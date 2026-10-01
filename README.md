@@ -531,7 +531,7 @@ bitrise :codepush update status Staging --app-id <APP_UUID>
 bitrise :codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
 
-`update status` also shows how far the server got with generating diffs against earlier updates. `Diff generation` is `pending` while diffs are still being built, `completed` once they are stored (followed by one `Diff from <hash>` line per earlier update, with the file-level `v1` size and, when a binary diff exists, the `v2` size), or `skipped` for signed updates. A completed update with no diffs means clients download the full package. With `--json` the same data is in `diff_generation_status` and `diffs`.
+`update status` also shows how far the server got with generating diffs against earlier updates. `Diff generation` is `pending` while diffs are still being built, `completed` once they are stored (followed by one `Diff from <hash>` line per earlier update naming the stored diff kinds, `v1 (file-level)` and `v2 (binary)`), or `skipped` for signed updates. A completed update with no diffs means clients download the full package. With `--json` the same data is in `diff_generation_status` and `diffs`.
 
 ## Debugging
 
