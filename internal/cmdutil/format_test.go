@@ -7,6 +7,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 func TestOutputJSON(t *testing.T) {
@@ -91,4 +94,49 @@ func TestOutputJSONMarshalError(t *testing.T) {
 
 	_, marshalErr := json.MarshalIndent(data, "", "  ")
 	require.NoError(t, marshalErr)
+}
+
+func TestDeltaStatusPairs(t *testing.T) {
+	tests := []struct {
+		name   string
+		status *codepush.UpdateStatus
+		want   []output.KeyValue
+	}{
+		{
+			name:   "servers without the field yield nothing",
+			status: &codepush.UpdateStatus{Status: codepush.StatusProcessedValid},
+			want:   nil,
+		},
+		{
+			name:   "pending is a single line",
+			status: &codepush.UpdateStatus{DeltaGenerationStatus: codepush.DeltaGenerationPending, Deltas: map[string]codepush.DeltaInfo{}},
+			want:   []output.KeyValue{{Key: "Delta generation", Value: "pending"}},
+		},
+		{
+			name:   "completed without deltas says the full package is served",
+			status: &codepush.UpdateStatus{DeltaGenerationStatus: codepush.DeltaGenerationCompleted, Deltas: map[string]codepush.DeltaInfo{}},
+			want:   []output.KeyValue{{Key: "Delta generation", Value: "completed (no deltas, clients download the full package)"}},
+		},
+		{
+			name: "completed names predecessors by version label, falling back to the hash",
+			status: &codepush.UpdateStatus{
+				DeltaGenerationStatus: codepush.DeltaGenerationCompleted,
+				Deltas: map[string]codepush.DeltaInfo{
+					"b7c8d9e0f1a2b3c4d5e6":     {FileLevelDiff: true, UpdateVersions: []string{"v9", "v11"}},
+					"a3f1c2d4e5b6978081920a1b": {FileLevelDiff: true, BinaryPatch: true},
+				},
+			},
+			want: []output.KeyValue{
+				{Key: "Delta generation", Value: "completed"},
+				{Key: "Delta from a3f1c2d4e5b6...", Value: "file-level diff, binary patch"},
+				{Key: "Delta from v9, v11", Value: "file-level diff"},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.want, DeltaStatusPairs(tc.status))
+		})
+	}
 }

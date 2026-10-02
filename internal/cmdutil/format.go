@@ -3,8 +3,14 @@ package cmdutil
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
+	"slices"
 	"strconv"
+	"strings"
+
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/codepush"
+	"github.com/bitrise-io/bitrise-plugins-codepush-cli/internal/output"
 )
 
 // OutputJSON marshals v as indented JSON to stdout. Used when --json is set.
@@ -40,4 +46,51 @@ func FormatBytes(b int64) string {
 		}
 	}
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
+}
+
+// DeltaStatusPairs renders an update's delta generation state for out.Result:
+// the state itself, then one line per predecessor that has a delta, in hash
+// order. Servers that predate the field yield nothing.
+func DeltaStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
+	if status.DeltaGenerationStatus == "" {
+		return nil
+	}
+
+	state := status.DeltaGenerationStatus
+	if state == codepush.DeltaGenerationCompleted && len(status.Deltas) == 0 {
+		state += " (no deltas, clients download the full package)"
+	}
+	pairs := []output.KeyValue{{Key: "Delta generation", Value: state}}
+
+	for _, hash := range slices.Sorted(maps.Keys(status.Deltas)) {
+		info := status.Deltas[hash]
+		pairs = append(pairs, output.KeyValue{
+			Key:   "Delta from " + predecessorName(hash, info.UpdateVersions),
+			Value: describeDelta(info),
+		})
+	}
+	return pairs
+}
+
+// predecessorName prefers the version labels people see in the UI and in
+// device telemetry; the hash is the fallback when no labelled update is left.
+func predecessorName(hash string, versions []string) string {
+	if len(versions) == 0 {
+		return Truncate(hash, 15)
+	}
+	return strings.Join(versions, ", ")
+}
+
+func describeDelta(info codepush.DeltaInfo) string {
+	kinds := make([]string, 0, 2)
+	if info.FileLevelDiff {
+		kinds = append(kinds, "file-level diff")
+	}
+	if info.BinaryPatch {
+		kinds = append(kinds, "binary patch")
+	}
+	if len(kinds) == 0 {
+		return "none"
+	}
+	return strings.Join(kinds, ", ")
 }

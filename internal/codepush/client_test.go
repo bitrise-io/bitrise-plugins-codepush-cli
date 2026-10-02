@@ -444,6 +444,30 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		assert.Equal(t, "invalid bundle format", status.StatusReason)
 	})
 
+	t.Run("decodes delta generation status and deltas", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"update_id":"pkg-789","status":"processed_valid","status_reason":"",` +
+				`"delta_generation_status":"completed",` +
+				`"deltas":{"abc":{"file_level_diff":true,"binary_patch":true,"update_versions":["v3","v5"]},` +
+				`"def":{"file_level_diff":true,"binary_patch":false,"update_versions":[]}}}`))
+		}))
+		defer server.Close()
+
+		client := NewHTTPClient(server.URL, "test-token", "test")
+		status, err := client.GetUpdateStatus(context.Background(), "pkg-789")
+		require.NoError(t, err)
+
+		assert.Equal(t, DeltaGenerationCompleted, status.DeltaGenerationStatus)
+		require.Len(t, status.Deltas, 2)
+		assert.True(t, status.Deltas["abc"].FileLevelDiff)
+		assert.True(t, status.Deltas["abc"].BinaryPatch)
+		assert.Equal(t, []string{"v3", "v5"}, status.Deltas["abc"].UpdateVersions)
+		assert.True(t, status.Deltas["def"].FileLevelDiff)
+		assert.False(t, status.Deltas["def"].BinaryPatch)
+		assert.Empty(t, status.Deltas["def"].UpdateVersions)
+	})
+
 	t.Run("handles HTTP error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)

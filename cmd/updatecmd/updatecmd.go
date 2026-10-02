@@ -141,6 +141,7 @@ By default shows the latest update. Use --label to specify a version.`,
 		if status.StatusReason != "" {
 			pairs = append(pairs, output.KeyValue{Key: "Reason", Value: status.StatusReason})
 		}
+		pairs = append(pairs, cmdutil.DeltaStatusPairs(status)...)
 		out.Result(pairs)
 
 		return nil

@@ -222,7 +222,7 @@ The progress style is resolved in this order (no environment variable override):
 | Command | Description |
 |---------|-------------|
 | `update info <deployment>` | Show update details (`--label`/`-l` for specific version) |
-| `update status <deployment>` | Show update processing status (`--label`/`-l`) |
+| `update status <deployment>` | Show update processing and delta generation status (`--label`/`-l`) |
 | `update remove <deployment>` | Delete an update (`--label`/`-l` required, `--yes`/`-y` to confirm) |
 
 ### Setup
@@ -530,6 +530,8 @@ bitrise :codepush update status Staging --app-id <APP_UUID>
 # Delete a specific update (destructive)
 bitrise :codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
+
+`update status` also shows how far the server got with generating delta updates against earlier updates. `Delta generation` is `pending` while deltas are still being built and `completed` once they are stored (followed by one `Delta from <version>` line per earlier update, named by its version label or by its package hash when no labelled update is left, listing the stored delta kinds, `file-level diff` and `binary patch`). A completed update with no deltas means clients download the full package; that is the expected result for the first CodePush update of a binary release, because deltas are generated against earlier CodePush updates only, never against the store binary. With `--json` the same data is in `delta_generation_status` and `deltas`, keyed by package hash with the labels in `update_versions`.
 
 ## Debugging
 
