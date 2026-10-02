@@ -48,30 +48,30 @@ func FormatBytes(b int64) string {
 	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
-// DiffStatusPairs renders an update's diff generation state for out.Result:
-// the state itself, then one line per predecessor that has a diff, in hash
+// DeltaStatusPairs renders an update's delta generation state for out.Result:
+// the state itself, then one line per predecessor that has a delta, in hash
 // order. Servers that predate the field yield nothing.
-func DiffStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
-	if status.DiffGenerationStatus == "" {
+func DeltaStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
+	if status.DeltaGenerationStatus == "" {
 		return nil
 	}
 
-	state := status.DiffGenerationStatus
-	if state == codepush.DiffGenerationCompleted && len(status.Diffs) == 0 {
-		state += " (no diffs, clients download the full package)"
+	state := status.DeltaGenerationStatus
+	if state == codepush.DeltaGenerationCompleted && len(status.Deltas) == 0 {
+		state += " (no deltas, clients download the full package)"
 	}
-	pairs := []output.KeyValue{{Key: "Diff generation", Value: state}}
+	pairs := []output.KeyValue{{Key: "Delta generation", Value: state}}
 
-	for _, hash := range slices.Sorted(maps.Keys(status.Diffs)) {
+	for _, hash := range slices.Sorted(maps.Keys(status.Deltas)) {
 		pairs = append(pairs, output.KeyValue{
-			Key:   "Diff from " + Truncate(hash, 15),
-			Value: describeDiff(status.Diffs[hash]),
+			Key:   "Delta from " + Truncate(hash, 15),
+			Value: describeDelta(status.Deltas[hash]),
 		})
 	}
 	return pairs
 }
 
-func describeDiff(info codepush.DiffInfo) string {
+func describeDelta(info codepush.DeltaInfo) string {
 	kinds := make([]string, 0, 2)
 	if info.V1 {
 		kinds = append(kinds, "v1 (file-level)")

@@ -222,7 +222,7 @@ The progress style is resolved in this order (no environment variable override):
 | Command | Description |
 |---------|-------------|
 | `update info <deployment>` | Show update details (`--label`/`-l` for specific version) |
-| `update status <deployment>` | Show update processing and diff generation status (`--label`/`-l`) |
+| `update status <deployment>` | Show update processing and delta generation status (`--label`/`-l`) |
 | `update remove <deployment>` | Delete an update (`--label`/`-l` required, `--yes`/`-y` to confirm) |
 
 ### Setup
@@ -531,7 +531,7 @@ bitrise :codepush update status Staging --app-id <APP_UUID>
 bitrise :codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
 
-`update status` also shows how far the server got with generating diffs against earlier updates. `Diff generation` is `pending` while diffs are still being built, `completed` once they are stored (followed by one `Diff from <hash>` line per earlier update naming the stored diff kinds, `v1 (file-level)` and `v2 (binary)`), or `skipped` for signed updates. A completed update with no diffs means clients download the full package. With `--json` the same data is in `diff_generation_status` and `diffs`.
+`update status` also shows how far the server got with generating delta updates against earlier updates. `Delta generation` is `pending` while deltas are still being built, `completed` once they are stored (followed by one `Delta from <hash>` line per earlier update naming the stored delta kinds, `v1 (file-level)` and `v2 (binary)`), or `skipped` for signed updates. A completed update with no deltas means clients download the full package. With `--json` the same data is in `delta_generation_status` and `deltas`.
 
 ## Debugging
 

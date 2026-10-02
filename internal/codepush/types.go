@@ -90,25 +90,25 @@ type UploadFileRequest struct {
 
 // UpdateStatus is returned by the GET status endpoint.
 type UpdateStatus struct {
-	UpdateID             string              `json:"update_id"`
-	Status               string              `json:"status"`
-	StatusReason         string              `json:"status_reason"`
-	DiffGenerationStatus string              `json:"diff_generation_status"`
-	Diffs                map[string]DiffInfo `json:"diffs"`
+	UpdateID              string               `json:"update_id"`
+	Status                string               `json:"status"`
+	StatusReason          string               `json:"status_reason"`
+	DeltaGenerationStatus string               `json:"delta_generation_status"`
+	Deltas                map[string]DeltaInfo `json:"deltas"`
 }
 
-// Values of UpdateStatus.DiffGenerationStatus.
+// Values of UpdateStatus.DeltaGenerationStatus.
 const (
-	DiffGenerationPending   = "pending"
-	DiffGenerationCompleted = "completed"
-	DiffGenerationSkipped   = "skipped"
+	DeltaGenerationPending   = "pending"
+	DeltaGenerationCompleted = "completed"
+	DeltaGenerationSkipped   = "skipped"
 )
 
-// DiffInfo tells which diffs are stored for one predecessor, keyed in
-// UpdateStatus.Diffs by that predecessor's package hash.
-type DiffInfo struct {
-	V1 bool `json:"v1"` // file-level diff
-	V2 bool `json:"v2"` // binary-patch diff
+// DeltaInfo tells which delta updates are stored for one predecessor, keyed
+// in UpdateStatus.Deltas by that predecessor's package hash.
+type DeltaInfo struct {
+	V1 bool `json:"v1"` // file-level delta
+	V2 bool `json:"v2"` // binary-patch delta
 }
 
 // Deployment represents a CodePush deployment.

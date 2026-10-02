@@ -96,7 +96,7 @@ func TestOutputJSONMarshalError(t *testing.T) {
 	require.NoError(t, marshalErr)
 }
 
-func TestDiffStatusPairs(t *testing.T) {
+func TestDeltaStatusPairs(t *testing.T) {
 	tests := []struct {
 		name   string
 		status *codepush.UpdateStatus
@@ -109,34 +109,34 @@ func TestDiffStatusPairs(t *testing.T) {
 		},
 		{
 			name:   "pending is a single line",
-			status: &codepush.UpdateStatus{DiffGenerationStatus: codepush.DiffGenerationPending, Diffs: map[string]codepush.DiffInfo{}},
-			want:   []output.KeyValue{{Key: "Diff generation", Value: "pending"}},
+			status: &codepush.UpdateStatus{DeltaGenerationStatus: codepush.DeltaGenerationPending, Deltas: map[string]codepush.DeltaInfo{}},
+			want:   []output.KeyValue{{Key: "Delta generation", Value: "pending"}},
 		},
 		{
-			name:   "completed without diffs says the full package is served",
-			status: &codepush.UpdateStatus{DiffGenerationStatus: codepush.DiffGenerationCompleted, Diffs: map[string]codepush.DiffInfo{}},
-			want:   []output.KeyValue{{Key: "Diff generation", Value: "completed (no diffs, clients download the full package)"}},
+			name:   "completed without deltas says the full package is served",
+			status: &codepush.UpdateStatus{DeltaGenerationStatus: codepush.DeltaGenerationCompleted, Deltas: map[string]codepush.DeltaInfo{}},
+			want:   []output.KeyValue{{Key: "Delta generation", Value: "completed (no deltas, clients download the full package)"}},
 		},
 		{
-			name: "completed lists predecessors in hash order with their diff kinds",
+			name: "completed lists predecessors in hash order with their delta kinds",
 			status: &codepush.UpdateStatus{
-				DiffGenerationStatus: codepush.DiffGenerationCompleted,
-				Diffs: map[string]codepush.DiffInfo{
+				DeltaGenerationStatus: codepush.DeltaGenerationCompleted,
+				Deltas: map[string]codepush.DeltaInfo{
 					"b7c8d9e0f1a2b3c4d5e6":     {V1: true},
 					"a3f1c2d4e5b6978081920a1b": {V1: true, V2: true},
 				},
 			},
 			want: []output.KeyValue{
-				{Key: "Diff generation", Value: "completed"},
-				{Key: "Diff from a3f1c2d4e5b6...", Value: "v1 (file-level), v2 (binary)"},
-				{Key: "Diff from b7c8d9e0f1a2...", Value: "v1 (file-level)"},
+				{Key: "Delta generation", Value: "completed"},
+				{Key: "Delta from a3f1c2d4e5b6...", Value: "v1 (file-level), v2 (binary)"},
+				{Key: "Delta from b7c8d9e0f1a2...", Value: "v1 (file-level)"},
 			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.want, DiffStatusPairs(tc.status))
+			assert.Equal(t, tc.want, DeltaStatusPairs(tc.status))
 		})
 	}
 }

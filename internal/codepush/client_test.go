@@ -444,12 +444,12 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		assert.Equal(t, "invalid bundle format", status.StatusReason)
 	})
 
-	t.Run("decodes diff generation status and diffs", func(t *testing.T) {
+	t.Run("decodes delta generation status and deltas", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"update_id":"pkg-789","status":"processed_valid","status_reason":"",` +
-				`"diff_generation_status":"completed",` +
-				`"diffs":{"abc":{"v1":true,"v2":true},"def":{"v1":true,"v2":false}}}`))
+				`"delta_generation_status":"completed",` +
+				`"deltas":{"abc":{"v1":true,"v2":true},"def":{"v1":true,"v2":false}}}`))
 		}))
 		defer server.Close()
 
@@ -457,12 +457,12 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		status, err := client.GetUpdateStatus(context.Background(), "pkg-789")
 		require.NoError(t, err)
 
-		assert.Equal(t, DiffGenerationCompleted, status.DiffGenerationStatus)
-		require.Len(t, status.Diffs, 2)
-		assert.True(t, status.Diffs["abc"].V1)
-		assert.True(t, status.Diffs["abc"].V2)
-		assert.True(t, status.Diffs["def"].V1)
-		assert.False(t, status.Diffs["def"].V2)
+		assert.Equal(t, DeltaGenerationCompleted, status.DeltaGenerationStatus)
+		require.Len(t, status.Deltas, 2)
+		assert.True(t, status.Deltas["abc"].V1)
+		assert.True(t, status.Deltas["abc"].V2)
+		assert.True(t, status.Deltas["def"].V1)
+		assert.False(t, status.Deltas["def"].V2)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {
