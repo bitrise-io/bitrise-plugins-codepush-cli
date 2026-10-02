@@ -101,7 +101,6 @@ type UpdateStatus struct {
 const (
 	DeltaGenerationPending   = "pending"
 	DeltaGenerationCompleted = "completed"
-	DeltaGenerationSkipped   = "skipped"
 )
 
 // DeltaInfo tells which delta updates are stored for one predecessor, keyed
