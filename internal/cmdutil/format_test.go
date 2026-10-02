@@ -118,18 +118,18 @@ func TestDeltaStatusPairs(t *testing.T) {
 			want:   []output.KeyValue{{Key: "Delta generation", Value: "completed (no deltas, clients download the full package)"}},
 		},
 		{
-			name: "completed lists predecessors in hash order with their delta kinds",
+			name: "completed names predecessors by version label, falling back to the hash",
 			status: &codepush.UpdateStatus{
 				DeltaGenerationStatus: codepush.DeltaGenerationCompleted,
 				Deltas: map[string]codepush.DeltaInfo{
-					"b7c8d9e0f1a2b3c4d5e6":     {FileLevelDiff: true},
+					"b7c8d9e0f1a2b3c4d5e6":     {FileLevelDiff: true, UpdateVersions: []string{"v9", "v11"}},
 					"a3f1c2d4e5b6978081920a1b": {FileLevelDiff: true, BinaryPatch: true},
 				},
 			},
 			want: []output.KeyValue{
 				{Key: "Delta generation", Value: "completed"},
 				{Key: "Delta from a3f1c2d4e5b6...", Value: "file-level diff, binary patch"},
-				{Key: "Delta from b7c8d9e0f1a2...", Value: "file-level diff"},
+				{Key: "Delta from v9, v11", Value: "file-level diff"},
 			},
 		},
 	}

@@ -109,6 +109,9 @@ const (
 type DeltaInfo struct {
 	FileLevelDiff bool `json:"file_level_diff"`
 	BinaryPatch   bool `json:"binary_patch"`
+	// UpdateVersions are the "vN" labels of the updates carrying the
+	// predecessor's hash; empty when none is left in the deployment.
+	UpdateVersions []string `json:"update_versions"`
 }
 
 // Deployment represents a CodePush deployment.

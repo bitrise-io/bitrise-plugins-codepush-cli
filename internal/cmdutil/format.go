@@ -63,12 +63,22 @@ func DeltaStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
 	pairs := []output.KeyValue{{Key: "Delta generation", Value: state}}
 
 	for _, hash := range slices.Sorted(maps.Keys(status.Deltas)) {
+		info := status.Deltas[hash]
 		pairs = append(pairs, output.KeyValue{
-			Key:   "Delta from " + Truncate(hash, 15),
-			Value: describeDelta(status.Deltas[hash]),
+			Key:   "Delta from " + predecessorName(hash, info.UpdateVersions),
+			Value: describeDelta(info),
 		})
 	}
 	return pairs
+}
+
+// predecessorName prefers the version labels people see in the UI and in
+// device telemetry; the hash is the fallback when no labelled update is left.
+func predecessorName(hash string, versions []string) string {
+	if len(versions) == 0 {
+		return Truncate(hash, 15)
+	}
+	return strings.Join(versions, ", ")
 }
 
 func describeDelta(info codepush.DeltaInfo) string {

@@ -449,7 +449,8 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"update_id":"pkg-789","status":"processed_valid","status_reason":"",` +
 				`"delta_generation_status":"completed",` +
-				`"deltas":{"abc":{"file_level_diff":true,"binary_patch":true},"def":{"file_level_diff":true,"binary_patch":false}}}`))
+				`"deltas":{"abc":{"file_level_diff":true,"binary_patch":true,"update_versions":["v3","v5"]},` +
+				`"def":{"file_level_diff":true,"binary_patch":false,"update_versions":[]}}}`))
 		}))
 		defer server.Close()
 
@@ -461,8 +462,10 @@ func TestHTTPClientGetUpdateStatus(t *testing.T) {
 		require.Len(t, status.Deltas, 2)
 		assert.True(t, status.Deltas["abc"].FileLevelDiff)
 		assert.True(t, status.Deltas["abc"].BinaryPatch)
+		assert.Equal(t, []string{"v3", "v5"}, status.Deltas["abc"].UpdateVersions)
 		assert.True(t, status.Deltas["def"].FileLevelDiff)
 		assert.False(t, status.Deltas["def"].BinaryPatch)
+		assert.Empty(t, status.Deltas["def"].UpdateVersions)
 	})
 
 	t.Run("handles HTTP error", func(t *testing.T) {
