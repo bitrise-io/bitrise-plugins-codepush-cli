@@ -73,11 +73,11 @@ func DeltaStatusPairs(status *codepush.UpdateStatus) []output.KeyValue {
 
 func describeDelta(info codepush.DeltaInfo) string {
 	kinds := make([]string, 0, 2)
-	if info.V1 {
-		kinds = append(kinds, "v1 (file-level)")
+	if info.FileLevelDiff {
+		kinds = append(kinds, "file-level diff")
 	}
-	if info.V2 {
-		kinds = append(kinds, "v2 (binary)")
+	if info.BinaryPatch {
+		kinds = append(kinds, "binary patch")
 	}
 	if len(kinds) == 0 {
 		return "none"

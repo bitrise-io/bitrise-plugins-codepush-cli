@@ -122,14 +122,14 @@ func TestDeltaStatusPairs(t *testing.T) {
 			status: &codepush.UpdateStatus{
 				DeltaGenerationStatus: codepush.DeltaGenerationCompleted,
 				Deltas: map[string]codepush.DeltaInfo{
-					"b7c8d9e0f1a2b3c4d5e6":     {V1: true},
-					"a3f1c2d4e5b6978081920a1b": {V1: true, V2: true},
+					"b7c8d9e0f1a2b3c4d5e6":     {FileLevelDiff: true},
+					"a3f1c2d4e5b6978081920a1b": {FileLevelDiff: true, BinaryPatch: true},
 				},
 			},
 			want: []output.KeyValue{
 				{Key: "Delta generation", Value: "completed"},
-				{Key: "Delta from a3f1c2d4e5b6...", Value: "v1 (file-level), v2 (binary)"},
-				{Key: "Delta from b7c8d9e0f1a2...", Value: "v1 (file-level)"},
+				{Key: "Delta from a3f1c2d4e5b6...", Value: "file-level diff, binary patch"},
+				{Key: "Delta from b7c8d9e0f1a2...", Value: "file-level diff"},
 			},
 		},
 	}

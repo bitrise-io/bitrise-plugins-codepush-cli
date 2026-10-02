@@ -107,8 +107,8 @@ const (
 // DeltaInfo tells which delta updates are stored for one predecessor, keyed
 // in UpdateStatus.Deltas by that predecessor's package hash.
 type DeltaInfo struct {
-	V1 bool `json:"v1"` // file-level delta
-	V2 bool `json:"v2"` // binary-patch delta
+	FileLevelDiff bool `json:"file_level_diff"`
+	BinaryPatch   bool `json:"binary_patch"`
 }
 
 // Deployment represents a CodePush deployment.

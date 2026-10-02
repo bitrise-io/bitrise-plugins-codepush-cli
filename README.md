@@ -531,7 +531,7 @@ bitrise :codepush update status Staging --app-id <APP_UUID>
 bitrise :codepush update remove Staging --label v3 --app-id <APP_UUID> --yes
 ```
 
-`update status` also shows how far the server got with generating delta updates against earlier updates. `Delta generation` is `pending` while deltas are still being built, `completed` once they are stored (followed by one `Delta from <hash>` line per earlier update naming the stored delta kinds, `v1 (file-level)` and `v2 (binary)`), or `skipped` for signed updates. A completed update with no deltas means clients download the full package. With `--json` the same data is in `delta_generation_status` and `deltas`.
+`update status` also shows how far the server got with generating delta updates against earlier updates. `Delta generation` is `pending` while deltas are still being built, `completed` once they are stored (followed by one `Delta from <hash>` line per earlier update naming the stored delta kinds, `file-level diff` and `binary patch`), or `skipped` for signed updates. A completed update with no deltas means clients download the full package. With `--json` the same data is in `delta_generation_status` and `deltas`.
 
 ## Debugging
 
